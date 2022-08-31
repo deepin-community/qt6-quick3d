@@ -1,0 +1,2 @@
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/plugins/assetimporters/libassimp.so
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/plugins/assetimporters/libuip.so

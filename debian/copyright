@@ -1,0 +1,393 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: qtquick3d-everywhere-src
+Source: https://download.qt.io/archive/qt/*/submodules/
+
+Files: *
+Copyright: 2019-2021 The Qt Company Ltd.
+           2008-2014 NVIDIA Corporation
+License: GPL-3+
+
+Files: debian/*
+Copyright: 2021 Patrick Franz <deltaone@debian.org>,
+           2021 Lu YaNing <dluyaning@gmail.com>
+License: GPL-3+
+
+Files: .clang-format
+Copyright: 2016 Olivier Goffart <ogoffart@woboq.com>
+License: BSD-3-clause
+
+Files: conanfile.py
+Copyright: 2021 The Qt Company Ltd.
+License: GPL-3 with Qt-1.0 exception
+
+Files: src/3rdparty/assimp/*
+Copyright: 2006-2020 assimp team / ASSIMP Development Team
+License: BSD-3-clause
+
+Files: src/3rdparty/assimp/src/cmake/HunterGate.cmake
+Copyright: 2013-2019 Ruslan Baratov
+License: BSD-2-clause
+
+Files: src/3rdparty/assimp/src/cmake-modules/Coveralls*
+Copyright: 2014 Joakim Söderberg <joakim.soderberg@gmail.com>
+License: Expat
+
+Files: src/3rdparty/assimp/src/code/AssetLib/M3D/m3d.h
+Copyright: 2019 bzt (bztsrc@gitlab)
+License: Expat
+
+Files: src/3rdparty/assimp/src/code/Pbrt/stb_image.h
+       src/3rdparty/assimp/src/contrib/stb_image/stb_image.h
+Copyright: NONE
+License: Unlicense
+
+Files: src/3rdparty/assimp/src/contrib/clipper/*
+Copyright: 2010-2012 Angus Johnson
+License: Boost-1.0
+
+Files: src/3rdparty/assimp/src/contrib/draco/*
+Copyright: 2016-2020, The Draco Authors.
+License: Apache-2.0
+
+Files: src/3rdparty/assimp/src/contrib/gtest/*
+Copyright: 2003-2015, Google Inc.
+License: BSD-3-clause
+
+Files: src/3rdparty/assimp/src/contrib/draco/src/draco/tools/fuzz/*
+       src/3rdparty/assimp/src/contrib/gtest/scripts/upload.py
+Copyright: 2007, 2020, Google Inc.
+License: Apache-2.0
+
+Files: src/3rdparty/assimp/src/contrib/Open3DGC/*
+Copyright: 2013 Khaled Mammou - Advanced Micro Devices, Inc.
+License: Expat
+
+Files: src/3rdparty/assimp/src/contrib/Open3DGC/o3dgcArithmeticCodec.cpp
+       src/3rdparty/assimp/src/contrib/Open3DGC/o3dgcArithmeticCodec.h
+Copyright: 2004 Amir Said (said@ieee.org) & William A. Pearlman (pearlw@ecse.rpi.edu)
+License: BSD-2-clause
+
+Files: src/3rdparty/assimp/src/contrib/openddlparser/*
+Copyright: 2014-2020 Kim Kulling
+License: Expat
+
+Files: src/3rdparty/assimp/src/contrib/pugixml/*
+Copyright: 2006-2020 Arseny Kapoulkine (arseny.kapoulkine@gmail.com)
+License: Expat
+
+Files: src/3rdparty/assimp/src/contrib/rapidjson/*
+Copyright: 2002 JSON.org
+           2006-2013 Alexander Chemeris
+           2015 THL A29 Limited, a Tencent company, and Milo Yip.
+License: BSD-3-clause and Expat
+
+Files: src/3rdparty/assimp/src/contrib/utf8cpp/*
+Copyright: 2006 Nemanja Trifunovic
+License: Boost-1.0
+
+Files: src/3rdparty/assimp/src/contrib/zip/*
+Copyright: Rich Geldreich (miniz author)
+           Kuba Podgórski
+License: Unlicense
+
+Files: src/3rdparty/assimp/src/contrib/zlib/*
+Copyright: 1995-2017 Jean-loup Gailly and Mark Adler
+License: Zlib
+
+Files: src/3rdparty/assimp/src/contrib/zlib/contrib/ada/*
+Copyright: 2002-2004 Dmitriy Anisimkov
+License: GPL-3
+
+Files: src/3rdparty/assimp/src/contrib/zlib/contrib/dotzlib/*
+Copyright: Henrik Ravn 2004
+License: Boost-1.0
+
+Files: src/3rdparty/assimp/src/contrib/zlib/contrib/iostream2/*
+Copyright: 1997 Christian Michelsen Research AS
+License: NTP
+
+Files: src/3rdparty/assimp/src/contrib/zip/cmake/asan-wrapper
+Copyright: 2013 Matthew Arsenault
+           2015-2016 RWTH Aachen University, Federal Republic of Germany
+License: Expat
+
+Files: src/3rdparty/assimp/unzip/unzip.h
+Copyright: 1998-2005 Gilles Vollant
+License: Zlib
+
+Files: src/3rdparty/xatlas/*
+Copyright: 2018-2020 Jonathan Young
+License: Expat
+
+Files: config.tests/quick3d_assimp/main.cpp
+Copyright: 2014 Klaralvdalens Datakonsult AB (KDAB).
+License: GPL-3 with Qt-1.0 exception
+
+Files: examples/*
+       tests/auto/quick3d_lancelot/data/*.qml
+       tests/auto/quick3d_lancelot/scenegrabber/skingeometry.*
+       tests/auto/tools/shadergen/qml/*.qml
+       tests/manual/3d_input/*
+       tests/manual/blendmodes/*
+       tests/manual/dynamic3DTest/*
+       tests/manual/dynamicenvmap/*
+       tests/manual/instancing/*
+       tests/manual/lightmap_concept/*
+       tests/manual/loader/*
+       tests/manual/modelblendparticles/*
+       tests/manual/modelparticles/*
+       tests/manual/offscreenrendermode/*
+       tests/manual/principledmaterial/*
+       tests/manual/projectionmodes/*
+       tests/manual/repeater3d/*
+       tests/manual/ssao/*
+       tests/manual/stereoscopic/SceneNode.qml
+       tests/manual/unlit_lit_test/*
+       tests/manual/vertexAttributes/*
+       tests/manual/view3DDeleteTest/*
+Copyright: 2019-2021 The Qt Company Ltd.
+License: BSD-3-clause
+
+Files: tests/auto/quick3d_lancelot/quick3d/tst_quick3d.cpp
+       tests/auto/quick3d_lancelot/scenegrabber/dynamicgeometry.*
+       tests/auto/quick3d_lancelot/scenegrabber/dynamictexturedata.*
+       tests/auto/quick3d_lancelot/scenegrabber/indextrianglestopology.*
+       tests/auto/quick3d_lancelot/scenegrabber/main.cpp
+       tests/auto/quick3d_lancelot/scenegrabber/nonindextrianglestopology.*
+       tests/auto/quick3d_lancelot/scenegrabber/pointstopology.*
+       tests/auto/quick3d_lancelot/hostinfo.sh
+       tests/auto/quick3d_lancelot/shared/baselineprotocol.*
+       tests/auto/quick3d_lancelot/shared/lookup3.cpp
+       tests/auto/quick3d_lancelot/shared/qbaselinetest.*
+       tests/auto/quick3d_visual/input/data/DragAnywhereSlider.qml
+       tests/auto/quick3d_visual/input/tst_input.cpp
+       tests/auto/quick3d_visual/multiwindow/tst_multiwindow.cpp
+       tests/auto/quick3d_visual/picking/tst_picking.cpp
+       tests/auto/quick3d_visual/rendercontrol/tst_rendercontrol.cpp
+       tests/auto/quick3d_visual/shared/util.*
+       tests/auto/quick3d_visual/simplescene/tst_simplescene.cpp
+       tests/auto/quick3d_visual/smoketest/tst_smoketest.cpp
+       tests/manual/loader2/*
+Copyright: 2016-2021 The Qt Company Ltd.
+License: GPL-3 with Qt-1.0 exception
+
+Files: *.qdoc
+Copyright: 2019-2021 The Qt Company Ltd.
+License: GFDL-NIV-1.3
+
+License: GPL-3+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License version 3 or (at
+ your option) any later version approved by the KDE Free Qt Foundation.
+ The licenses are as published by the Free Software Foundation.
+ .
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ General Public License for more details.
+ .
+ On Debian systems, the complete text of the GNU General Public
+ License version 3 can be found in /usr/share/common-licenses/GPL-3.
+
+License: GPL-3 with Qt-1.0 exception
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License version 3 as
+ published by the Free Software Foundation.
+ .
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ .
+ On Debian systems, the complete text of the GNU General Public License
+ version 3 can be found in /usr/share/common-licenses/GPL-3.
+ .
+ The Qt Company GPL Exception 1.0
+ .
+ Exception 1:
+ .
+ As a special exception you may create a larger work which contains the
+ output of this application and distribute that work under terms of your
+ choice, so long as the work is not otherwise derived from or based on
+ this application and so long as the work does not in itself generate
+ output that contains the output from this application in its original
+ or modified form.
+ .
+ Exception 2:
+ .
+ As a special exception, you have permission to combine this application
+ with Plugins licensed under the terms of your choice, to produce an
+ executable, and to copy and distribute the resulting executable under
+ the terms of your choice. However, the executable must be accompanied
+ by a prominent notice offering all users of the executable the entire
+ source code to this application, excluding the source code of the
+ independent modules, but including any changes you have made to this
+ application, under the terms of this license.
+
+License: GFDL-NIV-1.3
+ Permission is granted to copy, distribute and/or modify this document
+ under the terms of the GNU Free Documentation License, Version 1.3
+ or any later version published by the Free Software Foundation;
+ with no Invariant Sections, no Front-Cover Texts, and no Back-Cover Texts.
+ .
+ On Debian systems, the complete text of the GNU Free Documentation License,
+ version 1.3 can be found in /usr/share/common-licenses/GFDL-1.3.
+
+License: BSD-3-clause
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+ .
+   * Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+   * Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in
+     the documentation and/or other materials provided with the
+     distribution.
+   * Neither the name of The Qt Company Ltd and its Subsidiary(-ies) nor the
+     names of its contributors may be used to endorse or promote products
+     derived from this software without specific prior written permission.
+ .
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+License: Expat
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+ in the Software without restriction, including without limitation the rights
+ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the Software is
+ furnished to do so, subject to the following conditions:
+ .
+ The above copyright notice and this permission notice shall be included in
+ all copies or substantial portions of the Software.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ THE SOFTWARE.
+
+License: Zlib
+ This software is provided 'as-is', without any express or implied
+ warranty.  In no event will the authors be held liable for any damages
+ arising from the use of this software.
+ .
+ Permission is granted to anyone to use this software for any purpose,
+ including commercial applications, and to alter it and redistribute it
+ freely, subject to the following restrictions:
+ .
+ 1. The origin of this software must not be misrepresented; you must not
+    claim that you wrote the original software. If you use this software
+    in a product, an acknowledgment in the product documentation would be
+    appreciated but is not required.
+ .
+ 2. Altered source versions must be plainly marked as such, and must not be
+    misrepresented as being the original software.
+ .
+ 3. This notice may not be removed or altered from any source distribution.
+
+License: Unlicense
+ This is free and unencumbered software released into the public domain.
+ Anyone is free to copy, modify, publish, use, compile, sell, or distribute this
+ software, either in source code form or as a compiled binary, for any purpose,
+ commercial or non-commercial, and by any means.
+ .
+ In jurisdictions that recognize copyright laws, the author or authors of this
+ software dedicate any and all copyright interest in the software to the public
+ domain. We make this dedication for the benefit of the public at large and to
+ the detriment of our heirs and successors. We intend this dedication to be an
+ overt act of relinquishment in perpetuity of all present and future rights to
+ this software under copyright law.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+License: Boost-1.0
+ Boost Software License - Version 1.0 - August 17th, 2003
+ http://www.boost.org/LICENSE_1_0.txt
+ .
+ Permission is hereby granted, free of charge, to any person or organization
+ obtaining a copy of the software and accompanying documentation covered by
+ this license (the "Software") to use, reproduce, display, distribute,
+ execute, and transmit the Software, and to prepare derivative works of the
+ Software, and to permit third-parties to whom the Software is furnished to
+ do so, all subject to the following:
+ .
+ The copyright notices in the Software and this entire statement, including
+ the above license grant, this restriction and the following disclaimer,
+ must be included in all copies of the Software, in whole or in part, and
+ all derivative works of the Software, unless such copies or derivative
+ works are solely in the form of machine-executable object code generated by
+ a source language processor.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT
+ SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
+ FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
+ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ DEALINGS IN THE SOFTWARE.
+
+License: BSD-2-clause
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions
+ are met:
+ 1. Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+ 2. Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
+
+License: NTP
+ Permission to use, copy, modify, distribute and sell this software
+ and its documentation for any purpose is hereby granted without fee,
+ provided that the above copyright notice appear in all copies and
+ that both that copyright notice and this permission notice appear
+ in supporting documentation. Christian Michelsen Research AS makes no
+ representations about the suitability of this software for any
+ purpose. It is provided "as is" without express or implied warranty.
+
+License: Apache-2.0
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+ .
+     http://www.apache.org/licenses/LICENSE-2.0
+ .
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ .
+ On Debian systems, the complete text of the Apache License 2.0 can
+ be found in "/usr/share/common-licenses/Apache-2.0"
+
+License: GPL-3
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License version 3 as
+ published by the Free Software Foundation.
+ .
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ .
+ On Debian systems, the complete text of the GNU General Public License
+ version 3 can be found in /usr/share/common-licenses/GPL-3.

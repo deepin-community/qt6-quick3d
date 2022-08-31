@@ -1,0 +1,14 @@
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/AssetUtils/designer/IdComboBox.qml
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/AssetUtils/designer/NodeSection.qml
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/AssetUtils/designer/RuntimeLoaderSection.qml
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/AssetUtils/designer/RuntimeLoaderSpecifics.qml
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/AssetUtils/designer/assetutils.metainfo
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/AssetUtils/designer/images/dummy.png
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/AssetUtils/designer/images/dummy16.png
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/AssetUtils/designer/images/dummy@2x.png
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/AssetUtils/designer/images/runtimeloader.png
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/AssetUtils/designer/images/runtimeloader16.png
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/AssetUtils/designer/images/runtimeloader@2x.png
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/AssetUtils/libqtquick3dassetutilsplugin.so
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/AssetUtils/plugins.qmltypes
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/AssetUtils/qmldir

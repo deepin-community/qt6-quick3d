@@ -1,0 +1,4 @@
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/Particles3D/designer
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/Particles3D/libqtquick3dparticles3dplugin.so
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/Particles3D/plugins.qmltypes
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/Particles3D/qmldir

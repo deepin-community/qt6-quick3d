@@ -1,0 +1,40 @@
+From 7a4403da52960fd56dff7ea9c53d2c069e85fca8 Mon Sep 17 00:00:00 2001
+From: Pino Toscano <toscano.pino@tiscali.it>
+Date: Thu, 17 Feb 2022 23:08:30 +0100
+Subject: [PATCH] Rename 'mips' parameter to 'wantsMips'
+
+On MIPS architectures, 'mips' (together with '__mips__') is defined by
+GCC [1]. Even if 'mips' is generic enough, sadly cannot be changed at
+this point, so rename the parameter of rhiPrepareScreenTexture() to
+'wantsMips', matching the variables used to call the function.
+
+[1] https://sourceforge.net/p/predef/wiki/Architectures/
+
+Change-Id: I6d8315d08d0eab797bc1d91b66f3ccff54545d7b
+Reviewed-by: Andy Nichols <andy.nichols@qt.io>
+---
+ .../rendererimpl/qssgrendererimpllayerrenderdata_rhi.cpp      | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtimerender/rendererimpl/qssgrendererimpllayerrenderdata_rhi.cpp b/src/runtimerender/rendererimpl/qssgrendererimpllayerrenderdata_rhi.cpp
+index 75c05546..ab7c2cff 100644
+--- a/src/runtimerender/rendererimpl/qssgrendererimpllayerrenderdata_rhi.cpp
++++ b/src/runtimerender/rendererimpl/qssgrendererimpllayerrenderdata_rhi.cpp
+@@ -1890,12 +1890,12 @@ static void rhiRenderAoTexture(QSSGRhiContext *rhiCtx,
+     inData.renderer->rhiQuadRenderer()->recordRenderQuadPass(rhiCtx, &ps, srb, inData.m_rhiAoTexture.rt, {});
+ }
+ 
+-static bool rhiPrepareScreenTexture(QSSGRhiContext *rhiCtx, const QSize &size, bool mips, QSSGRhiRenderableTexture *renderableTex)
++static bool rhiPrepareScreenTexture(QSSGRhiContext *rhiCtx, const QSize &size, bool wantsMips, QSSGRhiRenderableTexture *renderableTex)
+ {
+     QRhi *rhi = rhiCtx->rhi();
+     bool needsBuild = false;
+     QRhiTexture::Flags flags = QRhiTexture::RenderTarget;
+-    if (mips)
++    if (wantsMips)
+         flags |= QRhiTexture::MipMapped | QRhiTexture::UsedWithGenerateMips;
+ 
+     if (!renderableTex->texture) {
+-- 
+2.34.1
+

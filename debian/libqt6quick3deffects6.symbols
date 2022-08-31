@@ -1,0 +1,4 @@
+# SymbolsHelper-Confirmed: 6.2.2 amd64
+libQt6Quick3DEffects.so.6 libqt6quick3deffects6 #MINVER#
+* Build-Depends-Package: qt6-quick3d-dev
+ _Z36qml_register_types_QtQuick3D_Effectsv@Base 6.2.2
