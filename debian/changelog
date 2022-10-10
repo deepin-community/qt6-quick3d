@@ -1,3 +1,9 @@
+qt6-quick3d (6.2.4.1-1+dde) stable; urgency=medium
+
+  * Adapt to V23.
+
+ -- Lu YaNing <luyaning@uniontech.com>  Mon, 10 Oct 2022 10:34:06 +0800
+
 qt6-quick3d (6.2.4-1+dde) stable; urgency=medium
 
   * ['Rebuild  against by  current gcc 11.2']
