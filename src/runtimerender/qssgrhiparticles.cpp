@@ -1,34 +1,10 @@
-/****************************************************************************
-**
-** Copyright (C) 2021 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2021 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qssgrhiparticles_p.h"
 #include "qssgrhicontext_p.h"
+
+#include <qfloat16.h>
 
 #include <QtQuick3DUtils/private/qssgutils_p.h>
 
@@ -39,6 +15,23 @@ QT_BEGIN_NAMESPACE
 
 static const QRhiShaderResourceBinding::StageFlags VISIBILITY_ALL =
         QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage;
+
+struct ParticleLightData
+{
+    QVector4D pointLightPos[4];
+    float pointLightConstantAtt[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+    float pointLightLinearAtt[4] = {0.0f};
+    float pointLightQuadAtt[4] = {0.0f};
+    QVector4D pointLightColor[4];
+    QVector4D spotLightPos[4];
+    float spotLightConstantAtt[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+    float spotLightLinearAtt[4] = {0.0f};
+    float spotLightQuadAtt[4] = {0.0f};
+    QVector4D spotLightColor[4];
+    QVector4D spotLightDir[4];
+    float spotLightConeAngle[4] = {0.0f};
+    float spotLightInnerConeAngle[4] = {0.0f};
+};
 
 void QSSGParticleRenderer::updateUniformsForParticles(QSSGRef<QSSGRhiShaderPipeline> &shaders,
                                                       QSSGRhiContext *rhiCtx,
@@ -66,9 +59,8 @@ void QSSGParticleRenderer::updateUniformsForParticles(QSSGRef<QSSGRhiShaderPipel
     shaders->setUniform(ubufData, "qt_oneOverParticleImageSize", &oneOverSize, 2 * sizeof(float));
     shaders->setUniform(ubufData, "qt_countPerSlice", &particlesPerSlice, 1 * sizeof(quint32));
 
-    // Opacity already has diffuse color alpha applied
-    const QVector4D color = QVector4D(renderable.particles.m_diffuseColor.toVector3D(), renderable.opacity);
-    shaders->setUniform(ubufData, "qt_material_base_color", &color, 4 * sizeof(float), &cui.material_baseColorIdx);
+    // Global opacity of the particles node
+    shaders->setUniform(ubufData, "qt_opacity", &renderable.opacity, 1 * sizeof(float));
 
     float blendImages = renderable.particles.m_blendImages ? 1.0f : 0.0f;
     float imageCount = float(renderable.particles.m_spriteImageCount);
@@ -79,6 +71,78 @@ void QSSGParticleRenderer::updateUniformsForParticles(QSSGRef<QSSGRhiShaderPipel
 
     const float billboard = renderable.particles.m_billboard ? 1.0f : 0.0f;
     shaders->setUniform(ubufData, "qt_billboard", &billboard, 1 * sizeof(float));
+
+    // Lights
+    QVector3D theLightAmbientTotal;
+    bool hasLights = !renderable.particles.m_lights.isEmpty();
+    int pointLight = 0;
+    int spotLight = 0;
+    if (hasLights) {
+        ParticleLightData lightData;
+        auto &lights = renderable.lights;
+        for (quint32 lightIdx = 0, lightEnd = lights.size();
+             lightIdx < lightEnd && lightIdx < QSSG_MAX_NUM_LIGHTS; ++lightIdx) {
+            QSSGRenderLight *theLight(lights[lightIdx].light);
+            // Ignore lights which are not specified for the particle
+            if (!renderable.particles.m_lights.contains(theLight))
+                continue;
+            const bool lightEnabled = lights[lightIdx].enabled;
+            if (lightEnabled) {
+                if (theLight->m_brightness > 0.0f) {
+                    if (theLight->type == QSSGRenderLight::Type::DirectionalLight) {
+                        theLightAmbientTotal += theLight->m_diffuseColor * theLight->m_brightness;
+                    } else if (theLight->type == QSSGRenderLight::Type::PointLight && pointLight < 4) {
+                        lightData.pointLightColor[pointLight] = QVector4D(theLight->m_diffuseColor * theLight->m_brightness, 1.0f);
+                        lightData.pointLightPos[pointLight] = QVector4D(theLight->getGlobalPos(), 1.0f);
+                        lightData.pointLightConstantAtt[pointLight] = aux::translateConstantAttenuation(theLight->m_constantFade);
+                        lightData.pointLightLinearAtt[pointLight] = aux::translateLinearAttenuation(theLight->m_linearFade);
+                        lightData.pointLightQuadAtt[pointLight] = aux::translateQuadraticAttenuation(theLight->m_quadraticFade);
+                        pointLight++;
+                    } else if (theLight->type == QSSGRenderLight::Type::SpotLight && spotLight < 4) {
+                        lightData.spotLightColor[spotLight] = QVector4D(theLight->m_diffuseColor * theLight->m_brightness, 1.0f);
+                        lightData.spotLightPos[spotLight] = QVector4D(theLight->getGlobalPos(), 1.0f);
+                        lightData.spotLightDir[spotLight] = QVector4D(lights[lightIdx].direction, 0.0f);
+                        lightData.spotLightConstantAtt[spotLight] = aux::translateConstantAttenuation(theLight->m_constantFade);
+                        lightData.spotLightLinearAtt[spotLight] = aux::translateLinearAttenuation(theLight->m_linearFade);
+                        lightData.spotLightQuadAtt[spotLight] = aux::translateQuadraticAttenuation(theLight->m_quadraticFade);
+                        float coneAngle = theLight->m_coneAngle;
+                        // Inner cone angle must always be < cone angle, to not have possible undefined behavior for shader smoothstep
+                        float innerConeAngle = std::min(theLight->m_innerConeAngle, coneAngle - 0.01f);
+                        lightData.spotLightConeAngle[spotLight] = qDegreesToRadians(coneAngle);
+                        lightData.spotLightInnerConeAngle[spotLight] = qDegreesToRadians(innerConeAngle);
+                        spotLight++;
+                    }
+                }
+                theLightAmbientTotal += theLight->m_ambientColor;
+            }
+        }
+        // Copy light data
+        int lightOffset = shaders->offsetOfUniform("qt_pointLightPosition");
+        if (lightOffset >= 0)
+            memcpy(ubufData + lightOffset, &lightData, sizeof(ParticleLightData));
+    }
+    shaders->setUniform(ubufData, "qt_light_ambient_total", &theLightAmbientTotal, 3 * sizeof(float), &cui.light_ambient_totalIdx);
+    int enablePointLights = pointLight > 0 ? 1 : 0;
+    int enableSpotLights = spotLight > 0 ? 1 : 0;
+    shaders->setUniform(ubufData, "qt_pointLights", &enablePointLights, sizeof(int));
+    shaders->setUniform(ubufData, "qt_spotLights", &enableSpotLights, sizeof(int));
+
+    // Line particle uniform
+    int segmentCount = particleBuffer.segments();
+    if (segmentCount) {
+        shaders->setUniform(ubufData, "qt_lineSegmentCount", &segmentCount, sizeof(int));
+        float alphaFade = renderable.particles.m_alphaFade;
+        float sizeModifier = renderable.particles.m_sizeModifier;
+        float texcoordScale = renderable.particles.m_texcoordScale;
+        auto image = renderable.firstImage;
+        if (image && image->m_texture.m_texture) {
+            const auto size = image->m_texture.m_texture->pixelSize();
+            texcoordScale *= float(size.height()) / float(size.width());
+        }
+        shaders->setUniform(ubufData, "qt_alphaFade", &alphaFade, sizeof(float));
+        shaders->setUniform(ubufData, "qt_sizeModifier", &sizeModifier, sizeof(float));
+        shaders->setUniform(ubufData, "qt_texcoordScale", &texcoordScale, sizeof(float));
+    }
 }
 
 void QSSGParticleRenderer::updateUniformsForParticleModel(QSSGRef<QSSGRhiShaderPipeline> &shaderPipeline,
@@ -127,11 +191,22 @@ static void sortParticles(QByteArray &result, QList<QSSGRhiSortData> &sortData,
                           const QVector3D &cameraDirection, bool animatedParticles)
 {
     const QMatrix4x4 &invModelMatrix = particles.globalTransform.inverted();
-    QVector3D dir = invModelMatrix * cameraDirection;
+    QVector3D dir = invModelMatrix.map(cameraDirection);
     QVector3D n = dir.normalized();
-    const auto particleCount = buffer.particleCount();
+    const auto segments = buffer.segments();
+    auto particleCount = buffer.particleCount();
+    const bool lineParticles = segments > 0;
+    if (lineParticles)
+        particleCount /= segments;
     sortData.resize(particleCount);
     sortData.fill({});
+
+    const auto srcParticlePointer = [](int line, int segment, int sc, int ss, int pps, const char *source) -> const QSSGLineParticle * {
+        int pi = (line * sc + segment) / pps;
+        int i = (line * sc + segment) % pps;
+        const QSSGLineParticle *sp = reinterpret_cast<const QSSGLineParticle *>(source + pi * ss);
+        return sp + i;
+    };
 
     // create sort data
     {
@@ -143,7 +218,19 @@ static void sortParticles(QByteArray &result, QList<QSSGRhiSortData> &sortData,
         const char *source = buffer.pointer();
         const char *begin = source;
         int i = 0;
-        if (animatedParticles) {
+        if (lineParticles) {
+            for (i = 0; i < particleCount; i++) {
+                QSSGRhiSortData lineData;
+                const QSSGLineParticle *lineBegin = srcParticlePointer(i, 0, segments, ss, pps, source);
+                lineData.indexOrOffset = i;
+                lineData.d = QVector3D::dotProduct(lineBegin->position, n);
+                for (int j = 1; j < buffer.segments(); j++) {
+                    const QSSGLineParticle *p = srcParticlePointer(i, j, segments, ss, pps, source);
+                    lineData.d = qMin(lineData.d, QVector3D::dotProduct(p->position, n));
+                }
+                *dst++ = lineData;
+            }
+        } else if (animatedParticles) {
             for (int s = 0; s < slices; s++) {
                 const QSSGParticleAnimated *sp = reinterpret_cast<const QSSGParticleAnimated *>(source);
                 for (int p = 0; p < pps && i < particleCount; p++) {
@@ -182,7 +269,23 @@ static void sortParticles(QByteArray &result, QList<QSSGRhiSortData> &sortData,
         char *dest = dst.data();
         const char *source = buffer.pointer();
         int i = 0;
-        if (animatedParticles) {
+        if (lineParticles) {
+            int seg = 0;
+            for (int s = 0; s < slices; s++) {
+                QSSGLineParticle *dp = reinterpret_cast<QSSGLineParticle *>(dest);
+                for (int p = 0; p < pps && i < particleCount; p++) {
+                    *dp = *srcParticlePointer(sdata->indexOrOffset, seg, segments, ss, pps, source);
+                    dp++;
+                    seg++;
+                    if (seg == segments) {
+                        sdata++;
+                        i++;
+                        seg = 0;
+                    }
+                }
+                dest += ss;
+            }
+        } else if (animatedParticles) {
             for (int s = 0; s < slices; s++) {
                 QSSGParticleAnimated *dp = reinterpret_cast<QSSGParticleAnimated *>(dest);
                 for (int p = 0; p < pps && i < particleCount; p++) {
@@ -211,23 +314,43 @@ static void sortParticles(QByteArray &result, QList<QSSGRhiSortData> &sortData,
     copyParticles(result, sortData, buffer);
 }
 
+static QByteArray convertParticleData(QByteArray &dest, const QByteArray &data, bool convert)
+{
+    if (!convert)
+        return data;
+    int count = data.size() / 4;
+    if (dest.size() != count * 2)
+        dest.resize(2 * count);
+    qFloatToFloat16(reinterpret_cast<qfloat16 *>(dest.data()), reinterpret_cast<const float *>(data.constData()), count);
+    return dest;
+}
+
 void QSSGParticleRenderer::rhiPrepareRenderable(QSSGRef<QSSGRhiShaderPipeline> &shaderPipeline,
                                                 QSSGRhiContext *rhiCtx,
                                                 QSSGRhiGraphicsPipelineState *ps,
                                                 QSSGParticlesRenderable &renderable,
                                                 QSSGLayerRenderData &inData,
                                                 QRhiRenderPassDescriptor *renderPassDescriptor,
-                                                int samples)
+                                                int samples,
+                                                QSSGRenderCamera *camera,
+                                                int cubeFace,
+                                                QSSGReflectionMapEntry *entry)
 {
     const void *layerNode = &inData.layer;
     const void *node = &renderable.particles;
+    const bool needsConversion = !rhiCtx->rhi()->isTextureFormatSupported(QRhiTexture::RGBA32F);
 
-    QSSGRhiDrawCallData &dcd(rhiCtx->drawCallData({ layerNode, node,
-                                                    nullptr, 0, QSSGRhiDrawCallDataKey::Main }));
+    QSSGRhiDrawCallData &dcd(cubeFace < 0 ? rhiCtx->drawCallData({ layerNode, node,
+                                                    nullptr, 0, QSSGRhiDrawCallDataKey::Main })
+                                          : rhiCtx->drawCallData({ layerNode, node,
+                                                                   entry, cubeFace, QSSGRhiDrawCallDataKey::Reflection }));
     shaderPipeline->ensureUniformBuffer(&dcd.ubuf);
 
     char *ubufData = dcd.ubuf->beginFullDynamicBufferUpdateForCurrentFrame();
-    updateUniformsForParticles(shaderPipeline, rhiCtx, ubufData, renderable, *inData.camera);
+    if (!camera)
+        updateUniformsForParticles(shaderPipeline, rhiCtx, ubufData, renderable, *inData.camera);
+    else
+        updateUniformsForParticles(shaderPipeline, rhiCtx, ubufData, renderable, *camera);
     dcd.ubuf->endFullDynamicBufferUpdateForCurrentFrame();
 
     QSSGRhiParticleData &particleData = rhiCtx->particleData(&renderable.particles);
@@ -236,7 +359,7 @@ void QSSGParticleRenderer::rhiPrepareRenderable(QSSGRef<QSSGRhiShaderPipeline> &
     if (particleData.texture == nullptr || particleData.particleCount != particleCount) {
         QSize size(particleBuffer.size());
         if (!particleData.texture) {
-            particleData.texture = rhiCtx->rhi()->newTexture(QRhiTexture::RGBA32F, size);
+            particleData.texture = rhiCtx->rhi()->newTexture(needsConversion ? QRhiTexture::RGBA16F : QRhiTexture::RGBA32F, size);
             particleData.texture->create();
         } else {
             particleData.texture->setPixelSize(size);
@@ -256,10 +379,13 @@ void QSSGParticleRenderer::rhiPrepareRenderable(QSSGRef<QSSGRhiShaderPipeline> &
 
     if (renderable.particles.m_depthSorting) {
         bool animatedParticles = renderable.particles.m_featureLevel == QSSGRenderParticles::FeatureLevel::Animated;
-        sortParticles(particleData.sortedData, particleData.sortData, particleBuffer, renderable.particles, *inData.cameraDirection, animatedParticles);
-        uploadData = particleData.sortedData;
+        if (!camera)
+            sortParticles(particleData.sortedData, particleData.sortData, particleBuffer, renderable.particles, *inData.cameraDirection, animatedParticles);
+        else
+            sortParticles(particleData.sortedData, particleData.sortData, particleBuffer, renderable.particles, camera->getScalingCorrectDirection(), animatedParticles);
+        uploadData = convertParticleData(particleData.convertData, particleData.sortedData, needsConversion);
     } else {
-        uploadData = particleBuffer.data();
+        uploadData = convertParticleData(particleData.convertData, particleBuffer.data(), needsConversion);
     }
 
     QRhiResourceUpdateBatch *rub = rhiCtx->rhi()->nextResourceUpdateBatch();
@@ -296,7 +422,9 @@ void QSSGParticleRenderer::rhiPrepareRenderable(QSSGRef<QSSGRhiShaderPipeline> &
                                                      toRhi(renderableImage->m_imageNode.m_magFilterType),
                                                      mipmapped ? toRhi(renderableImage->m_imageNode.m_mipFilterType) : QRhiSampler::None,
                                                      toRhi(renderableImage->m_imageNode.m_horizontalTilingMode),
-                                                     toRhi(renderableImage->m_imageNode.m_verticalTilingMode) });
+                                                     toRhi(renderableImage->m_imageNode.m_verticalTilingMode),
+                                                     QRhiSampler::Repeat
+                                                   });
             bindings.addTexture(samplerBinding, QRhiShaderResourceBinding::FragmentStage, texture, sampler);
         } else {
             QRhiResourceUpdateBatch *rub = rhiCtx->rhi()->nextResourceUpdateBatch();
@@ -306,7 +434,9 @@ void QSSGParticleRenderer::rhiPrepareRenderable(QSSGRef<QSSGRhiShaderPipeline> &
                                                      QRhiSampler::Nearest,
                                                      QRhiSampler::None,
                                                      QRhiSampler::ClampToEdge,
-                                                     QRhiSampler::ClampToEdge });
+                                                     QRhiSampler::ClampToEdge,
+                                                     QRhiSampler::Repeat
+                                                   });
             bindings.addTexture(samplerBinding, QRhiShaderResourceBinding::FragmentStage, texture, sampler);
         }
     }
@@ -319,7 +449,9 @@ void QSSGParticleRenderer::rhiPrepareRenderable(QSSGRef<QSSGRhiShaderPipeline> &
                                                      QRhiSampler::Nearest,
                                                      QRhiSampler::None,
                                                      QRhiSampler::ClampToEdge,
-                                                     QRhiSampler::ClampToEdge });
+                                                     QRhiSampler::ClampToEdge,
+                                                     QRhiSampler::Repeat
+                                                   });
             bindings.addTexture(samplerBinding, QRhiShaderResourceBinding::VertexStage, texture, sampler);
         }
     }
@@ -335,7 +467,9 @@ void QSSGParticleRenderer::rhiPrepareRenderable(QSSGRef<QSSGRhiShaderPipeline> &
                                                          QRhiSampler::Nearest,
                                                          QRhiSampler::None,
                                                          QRhiSampler::ClampToEdge,
-                                                         QRhiSampler::ClampToEdge });
+                                                         QRhiSampler::ClampToEdge,
+                                                         QRhiSampler::Repeat
+                                                       });
                 bindings.addTexture(samplerBinding, QRhiShaderResourceBinding::FragmentStage, texture, sampler);
             }
         }
@@ -348,7 +482,9 @@ void QSSGParticleRenderer::rhiPrepareRenderable(QSSGRef<QSSGRhiShaderPipeline> &
                                                      QRhiSampler::Nearest,
                                                      QRhiSampler::None,
                                                      QRhiSampler::ClampToEdge,
-                                                     QRhiSampler::ClampToEdge });
+                                                     QRhiSampler::ClampToEdge,
+                                                     QRhiSampler::Repeat
+                                                   });
             bindings.addTexture(samplerBinding, QRhiShaderResourceBinding::FragmentStage, texture, sampler);
         }
     }
@@ -361,7 +497,11 @@ void QSSGParticleRenderer::rhiPrepareRenderable(QSSGRef<QSSGRhiShaderPipeline> &
         dcd.bindings = bindings;
         srbChanged = true;
     }
-    renderable.rhiRenderData.mainPass.srb = srb;
+
+    if (cubeFace < 0)
+        renderable.rhiRenderData.mainPass.srb = srb;
+    else
+        renderable.rhiRenderData.reflectionPass.srb[cubeFace] = srb;
 
     const QSSGGraphicsPipelineStateKey pipelineKey = QSSGGraphicsPipelineStateKey::create(*ps, renderPassDescriptor, srb);
     if (dcd.pipeline
@@ -370,12 +510,22 @@ void QSSGParticleRenderer::rhiPrepareRenderable(QSSGRef<QSSGRhiShaderPipeline> &
             && dcd.renderTargetDescription == pipelineKey.renderTargetDescription
             && dcd.ps == *ps)
     {
-        renderable.rhiRenderData.mainPass.pipeline = dcd.pipeline;
+        if (cubeFace < 0)
+            renderable.rhiRenderData.mainPass.pipeline = dcd.pipeline;
+        else
+            renderable.rhiRenderData.reflectionPass.pipeline = dcd.pipeline;
     } else {
-        renderable.rhiRenderData.mainPass.pipeline = rhiCtx->pipeline(pipelineKey,
-                                                                      renderPassDescriptor,
-                                                                      srb);
-        dcd.pipeline = renderable.rhiRenderData.mainPass.pipeline;
+        if (cubeFace < 0) {
+            renderable.rhiRenderData.mainPass.pipeline = rhiCtx->pipeline(pipelineKey,
+                                                                          renderPassDescriptor,
+                                                                          srb);
+            dcd.pipeline = renderable.rhiRenderData.mainPass.pipeline;
+        } else {
+            renderable.rhiRenderData.reflectionPass.pipeline = rhiCtx->pipeline(pipelineKey,
+                                                                          renderPassDescriptor,
+                                                                          srb);
+            dcd.pipeline = renderable.rhiRenderData.reflectionPass.pipeline;
+        }
         dcd.renderTargetDescriptionHash = pipelineKey.extra.renderTargetDescriptionHash;
         dcd.renderTargetDescription = pipelineKey.renderTargetDescription;
         dcd.ps = *ps;
@@ -391,10 +541,11 @@ void QSSGParticleRenderer::prepareParticlesForModel(QSSGRef<QSSGRhiShaderPipelin
     const QSSGParticleBuffer &particleBuffer = *model->particleBuffer;
     int particleCount = particleBuffer.particleCount();
     bool update = particleBuffer.serial() != particleData.serial;
+    const bool needsConversion = !rhiCtx->rhi()->isTextureFormatSupported(QRhiTexture::RGBA32F);
     if (particleData.texture == nullptr || particleData.particleCount != particleCount) {
         QSize size(particleBuffer.size());
         if (!particleData.texture) {
-            particleData.texture = rhiCtx->rhi()->newTexture(QRhiTexture::RGBA32F, size);
+            particleData.texture = rhiCtx->rhi()->newTexture(needsConversion ? QRhiTexture::RGBA16F : QRhiTexture::RGBA32F, size);
             particleData.texture->create();
         } else {
             particleData.texture->setPixelSize(size);
@@ -407,7 +558,7 @@ void QSSGParticleRenderer::prepareParticlesForModel(QSSGRef<QSSGRhiShaderPipelin
     if (update) {
         QRhiResourceUpdateBatch *rub = rhiCtx->rhi()->nextResourceUpdateBatch();
         QRhiTextureSubresourceUploadDescription upload;
-        upload.setData(particleBuffer.data());
+        upload.setData(convertParticleData(particleData.convertData, particleBuffer.data(), needsConversion));
         QRhiTextureUploadDescription uploadDesc(QRhiTextureUploadEntry(0, 0, upload));
         rub->uploadTexture(particleData.texture, uploadDesc);
         rhiCtx->commandBuffer()->resourceUpdate(rub);
@@ -421,7 +572,9 @@ void QSSGParticleRenderer::prepareParticlesForModel(QSSGRef<QSSGRhiShaderPipelin
                                                      QRhiSampler::Nearest,
                                                      QRhiSampler::None,
                                                      QRhiSampler::ClampToEdge,
-                                                     QRhiSampler::ClampToEdge });
+                                                     QRhiSampler::ClampToEdge,
+                                                     QRhiSampler::Repeat
+                                                   });
             bindings.addTexture(samplerBinding, QRhiShaderResourceBinding::VertexStage, texture, sampler);
         }
     }
@@ -430,10 +583,18 @@ void QSSGParticleRenderer::prepareParticlesForModel(QSSGRef<QSSGRhiShaderPipelin
 void QSSGParticleRenderer::rhiRenderRenderable(QSSGRhiContext *rhiCtx,
                                                QSSGParticlesRenderable &renderable,
                                                QSSGLayerRenderData &inData,
-                                               bool *needsSetViewport)
+                                               bool *needsSetViewport,
+                                               int cubeFace,
+                                               QSSGRhiGraphicsPipelineState *state)
 {
     QRhiGraphicsPipeline *ps = renderable.rhiRenderData.mainPass.pipeline;
     QRhiShaderResourceBindings *srb = renderable.rhiRenderData.mainPass.srb;
+
+    if (cubeFace >= 0) {
+        ps = renderable.rhiRenderData.reflectionPass.pipeline;
+        srb = renderable.rhiRenderData.reflectionPass.srb[cubeFace];
+    }
+
     if (!ps || !srb)
         return;
 
@@ -444,12 +605,23 @@ void QSSGParticleRenderer::rhiRenderRenderable(QSSGRhiContext *rhiCtx,
     cb->setShaderResources(srb);
 
     if (needsSetViewport && *needsSetViewport) {
-        cb->setViewport(rhiCtx->graphicsPipelineState(&inData)->viewport);
+        if (!state)
+            cb->setViewport(rhiCtx->graphicsPipelineState(&inData)->viewport);
+        else
+            cb->setViewport(state->viewport);
         *needsSetViewport = false;
     }
-    // draw triangle strip with 2 triangles N times
-    cb->draw(4, renderable.particles.m_particleBuffer.particleCount());
-    QSSGRHICTX_STAT(rhiCtx, draw(4, renderable.particles.m_particleBuffer.particleCount()));
+    if (renderable.particles.m_featureLevel >= QSSGRenderParticles::FeatureLevel::Line) {
+        // draw triangle strip with 2 * segmentCount vertices N times
+        int S = renderable.particles.m_particleBuffer.segments();
+        int N = renderable.particles.m_particleBuffer.particleCount() / S;
+        cb->draw(2 * S, N);
+        QSSGRHICTX_STAT(rhiCtx, draw(2 * S, N));
+    } else {
+        // draw triangle strip with 2 triangles N times
+        cb->draw(4, renderable.particles.m_particleBuffer.particleCount());
+        QSSGRHICTX_STAT(rhiCtx, draw(4, renderable.particles.m_particleBuffer.particleCount()));
+    }
 }
 
 QT_END_NAMESPACE

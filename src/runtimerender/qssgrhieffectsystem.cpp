@@ -1,32 +1,6 @@
-/****************************************************************************
-**
-** Copyright (C) 2008-2012 NVIDIA Corporation.
-** Copyright (C) 2020 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2008-2012 NVIDIA Corporation.
+// Copyright (C) 2020 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include <QtQuick3DRuntimeRender/private/qssgrhieffectsystem_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderer_p.h>
@@ -161,7 +135,7 @@ void QSSGRhiEffectSystem::releaseTexture(QSSGRhiEffectTexture *texture)
 
 void QSSGRhiEffectSystem::releaseTextures()
 {
-    for (auto *t : qAsConst(m_textures))
+    for (auto *t : std::as_const(m_textures))
         releaseTexture(t);
 }
 
@@ -316,7 +290,7 @@ void QSSGRhiEffectSystem::allocateBufferCmd(const QSSGAllocateBuffer *inCmd, QSS
     QSSGRhiEffectTexture *buf = getTexture(inCmd->m_name, bufferSize, rhiFormat, false);
     auto filter = toRhi(inCmd->m_filterOp);
     auto tiling = toRhi(inCmd->m_texCoordOp);
-    buf->desc = { filter, filter, QRhiSampler::None, tiling, tiling };
+    buf->desc = { filter, filter, QRhiSampler::None, tiling, tiling, QRhiSampler::Repeat };
     buf->flags = inCmd->m_bufferFlags;
 }
 
@@ -326,13 +300,13 @@ void QSSGRhiEffectSystem::applyInstanceValueCmd(const QSSGApplyInstanceValue *in
         return;
 
     const bool setAll = inCmd->m_propertyName.isEmpty();
-    for (const QSSGRenderEffect::Property &property : qAsConst(inEffect->properties)) {
+    for (const QSSGRenderEffect::Property &property : std::as_const(inEffect->properties)) {
         if (setAll || property.name == inCmd->m_propertyName) {
             m_currentShaderPipeline->setUniformValue(m_currentUBufData, property.name, property.value, property.shaderDataType);
             //qCDebug(lcEffectSystem) << "setUniformValue" << property.name << toString(property.shaderDataType) << "to" << property.value;
         }
     }
-    for (const QSSGRenderEffect::TextureProperty &textureProperty : qAsConst(inEffect->textureProperties)) {
+    for (const QSSGRenderEffect::TextureProperty &textureProperty : std::as_const(inEffect->textureProperties)) {
         if (setAll || textureProperty.name == inCmd->m_propertyName) {
             bool texAdded = false;
             QSSGRenderImage *image = textureProperty.texImage;
@@ -353,7 +327,8 @@ void QSSGRhiEffectSystem::applyInstanceValueCmd(const QSSGApplyInstanceValue *in
                             toRhi(textureProperty.magFilterType),
                             textureProperty.mipFilterType != QSSGRenderTextureFilterOp::None ? toRhi(textureProperty.mipFilterType) : QRhiSampler::None,
                             toRhi(textureProperty.horizontalClampType),
-                            toRhi(textureProperty.verticalClampType)
+                            toRhi(textureProperty.verticalClampType),
+                            QRhiSampler::Repeat
                         };
                         addTextureToShaderPipeline(textureProperty.name, texture.m_texture, desc);
                         texAdded = true;
@@ -421,7 +396,7 @@ QSSGRef<QSSGRhiShaderPipeline> QSSGRhiEffectSystem::buildShaderForEffect(const Q
     }
 
     return generator->compileGeneratedRhiShader(key,
-                                                ShaderFeatureSetList(),
+                                                QSSGShaderFeatures(),
                                                 shaderLib,
                                                 shaderCache,
                                                 QSSGRhiShaderPipeline::UsedWithoutIa);
@@ -431,6 +406,7 @@ void QSSGRhiEffectSystem::bindShaderCmd(const QSSGBindShader *inCmd)
 {
     m_currentTextures.clear();
     m_pendingClears.clear();
+    m_currentShaderPipeline = nullptr;
 
     QRhi *rhi = m_renderer->contextInterface()->rhiContext()->rhi();
     const auto &shaderLib = m_renderer->contextInterface()->shaderLibraryManager();
@@ -458,11 +434,15 @@ void QSSGRhiEffectSystem::bindShaderCmd(const QSSGBindShader *inCmd)
         }
     }
 
-    // Final option, generate the shader pipeline
-    const QSSGRef<QSSGProgramGenerator> &generator = m_renderer->contextInterface()->shaderProgramGenerator();
-    if (auto stages = buildShaderForEffect(*inCmd, generator, shaderLib, shaderCache, rhi->isYUpInFramebuffer())) {
-        m_shaderPipelines.insert(rkey, stages);
-        m_currentShaderPipeline = stages.data();
+    if (!m_currentShaderPipeline) {
+        // Final option, generate the shader pipeline
+        Q_QUICK3D_PROFILE_START(QQuick3DProfiler::Quick3DGenerateShader);
+        const QSSGRef<QSSGProgramGenerator> &generator = m_renderer->contextInterface()->shaderProgramGenerator();
+        if (auto stages = buildShaderForEffect(*inCmd, generator, shaderLib, shaderCache, rhi->isYUpInFramebuffer())) {
+            m_shaderPipelines.insert(rkey, stages);
+            m_currentShaderPipeline = stages.data();
+        }
+        Q_QUICK3D_PROFILE_END(QQuick3DProfiler::Quick3DGenerateShader);
     }
 
     if (m_currentShaderPipeline) {
@@ -472,7 +452,6 @@ void QSSGRhiEffectSystem::bindShaderCmd(const QSSGBindShader *inCmd)
         m_currentShaderPipeline->ensureCombinedMainLightsUniformBuffer(&dcd.ubuf);
         m_currentUBufData = dcd.ubuf->beginFullDynamicBufferUpdateForCurrentFrame();
     } else {
-        m_currentShaderPipeline = nullptr;
         m_currentUBufData = nullptr;
     }
 }
@@ -581,7 +560,7 @@ void QSSGRhiEffectSystem::addCommonEffectUniforms(const QSize &inputSize, const 
         static const QSSGRhiSamplerDescription depthSamplerDesc {
                     QRhiSampler::Nearest, QRhiSampler::Nearest,
                     QRhiSampler::None,
-                    QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge
+                    QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge, QRhiSampler::Repeat
         };
         addTextureToShaderPipeline("qt_depthTexture", m_depthTexture, depthSamplerDesc);
     }
@@ -595,7 +574,7 @@ void QSSGRhiEffectSystem::addTextureToShaderPipeline(const QByteArray &name,
         return;
 
     static const QSSGRhiSamplerDescription defaultDescription { QRhiSampler::Linear, QRhiSampler::Linear, QRhiSampler::None,
-                                                                QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge };
+                                                                QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge, QRhiSampler::Repeat };
     bool validDescription = samplerDescription.magFilter != QRhiSampler::None;
 
     // This is a map for a reason: there can be multiple calls to this function

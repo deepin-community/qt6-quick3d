@@ -1,29 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2020 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of the documentation of the Qt Toolkit.
-**
-** $QT_BEGIN_LICENSE:FDL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU Free Documentation License Usage
-** Alternatively, this file may be used under the terms of the GNU Free
-** Documentation License version 1.3 as published by the Free Software
-** Foundation and appearing in the file included in the packaging of
-** this file. Please review the following information to ensure
-** the GNU Free Documentation License version 1.3 requirements
-** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2020 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GFDL-1.3-no-invariants-only
 
 /*!
 \page qtquick3d-custom.html
@@ -1204,13 +1180,11 @@ refraction for glass-like materials.
 
 \c DEPTH_TEXTURE is a \c sampler2D that allows sampling a texture with the contents of the
 depth buffer with all the \c opaque objects in the scene rendered. Similarly, \c
-SCREEN_TEXTURE is a \c sampler2D that allows sampling a texture that has all \c opaque
-objects in the scene rendered to it, without anything else, meaning no skybox, no shadows,
-no effects, and no objects that have any transparency in some form (\l{Node::opacity}
-smaller than 1, textures maps for the material from images with semi-transparent pixels in
-them, etc.)  are present. The texture is cleared to \c{vec4(0.0)} meaning it has an alpha
-value of 0 for fragments that are not covered by objects in the scene. The size of these
-textures matches the size of the View3D in pixels.
+SCREEN_TEXTURE is a \c sampler2D that allows sampling a texture containing the contents of
+the scene excluding any transparent materials or any materials also using the
+SCREEN_TEXTURE. The texture can be used for materials that require the contents of the
+framebuffer they are being rendered to. The SCREEN_TEXTURE texture uses the same clear mode
+as the View3D. The size of these textures matches the size of the View3D in pixels.
 
 Let's have a simple demonstration by visualizing the depth buffer contents via \c
 DEPTH_TEXTURE. The camera's \l{PerspectiveCamera::clipFar}{far clip value} is reduced here from the
@@ -1227,13 +1201,12 @@ depth buffer for the scene over its surface.
 import QtQuick
 import QtQuick3D
 import QtQuick3D.Helpers
-Item {
+Rectangle {
+    width: 400
+    height: 400
+    color: "black"
     View3D {
         anchors.fill: parent
-        environment: SceneEnvironment {
-            backgroundMode: SceneEnvironment.Color
-            clearColor: "black"
-        }
         PerspectiveCamera {
             id: camera
             z: 600

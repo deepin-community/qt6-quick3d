@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qssgrendergeometry_p.h"
 #include "qssgrendermesh_p.h"
@@ -119,7 +93,7 @@ void QSSGRenderGeometry::addAttribute(const Attribute &att)
     m_meshData.m_attributes[index].offset = att.offset;
     m_meshData.m_attributes[index].componentType = att.componentType;
     ++m_meshData.m_attributeCount;
-    m_dirty = true;
+    markDirty();
 }
 
 void QSSGRenderGeometry::addSubset(quint32 offset, quint32 count, const QVector3D &boundsMin, const QVector3D &boundsMax, const QString &name)
@@ -130,26 +104,26 @@ void QSSGRenderGeometry::addSubset(quint32 offset, quint32 count, const QVector3
 void QSSGRenderGeometry::setStride(int stride)
 {
     m_meshData.m_stride = stride;
-    m_dirty = true;
+    markDirty();
 }
 
 void QSSGRenderGeometry::setPrimitiveType(QSSGMesh::Mesh::DrawMode type)
 {
     m_meshData.m_primitiveType = type;
-    m_dirty = true;
+    markDirty();
 }
 
 void QSSGRenderGeometry::setBounds(const QVector3D &min, const QVector3D &max)
 {
     m_bounds = QSSGBounds3(min, max);
-    m_dirty = true;
+    markDirty();
 }
 
 void QSSGRenderGeometry::clear()
 {
     m_meshData.clear();
     m_bounds.setEmpty();
-    m_dirty = true;
+    markDirty();
 }
 
 void QSSGRenderGeometry::clearAttributes()
@@ -157,32 +131,29 @@ void QSSGRenderGeometry::clearAttributes()
     m_meshData.m_attributeCount = 0;
 }
 
+uint32_t QSSGRenderGeometry::generationId() const
+{
+    return m_generationId;
+}
+
+const QSSGMesh::RuntimeMeshData &QSSGRenderGeometry::meshData() const
+{
+    return m_meshData;
+}
+
 void QSSGRenderGeometry::setVertexData(const QByteArray &data)
 {
     m_meshData.m_vertexBuffer = data;
-    m_dirty = true;
+    markDirty();
 }
 
 void QSSGRenderGeometry::setIndexData(const QByteArray &data)
 {
     m_meshData.m_indexBuffer = data;
-    m_dirty = true;
+    markDirty();
 }
 
-QSSGRenderMesh *QSSGRenderGeometry::createOrUpdate(const QSSGRef<QSSGBufferManager> &bufferManager)
+void QSSGRenderGeometry::markDirty()
 {
-    if (m_dirty) {
-        QSSGRenderMesh *renderMesh = nullptr;
-        QString error;
-        QSSGMesh::Mesh mesh = QSSGMesh::Mesh::fromRuntimeData(m_meshData, &error);
-        if (mesh.isValid())
-            renderMesh = bufferManager->loadCustomMesh(this, mesh, true);
-        else
-            qWarning("Mesh building failed: %s", qPrintable(error));
-
-        m_dirty = false;
-        return renderMesh;
-    }
-
-    return bufferManager->getMesh(this);
+    m_generationId++;
 }

@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2020 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2020 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qquick3dshaderutils_p.h"
 
@@ -33,8 +7,9 @@
 #include <QtQml/qqmlcontext.h>
 #include <QtQml/qqmlfile.h>
 
-#include <QtQuick3D/private/qquick3dcustommaterial_p.h>
-#include <QtQuick3D/private/qquick3deffect_p.h>
+#include "qquick3dviewport_p.h"
+#include "qquick3dcustommaterial_p.h"
+#include "qquick3deffect_p.h"
 
 QT_BEGIN_NAMESPACE
 
@@ -260,8 +235,21 @@ QT_BEGIN_NAMESPACE
 
 namespace QSSGShaderUtils {
 
+ResolveFunction resolveShaderOverride = nullptr;
+
+void setResolveFunction(ResolveFunction fn)
+{
+    resolveShaderOverride = fn;
+}
+
 QByteArray resolveShader(const QUrl &fileUrl, const QQmlContext *context, QByteArray &shaderPathKey)
 {
+    if (resolveShaderOverride) {
+        QByteArray shaderData;
+        if (resolveShaderOverride(fileUrl, context, shaderData, shaderPathKey))
+            return shaderData;
+    }
+
     if (!shaderPathKey.isEmpty())
         shaderPathKey.append('>');
 
@@ -278,6 +266,25 @@ QByteArray resolveShader(const QUrl &fileUrl, const QQmlContext *context, QByteA
 
     return QByteArray();
 }
+
+// These are the QMetaTypes that we convert into uniforms.
+static constexpr QMetaType::Type qssg_metatype_list[] {
+        QMetaType::Double,
+        QMetaType::Bool,
+        QMetaType::QVector2D,
+        QMetaType::QVector3D,
+        QMetaType::QVector4D,
+        QMetaType::Int,
+        QMetaType::QColor,
+        QMetaType::QSize,
+        QMetaType::QSizeF,
+        QMetaType::QPoint,
+        QMetaType::QPointF,
+        QMetaType::QRect,
+        QMetaType::QRectF,
+        QMetaType::QQuaternion,
+        QMetaType::QMatrix4x4
+};
 
 template<>
 struct ShaderType<QMetaType::Double>
@@ -388,6 +395,7 @@ QByteArray uniformTypeName(QMetaType type)
 {
     switch (type.id()) {
     case QMetaType::Double:
+    case QMetaType::Float:
         return ShaderType<QMetaType::Double>::name();
     case QMetaType::Bool:
         return ShaderType<QMetaType::Bool>::name();
@@ -422,10 +430,49 @@ QByteArray uniformTypeName(QMetaType type)
     }
 }
 
+QByteArray uniformTypeName(QSSGRenderShaderDataType type)
+{
+    switch (type) {
+    case QSSGRenderShaderDataType::Float:
+        return ShaderType<QMetaType::Double>::name();
+    case QSSGRenderShaderDataType::Boolean:
+        return ShaderType<QMetaType::Bool>::name();
+    case QSSGRenderShaderDataType::Integer:
+        return ShaderType<QMetaType::Int>::name();
+    case QSSGRenderShaderDataType::Vec2:
+        return ShaderType<QMetaType::QVector2D>::name();
+    case QSSGRenderShaderDataType::Vec3:
+        return ShaderType<QMetaType::QVector3D>::name();
+    case QSSGRenderShaderDataType::Vec4:
+        return ShaderType<QMetaType::QVector4D>::name();
+    case QSSGRenderShaderDataType::Rgba:
+        return ShaderType<QMetaType::QColor>::name();
+    case QSSGRenderShaderDataType::Size:
+        return ShaderType<QMetaType::QSize>::name();
+    case QSSGRenderShaderDataType::SizeF:
+        return ShaderType<QMetaType::QSizeF>::name();
+    case QSSGRenderShaderDataType::Point:
+        return ShaderType<QMetaType::QPoint>::name();
+    case QSSGRenderShaderDataType::PointF:
+        return ShaderType<QMetaType::QPointF>::name();
+    case QSSGRenderShaderDataType::Rect:
+        return ShaderType<QMetaType::QRect>::name();
+    case QSSGRenderShaderDataType::RectF:
+        return ShaderType<QMetaType::QRectF>::name();
+    case QSSGRenderShaderDataType::Quaternion:
+        return ShaderType<QMetaType::QQuaternion>::name();
+    case QSSGRenderShaderDataType::Matrix4x4:
+        return ShaderType<QMetaType::QMatrix4x4>::name();
+    default:
+        return QByteArray();
+    }
+}
+
 QSSGRenderShaderDataType uniformType(QMetaType type)
 {
     switch (type.id()) {
     case QMetaType::Double:
+    case QMetaType::Float:
         return ShaderType<QMetaType::Double>::type();
     case QMetaType::Bool:
         return ShaderType<QMetaType::Bool>::type();
@@ -458,6 +505,11 @@ QSSGRenderShaderDataType uniformType(QMetaType type)
     default:
         return QSSGRenderShaderDataType::Unknown;
     }
+}
+
+MetaTypeList supportedMetatypes()
+{
+    return {std::begin(qssg_metatype_list), std::end(qssg_metatype_list)};
 }
 
 }
@@ -526,7 +578,7 @@ QQuick3DShaderUtilsRenderCommand *QQuick3DShaderUtilsRenderPass::qmlCommandAt(QQ
 qsizetype QQuick3DShaderUtilsRenderPass::qmlCommandCount(QQmlListProperty<QQuick3DShaderUtilsRenderCommand> *list)
 {
     QQuick3DShaderUtilsRenderPass *that = qobject_cast<QQuick3DShaderUtilsRenderPass *>(list->object);
-    return that->m_commands.count();
+    return that->m_commands.size();
 }
 
 void QQuick3DShaderUtilsRenderPass::qmlCommandClear(QQmlListProperty<QQuick3DShaderUtilsRenderCommand> *list)
@@ -573,7 +625,7 @@ QQuick3DShaderUtilsShader *QQuick3DShaderUtilsRenderPass::qmlShaderAt(QQmlListPr
 qsizetype QQuick3DShaderUtilsRenderPass::qmlShaderCount(QQmlListProperty<QQuick3DShaderUtilsShader> *list)
 {
     QQuick3DShaderUtilsRenderPass *that = qobject_cast<QQuick3DShaderUtilsRenderPass *>(list->object);
-    return that->m_shaders.count();
+    return that->m_shaders.size();
 }
 
 void QQuick3DShaderUtilsRenderPass::qmlShaderClear(QQmlListProperty<QQuick3DShaderUtilsShader> *list)
@@ -592,6 +644,12 @@ QQmlListProperty<QQuick3DShaderUtilsShader> QQuick3DShaderUtilsRenderPass::shade
                                                       QQuick3DShaderUtilsRenderPass::qmlShaderClear);
 }
 
+QQuick3DShaderUtilsTextureInput::QQuick3DShaderUtilsTextureInput(QObject *p) : QObject(p) {}
+
+QQuick3DShaderUtilsTextureInput::~QQuick3DShaderUtilsTextureInput()
+{
+}
+
 void QQuick3DShaderUtilsTextureInput::setTexture(QQuick3DTexture *texture)
 {
     if (m_texture == texture)
@@ -600,10 +658,16 @@ void QQuick3DShaderUtilsTextureInput::setTexture(QQuick3DTexture *texture)
     QObject *p = parent();
     while (p != nullptr) {
         if (QQuick3DCustomMaterial *mat = qobject_cast<QQuick3DCustomMaterial *>(p)) {
-            mat->setDynamicTextureMap(texture, name);
+            mat->setDynamicTextureMap(this);
+            QQuick3DObjectPrivate::updatePropertyListener(texture, m_texture, QQuick3DObjectPrivate::get(mat)->sceneManager, name, mat->m_connections, [this](QQuick3DObject *) {
+                setTexture(nullptr);
+            });
             break;
         } else if (QQuick3DEffect *efx = qobject_cast<QQuick3DEffect *>(p)) {
-            efx->setDynamicTextureMap(texture, name);
+            efx->setDynamicTextureMap(this);
+            QQuick3DObjectPrivate::updatePropertyListener(texture, m_texture, QQuick3DObjectPrivate::get(efx)->sceneManager, name, efx->m_connections, [this](QQuick3DObject *) {
+                setTexture(nullptr);
+            });
             break;
         }
         p = p->parent();

@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2021 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2021 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "assimpimporter.h"
 
@@ -36,7 +10,6 @@
 
 #include <QtQuick3DAssetImport/private/qssgassetimporterfactory_p.h>
 #include <QtQuick3DAssetImport/private/qssgassetimporter_p.h>
-#include <QtQuick3DAssetImport/private/qssglightmapuvgenerator_p.h>
 #include <QtQuick3DAssetUtils/private/qssgscenedesc_p.h>
 
 // ASSIMP INC
@@ -45,7 +18,8 @@
 #include <assimp/Logger.hpp>
 #include <assimp/DefaultLogger.hpp>
 #include <assimp/postprocess.h>
-#include <assimp/pbrmaterial.h>
+#include <assimp/material.h>
+#include <assimp/GltfMaterial.h>
 #include <assimp/importerdesc.h>
 
 // ASSIMP INC
@@ -94,18 +68,22 @@ struct NodeInfo
 Q_DECLARE_TYPEINFO(NodeInfo, Q_PRIMITIVE_TYPE);
 
 using NodeMap = QHash<const aiNode *, NodeInfo>;
-using SkeletonInfo = QPair<QSSGSceneDesc::Skeleton *, bool>;
 
-using AnimationNodeMap = QHash<QByteArrayView, QSSGSceneDesc::Node *>;
+using AnimationNodeMap = QHash<QByteArray, QSSGSceneDesc::Node *>;
+
+[[nodiscard]] static inline bool isEqual(const aiUVTransform &a, const aiUVTransform &b)
+{
+    return (a.mTranslation == b.mTranslation && a.mScaling == b.mScaling && a.mRotation == b.mRotation);
+};
 
 struct TextureInfo
 {
-    aiTextureMapping mapping = aiTextureMapping::aiTextureMapping_UV;
     aiTextureMapMode modes[3] {};
-    unsigned int minFilter { AI_GLTF_FILTER_NEAREST_MIPMAP_LINEAR };
-    unsigned int magFilter { AI_GLTF_FILTER_NEAREST_MIPMAP_LINEAR };
+    aiTextureMapping mapping = aiTextureMapping::aiTextureMapping_UV;
+    unsigned int minFilter { AI_GLTF_FILTER_LINEAR };
+    unsigned int magFilter { AI_GLTF_FILTER_LINEAR };
     uint uvIndex { 0 };
-    aiUVTransform *transform = nullptr;
+    aiUVTransform transform;
 };
 
 bool operator==(const TextureInfo &a, const TextureInfo &b)
@@ -115,7 +93,7 @@ bool operator==(const TextureInfo &a, const TextureInfo &b)
             && (a.minFilter == b.minFilter)
             && (a.magFilter == b.magFilter)
             && (a.uvIndex == b.uvIndex)
-            && ((a.transform == b.transform) || ((a.transform && b.transform) && (std::memcmp(a.transform, b.transform, sizeof(aiUVTransform)) == 0)));
+            && isEqual(a.transform, b.transform);
 }
 
 struct TextureEntry
@@ -127,13 +105,14 @@ struct TextureEntry
 
 size_t qHash(const TextureEntry &key, size_t seed)
 {
+    static_assert(std::is_same_v<decltype(key.info.transform), aiUVTransform>, "Unexpected type");
     const auto infoKey = quintptr(key.info.mapping)
                          ^ (quintptr(key.info.modes[0]) ^ quintptr(key.info.modes[1]) ^ quintptr(key.info.modes[2]))
                          ^ quintptr(key.info.minFilter ^ key.info.magFilter)
                          ^ quintptr(key.info.uvIndex)
-                         ^ quintptr(key.info.transform);
+                         ^ qHashBits(&key.info.transform, sizeof(aiUVTransform), seed);
 
-    return qHash(key.name, seed) ^ qHash(infoKey, seed);
+    return qHash(key.name, seed) ^ infoKey;
 }
 
 bool operator==(const TextureEntry &a, const TextureEntry &b)
@@ -160,15 +139,22 @@ struct SceneInfo
     using MeshMap = QVarLengthArray<QPair<const aiMesh *, QSSGSceneDesc::Mesh *>>;
     using EmbeddedTextureMap = QVarLengthArray<QSSGSceneDesc::TextureData *>;
     using TextureMap = QSet<TextureEntry>;
-    using SkeletonMap = QHash<const aiNode *, SkeletonInfo>;
+
+    struct skinData {
+        aiBone **mBones;
+        unsigned int mNumBones;
+        QSSGSceneDesc::Skin *node;
+    };
+    using SkinMap = QVarLengthArray<skinData>;
+    using Mesh2SkinMap = QVarLengthArray<qint16>;
 
     const aiScene &scene;
     MaterialMap &materialMap;
     MeshMap &meshMap;
     EmbeddedTextureMap &embeddedTextureMap;
     TextureMap &textureMap;
-    SkeletonMap &skeletonMap;
-    AssimpUtils::BoneIndexMap &boneIdxMap;
+    SkinMap &skinMap;
+    Mesh2SkinMap &mesh2skin;
     QDir workingDir;
     GltfVersion ver;
     Options opt;
@@ -211,8 +197,6 @@ static void setNodeProperties(QSSGSceneDesc::Node &target,
     // pivot
 
     // opacity
-
-    // boneid
 
     // visible
 }
@@ -260,14 +244,15 @@ static void setTextureProperties(QSSGSceneDesc::Texture &target, const TextureIn
     // mapping mode V
     QSSGSceneDesc::setProperty(target, "tilingModeVertical", &QQuick3DTexture::setHorizontalTiling, asQtTilingMode(texInfo.modes[1]));
 
-    if (texInfo.transform) {
+    const bool applyUvTransform = !isEqual(texInfo.transform, aiUVTransform());
+    if (applyUvTransform) {
         // UV origins -
         //      glTF: 0, 1 (top left of texture)
         //      Assimp, Collada?, FBX?: 0.5, 0.5
         //      Quick3D: 0, 0 (bottom left of texture)
         // Assimp already tries to fix it but it's not correct.
         // So, we restore original values and then use pivot
-        const auto &transform = *texInfo.transform;
+        const auto &transform = texInfo.transform;
         float rotation = -transform.mRotation;
         float rotationUV = qRadiansToDegrees(rotation);
         float posU = transform.mTranslation.x;
@@ -327,8 +312,13 @@ static void setTextureProperties(QSSGSceneDesc::Texture &target, const TextureIn
     }
 }
 
-static void setMaterialProperties(QSSGSceneDesc::Material &target, const aiMaterial &source, const SceneInfo &sceneInfo)
+static void setMaterialProperties(QSSGSceneDesc::Material &target, const aiMaterial &source, const SceneInfo &sceneInfo, QSSGSceneDesc::Material::RuntimeType type)
 {
+    if (target.name.isNull()) {
+        aiString materialName = source.GetName();
+        target.name = fromAiString(target.scene->allocator, materialName);
+    }
+
     const auto createTextureNode = [&sceneInfo, &target](const aiMaterial &material, aiTextureType textureType, unsigned int index) {
         const auto &srcScene = sceneInfo.scene;
         QSSGSceneDesc::Texture *tex = nullptr;
@@ -341,10 +331,10 @@ static void setMaterialProperties(QSSGSceneDesc::Material &target, const aiMater
             if (texturePath.length > 0) {
                 aiUVTransform transform;
                 if (material.Get(AI_MATKEY_UVTRANSFORM(textureType, index), transform) == aiReturn_SUCCESS)
-                    texInfo.transform = &transform;
+                    texInfo.transform = transform;
 
                 if (sceneInfo.ver == SceneInfo::GltfVersion::v2) {
-                    material.Get(AI_MATKEY_GLTF_TEXTURE_TEXCOORD(textureType, index), texInfo.uvIndex);
+                    material.Get(AI_MATKEY_UVWSRC(textureType, index), texInfo.uvIndex);
                     material.Get(AI_MATKEY_GLTF_MAPPINGFILTER_MIN(textureType, index), texInfo.minFilter);
                     material.Get(AI_MATKEY_GLTF_MAPPINGFILTER_MAG(textureType, index), texInfo.magFilter);
                 }
@@ -358,7 +348,7 @@ static void setMaterialProperties(QSSGSceneDesc::Material &target, const aiMater
                     tex = it->texture;
                 } else {
                     // Two types, externally referenced or embedded
-                    tex = scene->create<QSSGSceneDesc::Texture>();
+                    tex = scene->create<QSSGSceneDesc::Texture>(QSSGSceneDesc::Texture::RuntimeType::Image2D);
                     // NOTE: We need a persistent zero terminated string!
                     textureMap.insert(TextureEntry{fromAiString(scene->allocator, texturePath), texInfo, tex});
 
@@ -368,7 +358,7 @@ static void setMaterialProperties(QSSGSceneDesc::Material &target, const aiMater
                     if (isEmbedded) {
                         QSSGSceneDesc::TextureData *textureData = nullptr;
                         auto &embeddedTextures = sceneInfo.embeddedTextureMap;
-                        const auto textureCount = embeddedTextures.count();
+                        const auto textureCount = embeddedTextures.size();
                         const auto &filename = texturePath.data;
                         const auto idx = qsizetype(std::atoi(filename + 1));
                         if (idx >= 0 && idx < textureCount)
@@ -410,16 +400,17 @@ static void setMaterialProperties(QSSGSceneDesc::Material &target, const aiMater
         return tex;
     };
 
-    if (sceneInfo.ver == SceneInfo::GltfVersion::v2) {
-        aiReturn result;
+    aiReturn result;
+
+    if (type == QSSGSceneDesc::Material::RuntimeType::PrincipledMaterial) {
         {
             aiColor4D baseColorFactor;
-            result = source.Get(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_FACTOR, baseColorFactor);
+            result = source.Get(AI_MATKEY_BASE_COLOR, baseColorFactor);
             if (result == aiReturn_SUCCESS)
                 QSSGSceneDesc::setProperty(target, "baseColor", &QQuick3DPrincipledMaterial::setBaseColor, aiColorToQColor(baseColorFactor));
         }
 
-        if (auto baseColorTexture = createTextureNode(source, AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_TEXTURE)) {
+        if (auto baseColorTexture = createTextureNode(source, AI_MATKEY_BASE_COLOR_TEXTURE)) {
             QSSGSceneDesc::setProperty(target, "baseColorMap", &QQuick3DPrincipledMaterial::setBaseColorMap, baseColorTexture);
             QSSGSceneDesc::setProperty(target, "opacityChannel", &QQuick3DPrincipledMaterial::setOpacityChannel, QQuick3DPrincipledMaterial::TextureChannelMapping::A);
         }
@@ -433,14 +424,14 @@ static void setMaterialProperties(QSSGSceneDesc::Material &target, const aiMater
 
         {
             ai_real metallicFactor;
-            result = source.Get(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLIC_FACTOR, metallicFactor);
+            result = source.Get(AI_MATKEY_METALLIC_FACTOR, metallicFactor);
             if (result == aiReturn_SUCCESS)
                 QSSGSceneDesc::setProperty(target, "metalness", &QQuick3DPrincipledMaterial::setMetalness, float(metallicFactor));
         }
 
         {
             ai_real roughnessFactor;
-            result = source.Get(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_ROUGHNESS_FACTOR, roughnessFactor);
+            result = source.Get(AI_MATKEY_ROUGHNESS_FACTOR, roughnessFactor);
             if (result == aiReturn_SUCCESS)
                 QSSGSceneDesc::setProperty(target, "roughness", &QQuick3DPrincipledMaterial::setRoughness, float(roughnessFactor));
         }
@@ -509,14 +500,130 @@ static void setMaterialProperties(QSSGSceneDesc::Material &target, const aiMater
         }
 
         {
-            bool isUnlit = false;
-            result = source.Get(AI_MATKEY_GLTF_UNLIT, isUnlit);
-            if (result == aiReturn_SUCCESS && isUnlit)
+            int shadingModel = 0;
+            result = source.Get(AI_MATKEY_SHADING_MODEL, shadingModel);
+            if (result == aiReturn_SUCCESS && shadingModel == aiShadingMode_Unlit)
                 QSSGSceneDesc::setProperty(target, "lighting", &QQuick3DPrincipledMaterial::setLighting, QQuick3DPrincipledMaterial::Lighting::NoLighting);
         }
-    } else { // Ver1
+
+
+        {
+            // Clearcoat Properties (KHR_materials_clearcoat)
+            // factor
+            {
+                ai_real clearcoatFactor = 0.0f;
+                result = source.Get(AI_MATKEY_CLEARCOAT_FACTOR, clearcoatFactor);
+                if (result == aiReturn_SUCCESS)
+                    QSSGSceneDesc::setProperty(target,
+                                               "clearcoatAmount",
+                                               &QQuick3DPrincipledMaterial::setClearcoatAmount,
+                                               float(clearcoatFactor));
+            }
+
+            // roughness
+            {
+                ai_real clearcoatRoughnessFactor = 0.0f;
+                result = source.Get(AI_MATKEY_CLEARCOAT_ROUGHNESS_FACTOR, clearcoatRoughnessFactor);
+                if (result == aiReturn_SUCCESS)
+                    QSSGSceneDesc::setProperty(target,
+                                               "clearcoatRoughnessAmount",
+                                               &QQuick3DPrincipledMaterial::setClearcoatRoughnessAmount,
+                                               float(clearcoatRoughnessFactor));
+            }
+
+            // texture
+            if (auto clearcoatTexture = createTextureNode(source, AI_MATKEY_CLEARCOAT_TEXTURE))
+                QSSGSceneDesc::setProperty(target, "clearcoatMap", &QQuick3DPrincipledMaterial::setClearcoatMap, clearcoatTexture);
+
+            // roughness texture
+            if (auto clearcoatRoughnessTexture = createTextureNode(source, AI_MATKEY_CLEARCOAT_ROUGHNESS_TEXTURE))
+                QSSGSceneDesc::setProperty(target,
+                                           "clearcoatRoughnessMap",
+                                           &QQuick3DPrincipledMaterial::setClearcoatRoughnessMap,
+                                           clearcoatRoughnessTexture);
+
+            // normal texture
+            if (auto clearcoatNormalTexture = createTextureNode(source, AI_MATKEY_CLEARCOAT_NORMAL_TEXTURE))
+                QSSGSceneDesc::setProperty(target, "clearcoatNormalMap", &QQuick3DPrincipledMaterial::setClearcoatNormalMap, clearcoatNormalTexture);
+        }
+
+        {
+            // Transmission Properties (KHR_materials_transmission)
+            // factor
+            {
+                ai_real transmissionFactor = 0.0f;
+                result = source.Get(AI_MATKEY_TRANSMISSION_FACTOR, transmissionFactor);
+                if (result == aiReturn_SUCCESS)
+                    QSSGSceneDesc::setProperty(target,
+                                               "transmissionFactor",
+                                               &QQuick3DPrincipledMaterial::setTransmissionFactor,
+                                               float(transmissionFactor));
+            }
+
+            // texture
+            {
+                if (auto transmissionImage = createTextureNode(source, AI_MATKEY_TRANSMISSION_TEXTURE))
+                    QSSGSceneDesc::setProperty(target,
+                                               "transmissionMap",
+                                               &QQuick3DPrincipledMaterial::setTransmissionMap,
+                                               transmissionImage);
+            }
+
+        }
+
+        {
+            // Volume Properties (KHR_materials_volume) [only used with transmission]
+            // thicknessFactor
+            {
+                ai_real thicknessFactor = 0.0f;
+                result = source.Get(AI_MATKEY_VOLUME_THICKNESS_FACTOR, thicknessFactor);
+                if (result == aiReturn_SUCCESS)
+                    QSSGSceneDesc::setProperty(target, "thicknessFactor", &QQuick3DPrincipledMaterial::setThicknessFactor, float(thicknessFactor));
+            }
+
+            // thicknessMap
+            {
+                if (auto thicknessImage = createTextureNode(source, AI_MATKEY_VOLUME_THICKNESS_TEXTURE))
+                    QSSGSceneDesc::setProperty(target, "thicknessMap", &QQuick3DPrincipledMaterial::setThicknessMap, thicknessImage);
+            }
+
+            // attenuationDistance
+            {
+                ai_real attenuationDistance = 0.0f;
+                result = source.Get(AI_MATKEY_VOLUME_ATTENUATION_DISTANCE, attenuationDistance);
+                if (result == aiReturn_SUCCESS)
+                    QSSGSceneDesc::setProperty(target,
+                                               "attenuationDistance",
+                                               &QQuick3DPrincipledMaterial::setAttenuationDistance,
+                                               float(attenuationDistance));
+            }
+
+            // attenuationColor
+            {
+                aiColor3D attenuationColor;
+                result = source.Get(AI_MATKEY_VOLUME_ATTENUATION_COLOR, attenuationColor);
+                if (result == aiReturn_SUCCESS)
+                    QSSGSceneDesc::setProperty(target,
+                                               "attenuationColor",
+                                               &QQuick3DPrincipledMaterial::setAttenuationColor,
+                                               aiColorToQColor(attenuationColor));
+            }
+        }
+
+
+        // KHR_materials_ior
+        {
+            ai_real ior = 0.0f;
+            result = source.Get(AI_MATKEY_REFRACTI, ior);
+            if (result == aiReturn_SUCCESS)
+                QSSGSceneDesc::setProperty(target,
+                                           "indexOfRefraction",
+                                           &QQuick3DPrincipledMaterial::setIndexOfRefraction,
+                                           float(ior));
+        }
+
+    } else if (type == QSSGSceneDesc::Material::RuntimeType::DefaultMaterial) { // Ver1
         int shadingModel = 0;
-        aiReturn result;
         auto material = &source;
         result = material->Get(AI_MATKEY_SHADING_MODEL, shadingModel);
         // lighting
@@ -564,6 +671,212 @@ static void setMaterialProperties(QSSGSceneDesc::Material &target, const aiMater
         // normalMap aiTextureType_NORMALS 0
         if (auto normalTexture = createTextureNode(source, aiTextureType_NORMALS, 0))
             QSSGSceneDesc::setProperty(target, "normalMap", &QQuick3DDefaultMaterial::setNormalMap, normalTexture);
+    } else if (type == QSSGSceneDesc::Material::RuntimeType::SpecularGlossyMaterial) {
+        {
+            aiColor4D albedoFactor;
+            result = source.Get(AI_MATKEY_COLOR_DIFFUSE, albedoFactor);
+            if (result == aiReturn_SUCCESS)
+                QSSGSceneDesc::setProperty(target, "albedoColor", &QQuick3DSpecularGlossyMaterial::setAlbedoColor, aiColorToQColor(albedoFactor));
+        }
+
+        if (auto albedoTexture = createTextureNode(source, aiTextureType_DIFFUSE, 0)) {
+            QSSGSceneDesc::setProperty(target, "albedoMap", &QQuick3DSpecularGlossyMaterial::setAlbedoMap, albedoTexture);
+            QSSGSceneDesc::setProperty(target, "opacityChannel", &QQuick3DSpecularGlossyMaterial::setOpacityChannel, QQuick3DSpecularGlossyMaterial::TextureChannelMapping::A);
+        }
+
+        if (auto specularGlossinessTexture = createTextureNode(source, aiTextureType_SPECULAR, 0)) {
+            QSSGSceneDesc::setProperty(target, "specularMap", &QQuick3DSpecularGlossyMaterial::setSpecularMap, specularGlossinessTexture);
+            QSSGSceneDesc::setProperty(target, "glossinessMap", &QQuick3DSpecularGlossyMaterial::setGlossinessMap, specularGlossinessTexture);
+            QSSGSceneDesc::setProperty(target, "glossinessChannel", &QQuick3DSpecularGlossyMaterial::setGlossinessChannel, QQuick3DSpecularGlossyMaterial::TextureChannelMapping::A);
+        }
+
+        {
+            aiColor4D specularColorFactor;
+            result = source.Get(AI_MATKEY_COLOR_SPECULAR, specularColorFactor);
+            if (result == aiReturn_SUCCESS)
+                QSSGSceneDesc::setProperty(target, "specularColor", &QQuick3DSpecularGlossyMaterial::setSpecularColor, aiColorToQColor(specularColorFactor));
+        }
+
+        {
+            ai_real glossinessFactor;
+            result = source.Get(AI_MATKEY_GLOSSINESS_FACTOR, glossinessFactor);
+            if (result == aiReturn_SUCCESS)
+                QSSGSceneDesc::setProperty(target, "glossiness", &QQuick3DSpecularGlossyMaterial::setGlossiness, float(glossinessFactor));
+        }
+
+        if (auto normalTexture = createTextureNode(source, aiTextureType_NORMALS, 0)) {
+            QSSGSceneDesc::setProperty(target, "normalMap", &QQuick3DSpecularGlossyMaterial::setNormalMap, normalTexture);
+            {
+                ai_real normalScale;
+                result = source.Get(AI_MATKEY_GLTF_TEXTURE_SCALE(aiTextureType_NORMALS, 0), normalScale);
+                if (result == aiReturn_SUCCESS)
+                    QSSGSceneDesc::setProperty(target, "normalStrength", &QQuick3DSpecularGlossyMaterial::setNormalStrength, float(normalScale));
+            }
+        }
+
+        // Occlusion Textures are not implimented (yet)
+        if (auto occlusionTexture = createTextureNode(source, aiTextureType_LIGHTMAP, 0)) {
+            QSSGSceneDesc::setProperty(target, "occlusionMap", &QQuick3DSpecularGlossyMaterial::setOcclusionMap, occlusionTexture);
+            QSSGSceneDesc::setProperty(target, "occlusionChannel", &QQuick3DSpecularGlossyMaterial::setOcclusionChannel, QQuick3DSpecularGlossyMaterial::TextureChannelMapping::R);
+            {
+                ai_real occlusionAmount;
+                result = source.Get(AI_MATKEY_GLTF_TEXTURE_STRENGTH(aiTextureType_LIGHTMAP, 0), occlusionAmount);
+                if (result == aiReturn_SUCCESS)
+                    QSSGSceneDesc::setProperty(target, "occlusionAmount", &QQuick3DSpecularGlossyMaterial::setOcclusionAmount, float(occlusionAmount));
+            }
+        }
+
+        if (auto emissiveTexture = createTextureNode(source, aiTextureType_EMISSIVE, 0))
+            QSSGSceneDesc::setProperty(target, "emissiveMap", &QQuick3DSpecularGlossyMaterial::setEmissiveMap, emissiveTexture);
+
+        {
+            aiColor3D emissiveColorFactor;
+            result = source.Get(AI_MATKEY_COLOR_EMISSIVE, emissiveColorFactor);
+            if (result == aiReturn_SUCCESS)
+                QSSGSceneDesc::setProperty(target, "emissiveFactor", &QQuick3DSpecularGlossyMaterial::setEmissiveFactor, QVector3D { emissiveColorFactor.r, emissiveColorFactor.g, emissiveColorFactor.b });
+        }
+
+        {
+            bool isDoubleSided;
+            result = source.Get(AI_MATKEY_TWOSIDED, isDoubleSided);
+            if (result == aiReturn_SUCCESS && isDoubleSided)
+                QSSGSceneDesc::setProperty(target, "cullMode", &QQuick3DSpecularGlossyMaterial::setCullMode, QQuick3DSpecularGlossyMaterial::CullMode::NoCulling);
+        }
+
+        {
+            aiString alphaMode;
+            result = source.Get(AI_MATKEY_GLTF_ALPHAMODE, alphaMode);
+            if (result == aiReturn_SUCCESS) {
+                auto mode = QQuick3DSpecularGlossyMaterial::AlphaMode::Default;
+                if (QByteArrayView(alphaMode.C_Str()) == "OPAQUE")
+                    mode = QQuick3DSpecularGlossyMaterial::AlphaMode::Opaque;
+                else if (QByteArrayView(alphaMode.C_Str()) == "MASK")
+                    mode = QQuick3DSpecularGlossyMaterial::AlphaMode::Mask;
+                else if (QByteArrayView(alphaMode.C_Str()) == "BLEND")
+                    mode = QQuick3DSpecularGlossyMaterial::AlphaMode::Blend;
+
+                if (mode != QQuick3DSpecularGlossyMaterial::AlphaMode::Default)
+                    QSSGSceneDesc::setProperty(target, "alphaMode", &QQuick3DSpecularGlossyMaterial::setAlphaMode, mode);
+            }
+        }
+
+        {
+            ai_real alphaCutoff;
+            result = source.Get(AI_MATKEY_GLTF_ALPHACUTOFF, alphaCutoff);
+            if (result == aiReturn_SUCCESS)
+                QSSGSceneDesc::setProperty(target, "alphaCutoff", &QQuick3DSpecularGlossyMaterial::setAlphaCutoff, float(alphaCutoff));
+        }
+
+        {
+            int shadingModel = 0;
+            result = source.Get(AI_MATKEY_SHADING_MODEL, shadingModel);
+            if (result == aiReturn_SUCCESS && shadingModel == aiShadingMode_Unlit)
+                QSSGSceneDesc::setProperty(target, "lighting", &QQuick3DSpecularGlossyMaterial::setLighting, QQuick3DSpecularGlossyMaterial::Lighting::NoLighting);
+        }
+
+
+        {
+            // Clearcoat Properties (KHR_materials_clearcoat)
+            // factor
+            {
+                ai_real clearcoatFactor = 0.0f;
+                result = source.Get(AI_MATKEY_CLEARCOAT_FACTOR, clearcoatFactor);
+                if (result == aiReturn_SUCCESS)
+                    QSSGSceneDesc::setProperty(target,
+                                               "clearcoatAmount",
+                                               &QQuick3DSpecularGlossyMaterial::setClearcoatAmount,
+                                               float(clearcoatFactor));
+            }
+
+            // roughness
+            {
+                ai_real clearcoatRoughnessFactor = 0.0f;
+                result = source.Get(AI_MATKEY_CLEARCOAT_ROUGHNESS_FACTOR, clearcoatRoughnessFactor);
+                if (result == aiReturn_SUCCESS)
+                    QSSGSceneDesc::setProperty(target,
+                                               "clearcoatRoughnessAmount",
+                                               &QQuick3DSpecularGlossyMaterial::setClearcoatRoughnessAmount,
+                                               float(clearcoatRoughnessFactor));
+            }
+
+            // texture
+            if (auto clearcoatTexture = createTextureNode(source, AI_MATKEY_CLEARCOAT_TEXTURE))
+                QSSGSceneDesc::setProperty(target, "clearcoatMap", &QQuick3DSpecularGlossyMaterial::setClearcoatMap, clearcoatTexture);
+
+            // roughness texture
+            if (auto clearcoatRoughnessTexture = createTextureNode(source, AI_MATKEY_CLEARCOAT_ROUGHNESS_TEXTURE))
+                QSSGSceneDesc::setProperty(target,
+                                           "clearcoatRoughnessMap",
+                                           &QQuick3DSpecularGlossyMaterial::setClearcoatRoughnessMap,
+                                           clearcoatRoughnessTexture);
+
+            // normal texture
+            if (auto clearcoatNormalTexture = createTextureNode(source, AI_MATKEY_CLEARCOAT_NORMAL_TEXTURE))
+                QSSGSceneDesc::setProperty(target, "clearcoatNormalMap", &QQuick3DSpecularGlossyMaterial::setClearcoatNormalMap, clearcoatNormalTexture);
+        }
+
+        {
+            // Transmission Properties (KHR_materials_transmission)
+            // factor
+            {
+                ai_real transmissionFactor = 0.0f;
+                result = source.Get(AI_MATKEY_TRANSMISSION_FACTOR, transmissionFactor);
+                if (result == aiReturn_SUCCESS)
+                    QSSGSceneDesc::setProperty(target,
+                                               "transmissionFactor",
+                                               &QQuick3DSpecularGlossyMaterial::setTransmissionFactor,
+                                               float(transmissionFactor));
+            }
+
+            // texture
+            {
+                if (auto transmissionImage = createTextureNode(source, AI_MATKEY_TRANSMISSION_TEXTURE))
+                    QSSGSceneDesc::setProperty(target,
+                                               "transmissionMap",
+                                               &QQuick3DSpecularGlossyMaterial::setTransmissionMap,
+                                               transmissionImage);
+            }
+
+        }
+
+        {
+            // Volume Properties (KHR_materials_volume) [only used with transmission]
+            // thicknessFactor
+            {
+                ai_real thicknessFactor = 0.0f;
+                result = source.Get(AI_MATKEY_VOLUME_THICKNESS_FACTOR, thicknessFactor);
+                if (result == aiReturn_SUCCESS)
+                    QSSGSceneDesc::setProperty(target, "thicknessFactor", &QQuick3DSpecularGlossyMaterial::setThicknessFactor, float(thicknessFactor));
+            }
+
+            // thicknessMap
+            {
+                if (auto thicknessImage = createTextureNode(source, AI_MATKEY_VOLUME_THICKNESS_TEXTURE))
+                    QSSGSceneDesc::setProperty(target, "thicknessMap", &QQuick3DSpecularGlossyMaterial::setThicknessMap, thicknessImage);
+            }
+
+            // attenuationDistance
+            {
+                ai_real attenuationDistance = 0.0f;
+                result = source.Get(AI_MATKEY_VOLUME_ATTENUATION_DISTANCE, attenuationDistance);
+                if (result == aiReturn_SUCCESS)
+                    QSSGSceneDesc::setProperty(target,
+                                               "attenuationDistance",
+                                               &QQuick3DSpecularGlossyMaterial::setAttenuationDistance,
+                                               float(attenuationDistance));
+            }
+
+            // attenuationColor
+            {
+                aiColor3D attenuationColor;
+                result = source.Get(AI_MATKEY_VOLUME_ATTENUATION_COLOR, attenuationColor);
+                if (result == aiReturn_SUCCESS)
+                    QSSGSceneDesc::setProperty(target,
+                                               "attenuationColor",
+                                               &QQuick3DSpecularGlossyMaterial::setAttenuationColor,
+                                               aiColorToQColor(attenuationColor));
+            }
+        }
     }
 }
 
@@ -730,6 +1043,30 @@ static void setLightProperties(QSSGSceneDesc::Light &target, const aiLight &sour
     // shadowFilter
 }
 
+using MorphAttributes = QQuick3DMorphTarget::MorphTargetAttributes;
+using MorphProperty = QPair<MorphAttributes, float>;
+
+static QVector<MorphProperty> getMorphTargetProperties(const aiMesh &mesh)
+{
+    QVector<MorphProperty> targets;
+    const quint32 numMorphTargets = qMin(8U, mesh.mNumAnimMeshes);
+
+    for (uint i = 0; i < numMorphTargets; ++i) {
+        const auto &animMesh = mesh.mAnimMeshes[i];
+        QQuick3DMorphTarget::MorphTargetAttributes mTarget;
+        if (animMesh->HasPositions())
+            mTarget |= QQuick3DMorphTarget::MorphTargetAttribute::Position;
+        if (animMesh->HasNormals())
+            mTarget |= QQuick3DMorphTarget::MorphTargetAttribute::Normal;
+        if (animMesh->HasTangentsAndBitangents()) {
+            mTarget |= QQuick3DMorphTarget::MorphTargetAttribute::Tangent;
+            mTarget |= QQuick3DMorphTarget::MorphTargetAttribute::Binormal;
+        }
+        targets.push_back(qMakePair(mTarget, animMesh->mWeight));
+    }
+    return targets;
+}
+
 static void setModelProperties(QSSGSceneDesc::Model &target, const aiNode &source, const SceneInfo &sceneInfo)
 {
     if (source.mNumMeshes == 0)
@@ -743,8 +1080,8 @@ static void setModelProperties(QSSGSceneDesc::Model &target, const aiNode &sourc
     auto &meshStorage = targetScene->meshStorage;
     auto &materialMap = sceneInfo.materialMap;
     auto &meshMap = sceneInfo.meshMap;
-    auto &skeletonMap = sceneInfo.skeletonMap;
-    auto &boneIdxMap = sceneInfo.boneIdxMap;
+    auto &skinMap = sceneInfo.skinMap;
+    auto &mesh2skin = sceneInfo.mesh2skin;
 
     QVarLengthArray<QSSGSceneDesc::Material *> materials;
     materials.reserve(source.mNumMeshes); // Assumig there's max one material per mesh.
@@ -754,8 +1091,6 @@ static void setModelProperties(QSSGSceneDesc::Model &target, const aiNode &sourc
 
     QString errorString;
 
-    QSSGSceneDesc::Skeleton *skeleton = nullptr;
-
     const auto ensureMaterial = [&](qsizetype materialIndex) {
         // Get the material for the mesh
         auto &material = materialMap[materialIndex];
@@ -763,9 +1098,18 @@ static void setModelProperties(QSSGSceneDesc::Model &target, const aiNode &sourc
         auto targetMat = material.second;
         if (targetMat == nullptr) {
             const aiMaterial *sourceMat = material.first;
-            targetMat = targetScene->create<QSSGSceneDesc::Material>(materialType);
+
+            auto currentMaterialType = materialType;
+            if (currentMaterialType == QSSGSceneDesc::Material::RuntimeType::PrincipledMaterial) {
+                ai_real glossinessFactor;
+                aiReturn result = sourceMat->Get(AI_MATKEY_GLOSSINESS_FACTOR, glossinessFactor);
+                if (result == aiReturn_SUCCESS)
+                    currentMaterialType = QSSGSceneDesc::Material::RuntimeType::SpecularGlossyMaterial;
+            }
+
+            targetMat = targetScene->create<QSSGSceneDesc::Material>(currentMaterialType);
             QSSGSceneDesc::addNode(target, *targetMat);
-            setMaterialProperties(*targetMat, *sourceMat, sceneInfo);
+            setMaterialProperties(*targetMat, *sourceMat, sceneInfo, currentMaterialType);
             material.second = targetMat;
         }
 
@@ -776,27 +1120,29 @@ static void setModelProperties(QSSGSceneDesc::Model &target, const aiNode &sourc
     };
 
     AssimpUtils::MeshList meshes;
+    qint16 skinIdx = -1;
     // Combine all the meshes referenced by this model into a single MultiMesh file
     // For the morphing, the target mesh must have the same AnimMeshes.
     // It means if only one mesh has a morphing animation, the other sub-meshes will
     // get null target attributes. However this case might not be common.
     // These submeshes will animate with the same morphing weight!
+
+    // If meshes have separate skins, they should not be combined. GLTF2 does not
+    // seem to have problems related with this case, but When we use runtime asset
+    // for other formats, this case must be checked again.
+    // Here, we will use only the first skin in the mesh list
     const auto combineMeshes = [&](const aiNode &source, aiMesh **sceneMeshes) {
         for (qsizetype i = 0, end = source.mNumMeshes; i != end; ++i) {
             const aiMesh &mesh = *sceneMeshes[source.mMeshes[i]];
             ensureMaterial(mesh.mMaterialIndex);
-            if (mesh.HasBones()) {
-                aiBone *bone = mesh.mBones[0];
-                aiNode *node = srcScene.mRootNode->FindNode(bone->mName);
-                skeleton = skeletonMap[node].first;
-            }
+            if (skinIdx == -1 && mesh.HasBones())
+                skinIdx = mesh2skin[source.mMeshes[i]];
             meshes.push_back(&mesh);
         }
     };
 
     const auto createMeshNode = [&](const aiString &name) {
-        // TODO: There's a bug here when the lightmap generation is enabled...
-        auto meshData = AssimpUtils::generateMeshData(srcScene, meshes, boneIdxMap, false, false, errorString);
+        auto meshData = AssimpUtils::generateMeshData(srcScene, meshes, false, errorString);
         meshStorage.push_back(std::move(meshData));
 
         const auto idx = meshStorage.size() - 1;
@@ -818,12 +1164,9 @@ static void setModelProperties(QSSGSceneDesc::Model &target, const aiNode &sourc
         auto &mesh = meshMap[*source.mMeshes];
         meshNode = mesh.second;
         if (meshNode == nullptr) {
-            if (mesh.first->HasBones()) {
-                aiBone *bone = mesh.first->mBones[0];
-                aiNode *node = srcScene.mRootNode->FindNode(bone->mName);
-                skeleton = skeletonMap[node].first;
-            }
             meshes = {mesh.first};
+            if (mesh.first->HasBones())
+                skinIdx = mesh2skin[*source.mMeshes];
             mesh.second = meshNode = createMeshNode(mesh.first->mName);
             QSSGSceneDesc::addNode(target, *meshNode); // We only add this the first time we create it.
         }
@@ -834,27 +1177,12 @@ static void setModelProperties(QSSGSceneDesc::Model &target, const aiNode &sourc
     if (meshNode)
         QSSGSceneDesc::setProperty(target, "source", &QQuick3DModel::setSource, QSSGSceneDesc::Value{ QMetaType::fromType<QSSGSceneDesc::Mesh>(), meshNode });
 
-    if (skeleton) {
-        QSSGSceneDesc::setProperty(target, "skeleton", &QQuick3DModel::setSkeleton, skeleton);
-        QList<QMatrix4x4> inverseBindPoses;
-        inverseBindPoses.resize(skeleton->maxIndex + 1);
-        for (const auto &mesh : qAsConst(meshes)) {
-            using It = decltype (mesh->mNumBones);
-            for (It i = 0, end = mesh->mNumBones; i != end; ++i) {
-                QString boneName = QString::fromUtf8(mesh->mBones[i]->mName.C_Str());
-                const auto boneIt = boneIdxMap.constFind(boneName);
-                if (boneIt != boneIdxMap.cend()) { // All the bones should be inserted.
-                    const auto &osMat = mesh->mBones[i]->mOffsetMatrix;
-                    inverseBindPoses[*boneIt] = { osMat[0][0], osMat[0][1], osMat[0][2], osMat[0][3],
-                                                  osMat[1][0], osMat[1][1], osMat[1][2], osMat[1][3],
-                                                  osMat[2][0], osMat[2][1], osMat[2][2], osMat[2][3],
-                                                  osMat[3][0], osMat[3][1], osMat[3][2], osMat[3][3] };
-                } else {
-                    qWarning("Warning: Unidentified bone node! It is unexpected.");
-                }
-            }
-        }
-        QSSGSceneDesc::setProperty(target, "inverseBindPoses", &QQuick3DModel::setInverseBindPoses, inverseBindPoses);
+    if (skinIdx != -1) {
+        auto &skin = skinMap[skinIdx];
+        skin.node = targetScene->create<QSSGSceneDesc::Skin>();
+        QSSGSceneDesc::setProperty(target, "skin", &QQuick3DModel::setSkin, skin.node);
+        QSSGSceneDesc::addNode(target, *skin.node);
+        // Skins' properties wil be set after all the nodes are processed
     }
 
     // materials
@@ -862,19 +1190,6 @@ static void setModelProperties(QSSGSceneDesc::Model &target, const aiNode &sourc
     // Since we don't create any runtime objects at this point, the list also contains the node type that corresponds with the
     // type expected to be in the list (this is ensured at compile-time).
     QSSGSceneDesc::setProperty(target, "materials", &QQuick3DModel::materials, materials);
-}
-
-static bool containsNodesOfConsequence(const aiNode &node, const NodeMap &nodeMap)
-{
-    // Any node in the nodeMap is already of interest.
-    bool knownNode = nodeMap.contains(&node)
-                     || (node.mNumMeshes > 0) /* Models */;
-
-    // Return early if we know already
-    for (qsizetype i = 0, end = node.mNumChildren; i != end && !knownNode; ++i)
-        knownNode |= containsNodesOfConsequence(*node.mChildren[i], nodeMap);
-
-    return knownNode;
 }
 
 static QSSGSceneDesc::Node *createSceneNode(const NodeInfo &nodeInfo,
@@ -942,34 +1257,49 @@ static void processNode(const SceneInfo &sceneInfo, const aiNode &source, QSSGSc
 {
     QSSGSceneDesc::Node *node = nullptr;
     if (source.mNumMeshes != 0) {
-        node = createSceneNode(NodeInfo { 0, QSSGSceneDesc::Node::Type::Model }, source, parent, sceneInfo);
-    } else {
-        auto it = nodeMap.constFind(&source);
-        const auto end = nodeMap.constEnd();
-        if (it != end) {
-            if (it->type == QSSGSceneDesc::Node::Type::Joint) {
-                auto newParent = &parent;
-                auto &skeletonMap = sceneInfo.skeletonMap;
-                Q_ASSERT(skeletonMap.contains(&source));
-                auto skeletonInfo = skeletonMap[&source];
-                auto skeleton = skeletonInfo.first;
-                if (it->index == 0) // first node
-                    QSSGSceneDesc::addNode(parent, *skeleton);
-
-                if (skeletonInfo.second)
-                    newParent = skeleton;
-
-                node = createSceneNode(*it, source, *newParent, sceneInfo);
-                QSSGSceneDesc::setProperty(*node, "skeletonRoot", &QQuick3DJoint::setSkeletonRoot, skeleton);
-            } else {
-                node = createSceneNode(*it, source, parent, sceneInfo);
+        // Process morphTargets first and then add them to the modelNode
+        using It = decltype(source.mNumMeshes);
+        QVector<MorphProperty> morphProps;
+        for (It i = 0, end = source.mNumMeshes; i != end; ++i) {
+            const auto &srcScene = sceneInfo.scene;
+            const aiMesh &mesh = *srcScene.mMeshes[source.mMeshes[i]];
+            if (mesh.mNumAnimMeshes && mesh.mAnimMeshes) {
+                morphProps = getMorphTargetProperties(mesh);
+                break;
             }
+        }
+        node = createSceneNode(NodeInfo { 0, QSSGSceneDesc::Node::Type::Model }, source, parent, sceneInfo);
+        if (!morphProps.isEmpty()) {
+            auto &targetScene = parent.scene;
+            const QString nodeName(source.mName.C_Str());
+            QVarLengthArray<QSSGSceneDesc::MorphTarget *> morphTargets;
+            morphTargets.reserve(morphProps.size());
+            for (int i = 0, end = morphProps.size(); i != end; ++i) {
+                const auto morphProp = morphProps.at(i);
+
+                auto morphNode = targetScene->create<QSSGSceneDesc::MorphTarget>();
+                QSSGSceneDesc::addNode(*node, *morphNode);
+                QSSGSceneDesc::setProperty(*morphNode, "weight", &QQuick3DMorphTarget::setWeight, morphProp.second);
+                QSSGSceneDesc::setProperty(*morphNode, "attributes", &QQuick3DMorphTarget::setAttributes, morphProp.first);
+                morphTargets.push_back(morphNode);
+
+                if (!animationNodes.isEmpty()) {
+                    QString morphTargetName = nodeName + QStringLiteral("_morph") + QString::number(i);
+                    const auto aNodeIt = animationNodes.find(morphTargetName.toUtf8());
+                    if (aNodeIt != animationNodes.end() && aNodeIt.value() == nullptr)
+                        *aNodeIt = morphNode;
+                }
+            }
+            QSSGSceneDesc::setProperty(*node, "morphTargets", &QQuick3DModel::morphTargets, morphTargets);
         }
     }
 
-    // For now, all the nodes are generated, even if they are empty.
-    if (!node && containsNodesOfConsequence(source, nodeMap))
-        node = createSceneNode(NodeInfo { 0, QSSGSceneDesc::Node::Type::Transform }, source, parent, sceneInfo);
+    if (!node) {
+        NodeInfo nodeInfo{ 0, QSSGSceneDesc::Node::Type::Transform };
+        if (auto it = nodeMap.constFind(&source); it != nodeMap.constEnd())
+            nodeInfo = (*it);
+        node = createSceneNode(nodeInfo, source, parent, sceneInfo);
+    }
 
     if (!node)
         node = &parent;
@@ -990,34 +1320,19 @@ static void processNode(const SceneInfo &sceneInfo, const aiNode &source, QSSGSc
         processNode(sceneInfo, **(source.mChildren + i), *node, nodeMap, animationNodes);
 }
 
-static QSSGSceneDesc::Animation::KeyPosition toAnimationKey(const aiVectorKey &key) {
+static QSSGSceneDesc::Animation::KeyPosition toAnimationKey(const aiVectorKey &key, qreal freq) {
     const auto flag = quint16(QSSGSceneDesc::Animation::KeyPosition::KeyType::Time) | quint16(QSSGSceneDesc::Animation::KeyPosition::ValueType::Vec3);
-    return QSSGSceneDesc::Animation::KeyPosition { QVector4D{ key.mValue.x, key.mValue.y, key.mValue.z, 0.0f }, float(key.mTime), flag };
+    return QSSGSceneDesc::Animation::KeyPosition { QVector4D{ key.mValue.x, key.mValue.y, key.mValue.z, 0.0f }, float(key.mTime * freq), flag };
 }
 
-static QSSGSceneDesc::Animation::KeyPosition toAnimationKey(const aiQuatKey &key) {
+static QSSGSceneDesc::Animation::KeyPosition toAnimationKey(const aiQuatKey &key, qreal freq) {
     const auto flag = quint16(QSSGSceneDesc::Animation::KeyPosition::KeyType::Time) | quint16(QSSGSceneDesc::Animation::KeyPosition::ValueType::Quaternion);
-    return QSSGSceneDesc::Animation::KeyPosition { QVector4D{ key.mValue.x, key.mValue.y, key.mValue.z, key.mValue.w }, float(key.mTime), flag };
+    return QSSGSceneDesc::Animation::KeyPosition { QVector4D{ key.mValue.x, key.mValue.y, key.mValue.z, key.mValue.w }, float(key.mTime * freq), flag };
 }
 
-// This function updates skeletonMap and index of nodeMap as joint index for a Joint hierarchy
-static void buildSkeletonMapAndBoneIndexMap(QSSGSceneDesc::Skeleton *skeleton, const aiNode &node, qint32 &index, NodeMap *nodeMap, SceneInfo::SkeletonMap *skeletonMap, AssimpUtils::BoneIndexMap *boneIdxMap)
-{
-    using It = decltype (node.mNumChildren);
-    for (It i = 0, end = node.mNumChildren; i != end; ++i) {
-        auto cNode = node.mChildren[i];
-        // Assumes that all the Joints have children which are Joints
-        // if the child is not in the nodeMap
-        auto it = nodeMap->find(cNode);
-        auto cEnd = nodeMap->end();
-        if (it == cEnd || it->type == NodeInfo::Type::Joint) {
-            nodeMap->insert(cNode, NodeInfo { size_t(index), QSSGSceneDesc::Node::Type::Joint });
-            skeletonMap->insert(cNode, qMakePair(skeleton, false));
-            auto boneName = QString::fromUtf8(cNode->mName.C_Str());
-            boneIdxMap->insert(boneName, index);
-            buildSkeletonMapAndBoneIndexMap(skeleton, *cNode, ++index, nodeMap, skeletonMap, boneIdxMap);
-        }
-    }
+static QSSGSceneDesc::Animation::KeyPosition toAnimationKey(const aiMeshMorphKey &key, qreal freq, uint morphId) {
+    const auto flag = quint16(QSSGSceneDesc::Animation::KeyPosition::KeyType::Time) | quint16(QSSGSceneDesc::Animation::KeyPosition::ValueType::Number);
+    return QSSGSceneDesc::Animation::KeyPosition { QVector4D{ float(key.mWeights[morphId]), 0.0f, 0.0f, 0.0f }, float(key.mTime * freq), flag };
 }
 
 static QString importImp(const QUrl &url, const QVariantMap &options, QSSGSceneDesc::Scene &targetScene)
@@ -1088,7 +1403,6 @@ static QString importImp(const QUrl &url, const QVariantMap &options, QSSGSceneD
     // Before we can start processing the scene we start my mapping out the nodes
     // we can tell the type of.
     const auto &srcRootNode = *sourceScene->mRootNode;
-    bool hasSkeleton = false;
     NodeMap nodeMap;
     // We need to know which nodes are animated so we can map _our_ animation data to
     // the target node (in Assimp this is string based mapping).
@@ -1119,23 +1433,24 @@ static QString importImp(const QUrl &url, const QVariantMap &options, QSSGSceneD
                     const auto &nodeName = srcChannel->mNodeName;
                     if (nodeName.length > 0) {
                         // We'll update this once we've created the node!
-                        animatingNodes.insert(QByteArrayView{nodeName.C_Str(), qsizetype(nodeName.length)}, nullptr);
+                        QByteArray name(nodeName.C_Str(), qsizetype(nodeName.length));
+                        if (!animatingNodes.contains(name))
+                            animatingNodes.insert(name, nullptr);
                     }
                 }
-            }
-        }
-
-        // Bones
-        const size_t maxId = std::numeric_limits<size_t>::max();
-        if (sourceScene->HasMeshes()) {
-            for (It i = 0, end = sourceScene->mNumMeshes; i != end; ++i) {
-                const auto &mesh = *sourceScene->mMeshes[i];
-                if (mesh.HasBones()) {
-                    hasSkeleton = true;
-                    for (It j = 0, jEnd = mesh.mNumBones; j != jEnd; ++j) {
-                        const auto &bone = *mesh.mBones[j];
-                        if (auto node = srcRootNode.FindNode(bone.mName))
-                            nodeMap[node] = { maxId, NodeInfo::Type::Joint };
+                const auto morphChannelCount = srcAnim.mNumMorphMeshChannels;
+                for (It cIdx = 0; cIdx != morphChannelCount; ++cIdx) {
+                    const auto &srcChannel = srcAnim.mMorphMeshChannels[cIdx];
+                    const auto &nodeName = srcChannel->mName;
+                    if (nodeName.length > 0) {
+                        const auto morphKeys = srcChannel->mKeys;
+                        const auto numMorphTargets = qMin(morphKeys[0].mNumValuesAndWeights, 8U);
+                        // MorphTarget is renamed with <nodeName> + '_morph' + <targetNumber>
+                        for (It j = 0; j < numMorphTargets; ++j) {
+                            QString morphTargetName(nodeName.C_Str());
+                            morphTargetName += QStringLiteral("_morph") + QString::number(j);
+                            animatingNodes.insert(morphTargetName.toUtf8(), nullptr);
+                        }
                     }
                 }
             }
@@ -1150,75 +1465,92 @@ static QString importImp(const QUrl &url, const QVariantMap &options, QSSGSceneD
     const auto meshCount = sourceScene->mNumMeshes;
     SceneInfo::MeshMap meshes;
     meshes.reserve(meshCount);
+    SceneInfo::Mesh2SkinMap mesh2skin;
+    mesh2skin.reserve(meshCount);
 
     const auto embeddedTextureCount = sourceScene->mNumTextures;
     SceneInfo::EmbeddedTextureMap embeddedTextures;
 
+    SceneInfo::SkinMap skins;
+
     for (It i = 0; i != materialCount; ++i)
         materials.push_back({sourceScene->mMaterials[i], nullptr});
 
-    for (It i = 0; i != meshCount; ++i)
+    for (It i = 0; i != meshCount; ++i) {
         meshes.push_back({sourceScene->mMeshes[i], nullptr});
+        if (sourceScene->mMeshes[i]->HasBones()) {
+            mesh2skin.push_back(skins.size());
+            const auto boneCount = sourceScene->mMeshes[i]->mNumBones;
+            auto bones = sourceScene->mMeshes[i]->mBones;
+            skins.push_back(SceneInfo::skinData{ bones, boneCount, nullptr });
+
+            // For skinning, we need to get the joints list and their target nodes.
+            // It is also done by the string based mapping and many of them will
+            // be animated. So we will use existing AnimationNodeMap for the data.
+            for (It j = 0; j != boneCount; ++j) {
+                const auto &nodeName = bones[j]->mName;
+                if (nodeName.length > 0) {
+                    animatingNodes.insert(QByteArray{ nodeName.C_Str(),
+                                                          qsizetype(nodeName.length) },
+                                          nullptr);
+                }
+            }
+        } else {
+            mesh2skin.push_back(-1);
+        }
+    }
 
     for (It i = 0; i != embeddedTextureCount; ++i)
         embeddedTextures.push_back(nullptr);
 
     SceneInfo::TextureMap textureMap;
-    SceneInfo::SkeletonMap skeletonMap;
-    AssimpUtils::BoneIndexMap boneIdxMap;
 
     if (!targetScene.root) {
         auto root = targetScene.create<QSSGSceneDesc::Node>(QSSGSceneDesc::Node::Type::Transform, QSSGSceneDesc::Node::RuntimeType::Node);
         QSSGSceneDesc::addNode(targetScene, *root);
     }
 
-    // It will store nodes which are not Joint but have Joints as children
-    if (hasSkeleton) {
-        Q_ASSERT(sourceScene->HasMeshes());
-        for (const auto &mesh : qAsConst(meshes)) {
-            if (mesh.first->HasBones()) {
-                const auto &bone = *mesh.first->mBones[0];
-                const size_t maxId = std::numeric_limits<size_t>::max();
-                auto node = srcRootNode.FindNode(bone.mName);
-                if (nodeMap[node].index != maxId) // already checked
-                    continue;
-
-                auto jointRootNode = node->mParent;
-                while (nodeMap.contains(jointRootNode))
-                    jointRootNode = jointRootNode->mParent;
-
-                // Create skeletonNode before processNode
-                // The node should exist before processNode for Model node
-                auto skeleton = targetScene.create<QSSGSceneDesc::Skeleton>();
-                qint32 bIndex = 0;
-                for (It j = 0, jEnd = jointRootNode->mNumChildren; j != jEnd; ++j) {
-                    auto cNode = jointRootNode->mChildren[j];
-                    auto it = nodeMap.find(cNode);
-                    auto cEnd = nodeMap.end();
-                    if (it == cEnd || it->type != NodeInfo::Type::Joint)
-                        continue;
-                    it->index = size_t(bIndex);
-                    auto boneName = QString::fromUtf8(cNode->mName.C_Str());
-                    boneIdxMap.insert(boneName, bIndex);
-                    skeletonMap.insert(cNode, qMakePair(skeleton, true));
-                    buildSkeletonMapAndBoneIndexMap(skeleton, *cNode, ++bIndex, &nodeMap, &skeletonMap, &boneIdxMap);
-                }
-                skeleton->maxIndex = bIndex;
-            }
-        }
-    }
-
     const auto opt = SceneInfo::Options::None;
-    SceneInfo sceneInfo { *sourceScene, materials, meshes, embeddedTextures, textureMap, skeletonMap, boneIdxMap, sourceFile.dir(), gltfVersion, opt };
+    SceneInfo sceneInfo { *sourceScene, materials, meshes, embeddedTextures, textureMap, skins, mesh2skin, sourceFile.dir(), gltfVersion, opt };
 
     // Now lets go through the scene
     if (sourceScene->mRootNode)
         processNode(sceneInfo, *sourceScene->mRootNode, *targetScene.root, nodeMap, animatingNodes);
+    // skins
+    for (It i = 0, endI = skins.size(); i != endI; ++i) {
+        const auto &skin = skins[i];
+
+        // It is possible that an asset has a unused mesh with a skin
+        if (!skin.node)
+            continue;
+
+        QList<QMatrix4x4> inverseBindPoses;
+        QVarLengthArray<QSSGSceneDesc::Node *> joints;
+        joints.reserve(skin.mNumBones);
+        for (It j = 0, endJ = skin.mNumBones; j != endJ; ++j) {
+            const auto &bone = *skin.mBones[j];
+            const auto &nodeName = bone.mName;
+            if (nodeName.length > 0) {
+                auto targetNode = animatingNodes.value(QByteArray{ nodeName.C_Str(), qsizetype(nodeName.length) });
+                joints.push_back(targetNode);
+                const auto &osMat = bone.mOffsetMatrix;
+                auto pose = QMatrix4x4(osMat[0][0], osMat[0][1], osMat[0][2], osMat[0][3],
+                                       osMat[1][0], osMat[1][1], osMat[1][2], osMat[1][3],
+                                       osMat[2][0], osMat[2][1], osMat[2][2], osMat[2][3],
+                                       osMat[3][0], osMat[3][1], osMat[3][2], osMat[3][3]);
+                inverseBindPoses.push_back(pose);
+            }
+        }
+        QSSGSceneDesc::setProperty(*skin.node, "joints", &QQuick3DSkin::joints, joints);
+        QSSGSceneDesc::setProperty(*skin.node, "inverseBindPoses", &QQuick3DSkin::setInverseBindPoses, inverseBindPoses);
+    }
 
     static const auto createAnimation = [](QSSGSceneDesc::Scene &targetScene, const aiAnimation &srcAnim, const AnimationNodeMap &animatingNodes) {
         using namespace QSSGSceneDesc;
         Animation targetAnimation;
         auto &channels = targetAnimation.channels;
+        qreal freq = qFuzzyIsNull(srcAnim.mTicksPerSecond) ? 1.0
+                                        : 1000.0 / srcAnim.mTicksPerSecond;
         // Process property channels
         for (It i = 0, end = srcAnim.mNumChannels; i != end; ++i) {
             const auto &srcChannel = *srcAnim.mChannels[i];
@@ -1226,7 +1558,7 @@ static QString importImp(const QUrl &url, const QVariantMap &options, QSSGSceneD
             const auto &nodeName = srcChannel.mNodeName;
             if (nodeName.length > 0) {
                 const auto aNodeEnd = animatingNodes.cend();
-                const auto aNodeIt = animatingNodes.constFind(QByteArrayView{nodeName.C_Str(), qsizetype(nodeName.length)});
+                const auto aNodeIt = animatingNodes.constFind(QByteArray{ nodeName.C_Str(), qsizetype(nodeName.length) });
                 if (aNodeIt != aNodeEnd && aNodeIt.value() != nullptr) {
                     auto targetNode = aNodeIt.value();
                     // Target property(s)
@@ -1238,7 +1570,7 @@ static QString importImp(const QUrl &url, const QVariantMap &options, QSSGSceneD
                         targetChannel.target = targetNode;
                         for (It posKeyIdx = 0; posKeyIdx != posKeyEnd; ++posKeyIdx) {
                             const auto &posKey = srcChannel.mPositionKeys[posKeyIdx];
-                            const auto animationKey = targetScene.create<Animation::KeyPosition>(toAnimationKey(posKey));
+                            const auto animationKey = targetScene.create<Animation::KeyPosition>(toAnimationKey(posKey, freq));
                             targetChannel.keys.push_back(*animationKey);
                         }
 
@@ -1257,7 +1589,7 @@ static QString importImp(const QUrl &url, const QVariantMap &options, QSSGSceneD
                         targetChannel.target = targetNode;
                         for (It rotKeyIdx = 0; rotKeyIdx != rotKeyEnd; ++rotKeyIdx) {
                             const auto &rotKey = srcChannel.mRotationKeys[rotKeyIdx];
-                            const auto animationKey = targetScene.create<Animation::KeyPosition>(toAnimationKey(rotKey));
+                            const auto animationKey = targetScene.create<Animation::KeyPosition>(toAnimationKey(rotKey, freq));
                             targetChannel.keys.push_back(*animationKey);
                         }
 
@@ -1276,7 +1608,7 @@ static QString importImp(const QUrl &url, const QVariantMap &options, QSSGSceneD
                         targetChannel.target = targetNode;
                         for (It scaleKeyIdx = 0; scaleKeyIdx != scaleKeyEnd; ++scaleKeyIdx) {
                             const auto &scaleKey = srcChannel.mScalingKeys[scaleKeyIdx];
-                            const auto animationKey = targetScene.create<Animation::KeyPosition>(toAnimationKey(scaleKey));
+                            const auto animationKey = targetScene.create<Animation::KeyPosition>(toAnimationKey(scaleKey, freq));
                             targetChannel.keys.push_back(*animationKey);
                         }
 
@@ -1290,11 +1622,40 @@ static QString importImp(const QUrl &url, const QVariantMap &options, QSSGSceneD
                 }
             }
         }
+        // Morphing Animations
+        for (It i = 0, end = srcAnim.mNumMorphMeshChannels; i != end; ++i) {
+            const auto &srcMorphChannel = *srcAnim.mMorphMeshChannels[i];
+            const QString nodeName(srcMorphChannel.mName.C_Str());
+            const auto *morphKeys = srcMorphChannel.mKeys;
+            const auto numMorphTargets = qMin(morphKeys[0].mNumValuesAndWeights, 8U);
+            for (It targetId = 0; targetId != numMorphTargets; ++targetId) {
+                QString morphTargetName = nodeName + QStringLiteral("_morph") + QString::number(targetId);
+                const auto aNodeEnd = animatingNodes.cend();
+                const auto aNodeIt = animatingNodes.constFind(morphTargetName.toUtf8());
+                if (aNodeIt != aNodeEnd && aNodeIt.value() != nullptr) {
+                    auto targetNode = aNodeIt.value();
+                    const auto weightKeyEnd = srcMorphChannel.mNumKeys;
+                    Animation::Channel targetChannel;
+                    targetChannel.targetProperty = Animation::Channel::TargetProperty::Weight;
+                    targetChannel.target = targetNode;
+                    for (It wId = 0; wId != weightKeyEnd; ++wId) {
+                        const auto &weightKey = srcMorphChannel.mKeys[wId];
+                        const auto animationKey = targetScene.create<Animation::KeyPosition>(toAnimationKey(weightKey, freq, targetId));
+                        targetChannel.keys.push_back(*animationKey);
+                    }
+                    if (!targetChannel.keys.isEmpty()) {
+                        channels.push_back(*targetScene.create<Animation::Channel>(targetChannel));
+                        float endTime = float(srcMorphChannel.mKeys[weightKeyEnd - 1].mTime);
+                        if (targetAnimation.length < endTime)
+                            targetAnimation.length = endTime;
+                    }
+                }
+            }
+        }
 
         // If we have data we need to make it persistent.
         if (!targetAnimation.channels.isEmpty())
             targetScene.animations.push_back(targetScene.create<Animation>(targetAnimation));
-
     };
 
     // All scene nodes should now be created (and ready), so let's go through the animation data.
@@ -1312,7 +1673,7 @@ static QString importImp(const QUrl &url, const QVariantMap &options, QSSGSceneD
 
 ////////////////////////
 
-QString AssimpImporter::import(const QUrl &url, const QVariantMap &, QSSGSceneDesc::Scene &scene)
+QString AssimpImporter::import(const QUrl &url, const QJsonObject &, QSSGSceneDesc::Scene &scene)
 {
     // We'll simply use assimp to load the scene and then translate the Aassimp scene
     // into our own format.

@@ -1,10 +1,13 @@
+# to make lintian/ftp-master happy :-/
+qt6-quick3d source: license-problem-json-evil src/3rdparty/assimp/src/contrib/rapidjson/license.txt
+
 # False positive: files under JSON license are not actually present
 # (they would be at i.e. src/3rdparty/assimp/contrib/rapidjson/bin/jsonchecker/ if they were)
-qt6-quick3d source: license-problem-json-evil src/3rdparty/assimp/src/contrib/rapidjson/license.txt
+qt6-quick3d source: license-problem-json-evil [src/3rdparty/assimp/src/contrib/rapidjson/license.txt]
 
 # The file is not shipped, neither is the source code next to it built,
 # but the contents of the chm are entirely generated from the source
 # code.
-qt6-quick3d source: source-contains-prebuilt-ms-help-file src/3rdparty/assimp/src/contrib/zlib/contrib/dotzlib/DotZLib.chm
-qt6-quick3d source: source-contains-prebuilt-ms-help-file src/3rdparty/assimp/src/doc/AssimpCmdDoc_Html/AssimpCmdDoc.chm
-qt6-quick3d source: source-contains-prebuilt-ms-help-file src/3rdparty/assimp/src/doc/AssimpDoc_Html/AssimpDoc.chm
+qt6-quick3d source: source-contains-prebuilt-ms-help-file [src/3rdparty/assimp/src/contrib/zlib/contrib/dotzlib/DotZLib.chm]
+qt6-quick3d source: source-contains-prebuilt-ms-help-file [src/3rdparty/assimp/src/doc/AssimpCmdDoc_Html/AssimpCmdDoc.chm]
+qt6-quick3d source: source-contains-prebuilt-ms-help-file [src/3rdparty/assimp/src/doc/AssimpDoc_Html/AssimpDoc.chm]

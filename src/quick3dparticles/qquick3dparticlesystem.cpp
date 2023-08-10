@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2021 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2021 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include <QtQuick3D/private/qquick3dquaternionutils_p.h>
 #include "qquick3dparticlesystem_p.h"
@@ -36,7 +10,9 @@
 #include <private/qqmldelegatemodel_p.h>
 #include "qquick3dparticlerandomizer_p.h"
 #include "qquick3dparticlespriteparticle_p.h"
+#include "qquick3dparticlelineparticle_p.h"
 #include "qquick3dparticlemodelblendparticle_p.h"
+#include <QtQuick3DUtils/private/qquick3dprofiler_p.h>
 #include <cmath>
 
 QT_BEGIN_NAMESPACE
@@ -102,7 +78,7 @@ QQuick3DParticleSystem::~QQuick3DParticleSystem()
     m_animation->stop();
     m_updateAnimation->stop();
 
-    for (const auto &connection : qAsConst(m_connections))
+    for (const auto &connection : std::as_const(m_connections))
         QObject::disconnect(connection);
     // purposeful copy
     const auto particles = m_particles;
@@ -272,11 +248,11 @@ QQuick3DParticleSystemLogging *QQuick3DParticleSystem::loggingData() const
 */
 void QQuick3DParticleSystem::reset()
 {
-    for (auto emitter : qAsConst(m_emitters))
+    for (auto emitter : std::as_const(m_emitters))
         emitter->reset();
-    for (auto emitter : qAsConst(m_trailEmitters))
+    for (auto emitter : std::as_const(m_trailEmitters))
         emitter->reset();
-    for (auto particle : qAsConst(m_particles))
+    for (auto particle : std::as_const(m_particles))
         particle->reset();
     m_particleIdIndex = 0;
 }
@@ -443,7 +419,7 @@ void QQuick3DParticleSystem::markDirty()
 int QQuick3DParticleSystem::particleCount() const
 {
     int pCount = 0;
-    for (auto particle : qAsConst(m_particles))
+    for (auto particle : std::as_const(m_particles))
         pCount += particle->maxAmount();
     return pCount;
 }
@@ -525,6 +501,8 @@ void QQuick3DParticleSystem::updateCurrentTime(int currentTime)
     if (!m_initialized || isGloballyDisabled() || (isEditorModeOn() && !visible()))
         return;
 
+    Q_QUICK3D_PROFILE_START(QQuick3DProfiler::Quick3DParticleUpdate);
+
     m_currentTime = currentTime;
     const float timeS = float(m_currentTime / 1000.0f);
 
@@ -535,21 +513,21 @@ void QQuick3DParticleSystem::updateCurrentTime(int currentTime)
     m_perfTimer.restart();
 
     // Emit new particles
-    for (auto emitter : qAsConst(m_emitters))
+    for (auto emitter : std::as_const(m_emitters))
         emitter->emitParticles();
 
     // Prepare Affectors
-    for (auto affector : qAsConst(m_affectors)) {
+    for (auto affector : std::as_const(m_affectors)) {
         if (affector->m_enabled)
             affector->prepareToAffect();
     }
 
     // Animate current particles
-    for (auto particle : qAsConst(m_particles)) {
+    for (auto particle : std::as_const(m_particles)) {
 
         // Collect possible trail emits
         QVector<TrailEmits> trailEmits;
-        for (auto emitter : qAsConst(m_trailEmitters)) {
+        for (auto emitter : std::as_const(m_trailEmitters)) {
             if (emitter->follow() == particle) {
                 int emitAmount = emitter->getEmitAmount();
                 if (emitAmount > 0 || emitter->hasBursts()) {
@@ -581,11 +559,12 @@ void QQuick3DParticleSystem::updateCurrentTime(int currentTime)
     }
 
     // Clear bursts from trailemitters
-    for (auto emitter : qAsConst(m_trailEmitters))
+    for (auto emitter : std::as_const(m_trailEmitters))
         emitter->clearBursts();
 
     m_timeAnimation += m_perfTimer.nsecsElapsed();
     m_updateAnimation->setDirty(false);
+    Q_QUICK3D_PROFILE_END_WITH_PAYLOAD(QQuick3DProfiler::Quick3DParticleUpdate, m_particlesUsed);
 }
 
 void QQuick3DParticleSystem::processModelParticle(QQuick3DParticleModelParticle *modelParticle, const QVector<TrailEmits> &trailEmits, float timeS)
@@ -600,18 +579,26 @@ void QQuick3DParticleSystem::processModelParticle(QQuick3DParticleModelParticle 
         const float particleTimeEnd = d->startTime + d->lifetime;
 
         if (timeS < d->startTime || timeS > particleTimeEnd) {
+            if (timeS > particleTimeEnd && d->lifetime > 0.0f) {
+                for (auto trailEmit : std::as_const(trailEmits))
+                    trailEmit.emitter->emitTrailParticles(d->startPosition + (d->startVelocity * (particleTimeEnd - d->startTime)), 0, QQuick3DParticleDynamicBurst::TriggerEnd);
+            }
             // Particle not alive currently
             continue;
         }
 
         const float particleTimeS = timeS - d->startTime;
         QQuick3DParticleDataCurrent currentData;
-
+        if (timeS >= d->startTime && d->lifetime <= 0.0f) {
+            for (auto trailEmit : std::as_const(trailEmits))
+                trailEmit.emitter->emitTrailParticles(d->startPosition, 0, QQuick3DParticleDynamicBurst::TriggerStart);
+        }
         // Process features shared for both model & sprite particles
         processParticleCommon(currentData, d, particleTimeS);
 
         // Add a base rotation if alignment requested
-        processParticleAlignment(currentData, modelParticle, d);
+        if (modelParticle->m_alignMode != QQuick3DParticle::AlignNone)
+            processParticleAlignment(currentData, modelParticle, d);
 
         // 0.0 -> 1.0 during the particle lifetime
         const float timeChange = std::max(0.0f, std::min(1.0f, particleTimeS / d->lifetime));
@@ -624,15 +611,15 @@ void QQuick3DParticleSystem::processModelParticle(QQuick3DParticleModelParticle 
         processParticleFadeInOut(currentData, modelParticle, particleTimeS, particleTimeLeftS);
 
         // Affectors
-        for (auto affector : qAsConst(m_affectors)) {
+        for (auto affector : std::as_const(m_affectors)) {
             // If affector is set to affect only particular particles, check these are included
             if (affector->m_enabled && (affector->m_particles.isEmpty() || affector->m_particles.contains(modelParticle)))
                 affector->affectParticle(*d, &currentData, particleTimeS);
         }
 
         // Emit new particles from trails
-        for (auto trailEmit : qAsConst(trailEmits))
-            trailEmit.emitter->emitTrailParticles(&currentData, trailEmit.amount);
+        for (auto trailEmit : std::as_const(trailEmits))
+            trailEmit.emitter->emitTrailParticles(currentData.position, trailEmit.amount, QQuick3DParticleDynamicBurst::TriggerTime);
 
         const QColor color(currentData.color.r, currentData.color.g, currentData.color.b, currentData.color.a);
         // Set current particle properties
@@ -656,6 +643,10 @@ void QQuick3DParticleSystem::processModelBlendParticle(QQuick3DParticleModelBlen
         const float particleTimeEnd = d->startTime + d->lifetime;
 
         if (timeS < d->startTime || timeS > particleTimeEnd) {
+            if (timeS > particleTimeEnd && d->lifetime > 0.0f) {
+                for (auto trailEmit : std::as_const(trailEmits))
+                    trailEmit.emitter->emitTrailParticles(d->startPosition + (d->startVelocity * (particleTimeEnd - d->startTime)), 0, QQuick3DParticleDynamicBurst::TriggerEnd);
+            }
             // Particle not alive currently
             float age = 0.0f;
             float size = 0.0f;
@@ -688,6 +679,10 @@ void QQuick3DParticleSystem::processModelBlendParticle(QQuick3DParticleModelBlen
 
         const float particleTimeS = timeS - d->startTime;
         QQuick3DParticleDataCurrent currentData;
+        if (timeS >= d->startTime && d->lifetime <= 0.0f) {
+            for (auto trailEmit : std::as_const(trailEmits))
+                trailEmit.emitter->emitTrailParticles(d->startPosition, 0, QQuick3DParticleDynamicBurst::TriggerStart);
+        }
 
         // Process features shared for both model & sprite particles
         processParticleCommon(currentData, d, particleTimeS);
@@ -704,15 +699,15 @@ void QQuick3DParticleSystem::processModelBlendParticle(QQuick3DParticleModelBlen
         processParticleFadeInOut(currentData, particle, particleTimeS, particleTimeLeftS);
 
         // Affectors
-        for (auto affector : qAsConst(m_affectors)) {
+        for (auto affector : std::as_const(m_affectors)) {
             // If affector is set to affect only particular particles, check these are included
             if (affector->m_enabled && (affector->m_particles.isEmpty() || affector->m_particles.contains(particle)))
                 affector->affectParticle(*d, &currentData, particleTimeS);
         }
 
         // Emit new particles from trails
-        for (auto trailEmit : qAsConst(trailEmits))
-            trailEmit.emitter->emitTrailParticles(&currentData, trailEmit.amount);
+        for (auto trailEmit : std::as_const(trailEmits))
+            trailEmit.emitter->emitTrailParticles(currentData.position, trailEmit.amount, QQuick3DParticleDynamicBurst::TriggerTime);
 
         // Set current particle properties
         const QVector4D color(float(currentData.color.r) / 255.0f,
@@ -743,23 +738,30 @@ void QQuick3DParticleSystem::processSpriteParticle(QQuick3DParticleSpriteParticl
         const auto d = &spriteParticle->m_particleData.at(i);
 
         const float particleTimeEnd = d->startTime + d->lifetime;
-
+        auto &particleData = spriteParticle->m_spriteParticleData[i];
         if (timeS < d->startTime || timeS > particleTimeEnd) {
+            if (timeS > particleTimeEnd && particleData.age > 0.0f) {
+                for (auto trailEmit : std::as_const(trailEmits))
+                    trailEmit.emitter->emitTrailParticles(particleData.position, 0, QQuick3DParticleDynamicBurst::TriggerEnd);
+                auto *lineParticle = qobject_cast<QQuick3DParticleLineParticle *>(spriteParticle);
+                if (lineParticle)
+                    lineParticle->saveLineSegment(i, timeS);
+            }
             // Particle not alive currently
-            spriteParticle->setParticleData(i, {}, {},
-                                            {}, 0.0f, 0.0f,
-                                            0.0f);
+            spriteParticle->resetParticleData(i);
             continue;
         }
-
         const float particleTimeS = timeS - d->startTime;
         QQuick3DParticleDataCurrent currentData;
-
+        if (timeS >= d->startTime && timeS < particleTimeEnd && particleData.age == 0.0f) {
+            for (auto trailEmit : std::as_const(trailEmits))
+                trailEmit.emitter->emitTrailParticles(d->startPosition, 0, QQuick3DParticleDynamicBurst::TriggerStart);
+        }
         // Process features shared for both model & sprite particles
         processParticleCommon(currentData, d, particleTimeS);
 
         // Add a base rotation if alignment requested
-        if (!spriteParticle->m_billboard)
+        if (!spriteParticle->m_billboard && spriteParticle->m_alignMode != QQuick3DParticle::AlignNone)
             processParticleAlignment(currentData, spriteParticle, d);
 
         // 0.0 -> 1.0 during the particle lifetime
@@ -797,26 +799,28 @@ void QQuick3DParticleSystem::processSpriteParticle(QQuick3DParticleSpriteParticl
         }
 
         // Affectors
-        for (auto affector : qAsConst(m_affectors)) {
+        for (auto affector : std::as_const(m_affectors)) {
             // If affector is set to affect only particular particles, check these are included
             if (affector->m_enabled && (affector->m_particles.isEmpty() || affector->m_particles.contains(spriteParticle)))
                 affector->affectParticle(*d, &currentData, particleTimeS);
         }
 
         // Emit new particles from trails
-        for (auto trailEmit : qAsConst(trailEmits))
-            trailEmit.emitter->emitTrailParticles(&currentData, trailEmit.amount);
+        for (auto trailEmit : std::as_const(trailEmits))
+            trailEmit.emitter->emitTrailParticles(currentData.position, trailEmit.amount, QQuick3DParticleDynamicBurst::TriggerTime);
+
 
         // Set current particle properties
         const QVector4D color(float(currentData.color.r) / 255.0f,
                               float(currentData.color.g) / 255.0f,
                               float(currentData.color.b) / 255.0f,
                               float(currentData.color.a) / 255.0f);
-        spriteParticle->setParticleData(i, currentData.position, currentData.rotation,
-                                        color, currentData.scale.x(), timeChange,
+        const QVector3D offset(spriteParticle->offsetX(), spriteParticle->offsetY(), 0);
+        spriteParticle->setParticleData(i, currentData.position + (offset * currentData.scale.x()),
+                                        currentData.rotation, color, currentData.scale.x(), timeChange,
                                         animationFrame);
     }
-    spriteParticle->commitParticles();
+    spriteParticle->commitParticles(timeS);
 }
 
 void QQuick3DParticleSystem::processParticleCommon(QQuick3DParticleDataCurrent &currentData, const QQuick3DParticleData *d, float particleTimeS)
@@ -832,7 +836,7 @@ void QQuick3DParticleSystem::processParticleCommon(QQuick3DParticleDataCurrent &
     currentData.position += d->startVelocity * particleTimeS;
 
     // Initial rotation from start velocity
-    const float step = 360.0f / 127.0f;
+    constexpr float step = 360.0f / 127.0f;
     currentData.rotation = QVector3D(
                 d->startRotation.x * step + abs(d->startRotationVelocity.x) * d->startRotationVelocity.x * particleTimeS,
                 d->startRotation.y * step + abs(d->startRotationVelocity.y) * d->startRotationVelocity.y * particleTimeS,
@@ -930,12 +934,12 @@ void QQuick3DParticleSystem::doSeedRandomization()
 bool QQuick3DParticleSystem::isShared(const QQuick3DParticle *particle) const
 {
     int count = 0;
-    for (auto emitter : qAsConst(m_emitters)) {
+    for (auto emitter : std::as_const(m_emitters)) {
         count += emitter->particle() == particle;
         if (count > 1)
             return true;
     }
-    for (auto emitter : qAsConst(m_trailEmitters)) {
+    for (auto emitter : std::as_const(m_trailEmitters)) {
         count += emitter->particle() == particle;
         if (count > 1)
             return true;

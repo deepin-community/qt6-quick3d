@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2020 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2020 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qquick3deffect_p.h"
 
@@ -95,9 +69,22 @@ QT_BEGIN_NAMESPACE
     more fine-grained control over filtering modes, and allows effects to work
     with texture formats other than RGBA8, for example, floating point formats.
 
-    \note Post-processing effects are currently available only when the View3D
-    has its \l{View3D::renderMode}{renderMode} set to \c Offscreen. Effects
-    will not be rendered with other renderMode values.
+    \note Post-processing effects are currently available when the View3D
+    has its \l{View3D::renderMode}{renderMode} set to \c Offscreen,
+    \c Underlay or \c Overlay. Effects will not be rendered for \c Inline mode.
+
+    \note When using post-processing effects, the application-provided shaders
+    usually expect linear color data without tonemapping applied. It is then
+    essential to bypass the built-in tonemapping by setting
+    \l{SceneEnvironment::tonemapMode}{tonemapMode} to \c
+    SceneEnvironment.TonemapModeNone.
+
+    \note By default the texture used as the effects' input is created with a
+    floating point texture format, such as 16-bit floating point RGBA. The
+    output texture's format is the same since by default it follows the input
+    format. This can be overridden using \l Buffer and an empty name. The
+    default RGBA16F is useful because it allows working with non-tonemapped
+    linear data without having the color values outside the 0-1 range clamped.
 
     \section1 Exposing data to the shaders
 
@@ -122,17 +109,17 @@ QT_BEGIN_NAMESPACE
     \li QMatrix4x4, \l{QtQml::Qt::matrix4x4()}{matrix4x4} -> mat4
     \li QQuaternion, \l{QtQml::Qt::quaternion()}{quaternion} -> vec4, scalar value is \c w
 
-    \li TextureInput -> sampler2D - Textures referencing
-    \l{Texture::source}{image files} and \l{Texture::sourceItem}{Qt Quick item
-    layers} are both supported. Setting the \l{TextureInput::enabled}{enabled}
-    property to false leads to exposing a dummy texture to the shader, meaning
-    the shaders are still functional but will sample a texture with opaque
-    black image content. Pay attention to the fact that properties for samplers
-    must always reference a \l TextureInput object, not a \l Texture directly.
-    When it comes to the \l Texture properties, the source, tiling, and
-    filtering related ones are the only ones that are taken into account
-    implicitly with effects, as the rest (such as, UV transformations)
-    is up to the custom shaders to implement as they see fit.
+    \li TextureInput -> sampler2D or samplerCube, depending on whether \l
+    Texture or \l CubeMapTexture is used in the texture property of the
+    TextureInput. Setting the \l{TextureInput::enabled}{enabled} property to
+    false leads to exposing a dummy texture to the shader, meaning the shaders
+    are still functional but will sample a texture with opaque black image
+    content. Pay attention to the fact that properties for samplers must always
+    reference a \l TextureInput object, not a \l Texture directly. When it
+    comes to the \l Texture properties, the source, tiling, and filtering
+    related ones are the only ones that are taken into account implicitly with
+    effects, as the rest (such as, UV transformations) is up to the custom
+    shaders to implement as they see fit.
 
     \endlist
 
@@ -651,35 +638,41 @@ QSSGRenderGraphObject *QQuick3DEffect::updateSpatialNode(QSSGRenderGraphObject *
 
         const auto processTextureProperty = [&](QQuick3DShaderUtilsTextureInput &texture, const QByteArray &name) {
             QSSGRenderEffect::TextureProperty texProp;
-            QQuick3DTexture *tex = texture.texture();
+            QQuick3DTexture *tex = texture.texture(); // may be null if the TextureInput has no 'texture' set
             connect(&texture, &QQuick3DShaderUtilsTextureInput::enabledChanged, this, &QQuick3DEffect::onTextureDirty);
             connect(&texture, &QQuick3DShaderUtilsTextureInput::textureChanged, this, &QQuick3DEffect::onTextureDirty);
             texProp.name = name;
-            if (texture.enabled)
+            if (texture.enabled && tex)
                 texProp.texImage = tex->getRenderImage();
 
-            texProp.shaderDataType = QSSGRenderShaderDataType::Texture2D;
+            texProp.shaderDataType = QSSGRenderShaderDataType::Texture;
 
-            texProp.minFilterType = tex->minFilter() == QQuick3DTexture::Nearest ? QSSGRenderTextureFilterOp::Nearest
-                                                                                 : QSSGRenderTextureFilterOp::Linear;
-            texProp.magFilterType = tex->magFilter() == QQuick3DTexture::Nearest ? QSSGRenderTextureFilterOp::Nearest
-                                                                                 : QSSGRenderTextureFilterOp::Linear;
-            texProp.mipFilterType = tex->generateMipmaps() ? (tex->mipFilter() == QQuick3DTexture::Nearest ? QSSGRenderTextureFilterOp::Nearest
-                                                                                                           : QSSGRenderTextureFilterOp::Linear)
-                                                           : QSSGRenderTextureFilterOp::None;
-            texProp.horizontalClampType = tex->horizontalTiling() == QQuick3DTexture::Repeat ? QSSGRenderTextureCoordOp::Repeat
-                                                                                   : (tex->horizontalTiling() == QQuick3DTexture::ClampToEdge ? QSSGRenderTextureCoordOp::ClampToEdge
-                                                                                                                                              : QSSGRenderTextureCoordOp::MirroredRepeat);
-            texProp.verticalClampType = tex->verticalTiling() == QQuick3DTexture::Repeat ? QSSGRenderTextureCoordOp::Repeat
-                                                                                   : (tex->verticalTiling() == QQuick3DTexture::ClampToEdge ? QSSGRenderTextureCoordOp::ClampToEdge
-                                                                                                                                              : QSSGRenderTextureCoordOp::MirroredRepeat);
+            if (tex) {
+                texProp.minFilterType = tex->minFilter() == QQuick3DTexture::Nearest ? QSSGRenderTextureFilterOp::Nearest
+                                                                                     : QSSGRenderTextureFilterOp::Linear;
+                texProp.magFilterType = tex->magFilter() == QQuick3DTexture::Nearest ? QSSGRenderTextureFilterOp::Nearest
+                                                                                     : QSSGRenderTextureFilterOp::Linear;
+                texProp.mipFilterType = tex->generateMipmaps() ? (tex->mipFilter() == QQuick3DTexture::Nearest ? QSSGRenderTextureFilterOp::Nearest
+                                                                                                               : QSSGRenderTextureFilterOp::Linear)
+                                                               : QSSGRenderTextureFilterOp::None;
+                texProp.horizontalClampType = tex->horizontalTiling() == QQuick3DTexture::Repeat ? QSSGRenderTextureCoordOp::Repeat
+                                                                                                 : (tex->horizontalTiling() == QQuick3DTexture::ClampToEdge ? QSSGRenderTextureCoordOp::ClampToEdge
+                                                                                                                                                            : QSSGRenderTextureCoordOp::MirroredRepeat);
+                texProp.verticalClampType = tex->verticalTiling() == QQuick3DTexture::Repeat ? QSSGRenderTextureCoordOp::Repeat
+                                                                                             : (tex->verticalTiling() == QQuick3DTexture::ClampToEdge ? QSSGRenderTextureCoordOp::ClampToEdge
+                                                                                                                                                      : QSSGRenderTextureCoordOp::MirroredRepeat);
+            }
 
-            uniforms.append({ QByteArrayLiteral("sampler2D"), name });
+            if (tex && QQuick3DObjectPrivate::get(tex)->type == QQuick3DObjectPrivate::Type::ImageCube)
+                uniforms.append({ QByteArrayLiteral("samplerCube"), name });
+            else
+                uniforms.append({ QByteArrayLiteral("sampler2D"), name });
+
             effectNode->textureProperties.push_back(texProp);
         };
 
         // Textures
-        for (const auto &property : qAsConst(textureProperties))
+        for (const auto &property : std::as_const(textureProperties))
             processTextureProperty(*property.first, property.second);
 
         if (effectNode->incompleteBuildTimeObject) { // This object came from the shadergen tool
@@ -713,7 +706,7 @@ QSSGRenderGraphObject *QQuick3DEffect::updateSpatialNode(QSSGRenderGraphObject *
                 }
             }
 
-            for (const auto &property : qAsConst(textureProperties))
+            for (const auto &property : std::as_const(textureProperties))
                 processTextureProperty(*property.first, property.second);
         }
 
@@ -741,7 +734,7 @@ QSSGRenderGraphObject *QQuick3DEffect::updateSpatialNode(QSSGRenderGraphObject *
         bool needsDepthTexture = false;
         if (!m_passes.isEmpty()) {
             const QQmlContext *context = qmlContext(this);
-            for (QQuick3DShaderUtilsRenderPass *pass : qAsConst(m_passes)) {
+            for (QQuick3DShaderUtilsRenderPass *pass : std::as_const(m_passes)) {
                 // Have a key composed more or less of the vertex and fragment filenames.
                 // The shaderLibraryManager uses stage+shaderPathKey as the key.
                 // Thus shaderPathKey is then sufficient to look up both the vertex and fragment shaders later on.
@@ -882,7 +875,7 @@ QSSGRenderGraphObject *QQuick3DEffect::updateSpatialNode(QSSGRenderGraphObject *
     }
 
     if (m_dirtyAttributes & Dirty::PropertyDirty) {
-        for (const auto &prop : qAsConst(effectNode->properties)) {
+        for (const auto &prop : std::as_const(effectNode->properties)) {
             auto p = metaObject()->property(prop.pid);
             if (Q_LIKELY(p.isValid()))
                 prop.value = p.read(this);
@@ -915,11 +908,15 @@ void QQuick3DEffect::markDirty(QQuick3DEffect::Dirty type)
 void QQuick3DEffect::updateSceneManager(QQuick3DSceneManager *sceneManager)
 {
     if (sceneManager) {
-        for (auto it : m_dynamicTextureMaps)
-            QQuick3DObjectPrivate::refSceneManager(it, *sceneManager);
+        for (const auto &it : std::as_const(m_dynamicTextureMaps)) {
+            if (auto tex = it->texture())
+                QQuick3DObjectPrivate::refSceneManager(tex, *sceneManager);
+        }
     } else {
-        for (auto it : m_dynamicTextureMaps)
-            QQuick3DObjectPrivate::derefSceneManager(it);
+        for (const auto &it : std::as_const(m_dynamicTextureMaps)) {
+            if (auto tex = it->texture())
+                QQuick3DObjectPrivate::derefSceneManager(tex);
+        }
     }
 }
 
@@ -947,7 +944,7 @@ QQuick3DShaderUtilsRenderPass *QQuick3DEffect::qmlPassAt(QQmlListProperty<QQuick
 qsizetype QQuick3DEffect::qmlPassCount(QQmlListProperty<QQuick3DShaderUtilsRenderPass> *list)
 {
     QQuick3DEffect *that = qobject_cast<QQuick3DEffect *>(list->object);
-    return that->m_passes.count();
+    return that->m_passes.size();
 }
 
 void QQuick3DEffect::qmlPassClear(QQmlListProperty<QQuick3DShaderUtilsRenderPass> *list)
@@ -956,27 +953,23 @@ void QQuick3DEffect::qmlPassClear(QQmlListProperty<QQuick3DShaderUtilsRenderPass
     that->m_passes.clear();
 }
 
-void QQuick3DEffect::setDynamicTextureMap(QQuick3DTexture *textureMap, const QByteArray &name)
+void QQuick3DEffect::setDynamicTextureMap(QQuick3DShaderUtilsTextureInput *textureMap)
 {
-    if (!textureMap)
-        return;
+    // There can only be one texture input per property, as the texture input is a combination
+    // of the texture used and the uniform name!
+    auto it = m_dynamicTextureMaps.constFind(textureMap);
 
-    auto it = m_dynamicTextureMaps.begin();
-    const auto end = m_dynamicTextureMaps.end();
-    for (; it != end; ++it) {
-        if (*it == textureMap)
-            break;
+    if (it == m_dynamicTextureMaps.constEnd()) {
+        // Track the object, if it's destroyed we need to remove it from our table.
+        connect(textureMap, &QQuick3DShaderUtilsTextureInput::destroyed, this, [this, textureMap]() {
+            auto it = m_dynamicTextureMaps.constFind(textureMap);
+            if (it != m_dynamicTextureMaps.constEnd())
+                m_dynamicTextureMaps.erase(it);
+        });
+        m_dynamicTextureMaps.insert(textureMap);
+
+        update();
     }
-
-    if (it != end)
-        return;
-
-    QQuick3DObjectPrivate::updatePropertyListener(textureMap, nullptr, QQuick3DObjectPrivate::get(this)->sceneManager, name, m_connections, [this, name](QQuick3DObject *n) {
-        setDynamicTextureMap(qobject_cast<QQuick3DTexture *>(n), name);
-    });
-
-    m_dynamicTextureMaps.push_back(textureMap);
-    update();
 }
 
 QT_END_NAMESPACE

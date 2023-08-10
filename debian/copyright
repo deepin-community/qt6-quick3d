@@ -8,7 +8,7 @@ Copyright: 2019-2021 The Qt Company Ltd.
 License: GPL-3+
 
 Files: debian/*
-Copyright: 2021 Patrick Franz <deltaone@debian.org>,
+Copyright: 2021-2022 Patrick Franz <deltaone@debian.org>
            2021 Lu YaNing <dluyaning@gmail.com>
 License: GPL-3+
 
@@ -24,7 +24,7 @@ Files: src/3rdparty/assimp/*
 Copyright: 2006-2020 assimp team / ASSIMP Development Team
 License: BSD-3-clause
 
-Files: src/3rdparty/assimp/src/cmake/HunterGate.cmake
+Files: src/3rdparty/assimp/src/cmake-modules/HunterGate.cmake
 Copyright: 2013-2019 Ruslan Baratov
 License: BSD-2-clause
 
@@ -36,8 +36,7 @@ Files: src/3rdparty/assimp/src/code/AssetLib/M3D/m3d.h
 Copyright: 2019 bzt (bztsrc@gitlab)
 License: Expat
 
-Files: src/3rdparty/assimp/src/code/Pbrt/stb_image.h
-       src/3rdparty/assimp/src/contrib/stb_image/stb_image.h
+Files: src/3rdparty/assimp/src/contrib/stb/stb_image.h
 Copyright: NONE
 License: Unlicense
 
@@ -123,9 +122,24 @@ Files: config.tests/quick3d_assimp/main.cpp
 Copyright: 2014 Klaralvdalens Datakonsult AB (KDAB).
 License: GPL-3 with Qt-1.0 exception
 
+Files: src/glslparser/glslparsertable.cpp
+       src/glslparser/glslparsertable_p.h
+       src/glslparser/make-parser.sh
+Copyright: 2016-2018 The Qt Company Ltd.
+License: GPL-3 with Qt-1.0 exception
+
+Files: src/plugins/qmldbg_quick3dprofiler/*
+       src/utils/qquick3dprofiler.cpp
+       src/utils/qquick3dprofiler_p.h
+Copyright: 2021 The Qt Company Ltd.
+License: LGPL-3 or GPL-2
+
 Files: examples/*
        tests/auto/quick3d_lancelot/data/*.qml
        tests/auto/quick3d_lancelot/scenegrabber/skingeometry.*
+       tests/auto/quick3d_visual/buffermanager/data/*
+       tests/auto/quick3d_visual/buffermanager/gradienttexture.cpp
+       tests/auto/quick3d_visual/buffermanager/gradienttexture.h
        tests/auto/tools/shadergen/qml/*.qml
        tests/manual/3d_input/*
        tests/manual/blendmodes/*
@@ -139,6 +153,7 @@ Files: examples/*
        tests/manual/offscreenrendermode/*
        tests/manual/principledmaterial/*
        tests/manual/projectionmodes/*
+       tests/manual/reflectionprobe/*
        tests/manual/repeater3d/*
        tests/manual/ssao/*
        tests/manual/stereoscopic/SceneNode.qml
@@ -159,6 +174,7 @@ Files: tests/auto/quick3d_lancelot/quick3d/tst_quick3d.cpp
        tests/auto/quick3d_lancelot/shared/baselineprotocol.*
        tests/auto/quick3d_lancelot/shared/lookup3.cpp
        tests/auto/quick3d_lancelot/shared/qbaselinetest.*
+       tests/auto/quick3d_visual/buffermanager/tst_buffermanager.cpp
        tests/auto/quick3d_visual/input/data/DragAnywhereSlider.qml
        tests/auto/quick3d_visual/input/tst_input.cpp
        tests/auto/quick3d_visual/multiwindow/tst_multiwindow.cpp
@@ -391,3 +407,30 @@ License: GPL-3
  .
  On Debian systems, the complete text of the GNU General Public License
  version 3 can be found in /usr/share/common-licenses/GPL-3.
+
+License: LGPL-3
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Lesser General Public License version 3
+ as published by the Free Software Foundation.
+ .
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Lesser General Public License for more details.
+ .
+ On Debian systems, the complete text of the GNU Lesser General Public
+ License version 3 can be found in /usr/share/common-licenses/LGPL-3.
+
+License: GPL-2
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+ .
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ .
+ On Debian systems, the complete text of the GNU General Public
+ License version 2 can be found in /usr/share/common-licenses/GPL-2.

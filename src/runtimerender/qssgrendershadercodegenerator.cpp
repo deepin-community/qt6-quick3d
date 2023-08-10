@@ -1,32 +1,6 @@
-/****************************************************************************
-**
-** Copyright (C) 2008-2012 NVIDIA Corporation.
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2008-2012 NVIDIA Corporation.
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qssgrendershadercodegenerator_p.h"
 
@@ -317,7 +291,7 @@ QByteArray QSSGStageGeneratorBase::buildShaderSourcePass2(QSSGShaderResourceMerg
             {
                 QByteArray block;
 
-                for (const auto &sampler : qAsConst(mergeContext->m_samplers)) {
+                for (const auto &sampler : std::as_const(mergeContext->m_samplers)) {
                     addStartCond(block, sampler);
                     block += QString::asprintf("layout(binding = %d) uniform %s %s;\n",
                                                sampler.binding,
@@ -430,19 +404,19 @@ void QSSGProgramGenerator::registerShaderMetaDataFromSource(QSSGShaderResourceMe
 {
     QSSGRenderShaderMetadata::ShaderMetaData meta = QSSGRenderShaderMetadata::getShaderMetaData(contents);
 
-    for (const QSSGRenderShaderMetadata::Uniform &u : qAsConst(meta.uniforms)) {
+    for (const QSSGRenderShaderMetadata::Uniform &u : std::as_const(meta.uniforms)) {
         if (u.type.startsWith(QByteArrayLiteral("sampler")))
             mergeContext->registerSampler(u.type, u.name, u.condition, u.conditionName);
         else
             mergeContext->registerUniformMember(u.type, u.name, u.condition, u.conditionName);
     }
 
-    for (const QSSGRenderShaderMetadata::InputOutput &inputVar : qAsConst(meta.inputs)) {
+    for (const QSSGRenderShaderMetadata::InputOutput &inputVar : std::as_const(meta.inputs)) {
         if (inputVar.stage == stage)
             mergeContext->registerInput(stage, inputVar.type, inputVar.name);
     }
 
-    for (const QSSGRenderShaderMetadata::InputOutput &outputVar : qAsConst(meta.outputs)) {
+    for (const QSSGRenderShaderMetadata::InputOutput &outputVar : std::as_const(meta.outputs)) {
         if (outputVar.stage == stage)
             mergeContext->registerOutput(stage, outputVar.type, outputVar.name);
     }
@@ -454,7 +428,7 @@ void QSSGProgramGenerator::registerShaderMetaDataFromSource(QSSGShaderResourceMe
 }
 
 QSSGRef<QSSGRhiShaderPipeline> QSSGProgramGenerator::compileGeneratedRhiShader(const QByteArray &inMaterialInfoString,
-                                                                               const ShaderFeatureSetList &inFeatureSet,
+                                                                               const QSSGShaderFeatures &inFeatureSet,
                                                                                const QSSGRef<QSSGShaderLibraryManager> &shaderLibraryManager,
                                                                                const QSSGRef<QSSGShaderCache> &theCache,
                                                                                QSSGRhiShaderPipeline::StageFlags stageFlags)

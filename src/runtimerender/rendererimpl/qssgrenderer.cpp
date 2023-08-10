@@ -1,32 +1,6 @@
-/****************************************************************************
-**
-** Copyright (C) 2008-2012 NVIDIA Corporation.
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2008-2012 NVIDIA Corporation.
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include <QtQuick3DRuntimeRender/private/qssgrenderer_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendercontextcore_p.h>
@@ -36,7 +10,6 @@
 #include <QtQuick3DRuntimeRender/private/qssgrenderbuffermanager_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendercontextcore_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendereffect_p.h>
-#include <QtQuick3DRuntimeRender/private/qssgrenderresourcemanager_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrhicustommaterialsystem_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendershadercodegenerator_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderdefaultmaterialshadergenerator_p.h>
@@ -53,21 +26,6 @@
 #include <algorithm>
 #include <limits>
 
-#ifdef Q_CC_MSVC
-#pragma warning(disable : 4355)
-#endif
-
-// Quick tests you can run to find performance problems
-
-//#define QSSG_RENDER_DISABLE_HARDWARE_BLENDING 1
-//#define QSSG_RENDER_DISABLE_LIGHTING 1
-//#define QSSG_RENDER_DISABLE_TEXTURING 1
-//#define QSSG_RENDER_DISABLE_TRANSPARENCY 1
-//#define QSSG_RENDER_DISABLE_FRUSTUM_CULLING 1
-
-// If you are fillrate bound then sorting opaque objects can help in some circumstances
-//#define QSSG_RENDER_DISABLE_OPAQUE_SORT 1
-
 QT_BEGIN_NAMESPACE
 
 struct QSSGRenderableImage;
@@ -75,8 +33,10 @@ struct QSSGSubsetRenderable;
 
 void QSSGRenderer::releaseResources()
 {
-    delete m_rhiQuadRenderer; // TODO: pointer to incomplete type!
+    delete m_rhiQuadRenderer;
     m_rhiQuadRenderer = nullptr;
+    delete m_rhiCubeRenderer;
+    m_rhiCubeRenderer = nullptr;
 }
 
 QSSGRenderer::QSSGRenderer() = default;
@@ -92,12 +52,12 @@ void QSSGRenderer::setRenderContextInterface(QSSGRenderContextInterface *ctx)
     m_contextInterface = ctx;
 }
 
-bool QSSGRenderer::prepareLayerForRender(QSSGRenderLayer &inLayer,
-                                         const QSize &surfaceSize)
+bool QSSGRenderer::prepareLayerForRender(QSSGRenderLayer &inLayer)
 {
     QSSGLayerRenderData *theRenderData = getOrCreateLayerRenderData(inLayer);
     Q_ASSERT(theRenderData);
-    theRenderData->prepareForRender(surfaceSize);
+    theRenderData->resetForFrame();
+    theRenderData->prepareForRender();
     return theRenderData->layerPrepResult->flags.wasDirty();
 }
 
@@ -129,17 +89,12 @@ void QSSGRenderer::cleanupResources(QList<QSSGRenderGraphObject *> &resources)
         if (resource->type == QSSGRenderGraphObject::Type::Geometry) {
             auto geometry = static_cast<QSSGRenderGeometry*>(resource);
             bufferManager->releaseGeometry(geometry);
-        } else if (resource->type == QSSGRenderGraphObject::Type::Image) {
-            auto image = static_cast<QSSGRenderImage*>(resource);
-            if (!image->m_qsgTexture) {
-                bufferManager->removeImageReference(image->m_imagePath, image);
-            }
         } else if (resource->type == QSSGRenderGraphObject::Type::Model) {
             auto model = static_cast<QSSGRenderModel*>(resource);
-            if (!model->geometry)
-                bufferManager->removeMeshReference(model->meshPath, model);
-            else // Models with geometry should be cleaned up here
-                rhi->cleanupDrawCallData(model);
+            // release the texture for skinning before remove a model
+            if (model->boneTexture)
+                rhi->releaseTexture(model->boneTexture);
+            rhi->cleanupDrawCallData(model);
         } else if (resource->type == QSSGRenderGraphObject::Type::TextureData) {
             auto textureData = static_cast<QSSGRenderTextureData *>(resource);
             bufferManager->releaseTextureData(textureData);
@@ -149,20 +104,7 @@ void QSSGRenderer::cleanupResources(QList<QSSGRenderGraphObject *> &resources)
 
         delete resource;
     }
-    // Now check for unreferenced buffers and release them if necessary
-    bufferManager->cleanupUnreferencedBuffers();
     resources.clear();
-}
-
-QSSGRenderLayer *QSSGRenderer::layerForNode(const QSSGRenderNode &inNode) const
-{
-    if (inNode.type == QSSGRenderGraphObject::Type::Layer)
-        return &const_cast<QSSGRenderLayer &>(static_cast<const QSSGRenderLayer &>(inNode));
-
-    if (inNode.parent)
-        return layerForNode(*inNode.parent);
-
-    return nullptr;
 }
 
 QSSGLayerRenderData *QSSGRenderer::getOrCreateLayerRenderData(QSSGRenderLayer &layer)
@@ -178,11 +120,6 @@ void QSSGRenderer::addMaterialDirtyClear(QSSGRenderGraphObject *material)
     m_materialClearDirty.insert(material);
 }
 
-void QSSGRenderer::removeLastFrameLayer(QSSGLayerRenderPreparationData *layerData)
-{
-    m_lastFrameLayers.removeAll(layerData);
-}
-
 static QByteArray logPrefix() { return QByteArrayLiteral("mesh default material pipeline-- "); }
 
 
@@ -191,7 +128,7 @@ QSSGRef<QSSGRhiShaderPipeline> QSSGRenderer::generateRhiShaderPipelineImpl(QSSGS
                                                                            const QSSGRef<QSSGShaderCache> &shaderCache,
                                                                            const QSSGRef<QSSGProgramGenerator> &shaderProgramGenerator,
                                                                            QSSGShaderDefaultMaterialKeyProperties &shaderKeyProperties,
-                                                                           const ShaderFeatureSetList &featureSet,
+                                                                           const QSSGShaderFeatures &featureSet,
                                                                            QByteArray &shaderString)
 {
     shaderString = logPrefix();
@@ -216,10 +153,7 @@ QSSGRef<QSSGRhiShaderPipeline> QSSGRenderer::generateRhiShaderPipelineImpl(QSSGS
 
     QSSGMaterialVertexPipeline pipeline(shaderProgramGenerator,
                                         shaderKeyProperties,
-                                        renderable.defaultMaterial().adapter,
-                                        renderable.boneGlobals,
-                                        renderable.boneNormals,
-                                        renderable.morphWeights);
+                                        renderable.defaultMaterial().adapter);
 
     return QSSGMaterialShaderGenerator::generateMaterialRhiShader(logPrefix(),
                                                                   pipeline,
@@ -234,7 +168,7 @@ QSSGRef<QSSGRhiShaderPipeline> QSSGRenderer::generateRhiShaderPipelineImpl(QSSGS
 }
 
 QSSGRef<QSSGRhiShaderPipeline> QSSGRenderer::generateRhiShaderPipeline(QSSGSubsetRenderable &inRenderable,
-                                                                       const ShaderFeatureSetList &inFeatureSet)
+                                                                       const QSSGShaderFeatures &inFeatureSet)
 {
     const QSSGRef<QSSGShaderCache> &theCache = m_contextInterface->shaderCache();
     const auto &shaderProgramGenerator = contextInterface()->shaderProgramGenerator();
@@ -244,22 +178,19 @@ QSSGRef<QSSGRhiShaderPipeline> QSSGRenderer::generateRhiShaderPipeline(QSSGSubse
 
 void QSSGRenderer::beginFrame()
 {
-    for (int idx = 0, end = m_lastFrameLayers.size(); idx < end; ++idx)
-        m_lastFrameLayers[idx]->resetForFrame();
-    m_lastFrameLayers.clear();
-
     QSSGRHICTX_STAT(m_contextInterface->rhiContext().data(), start(this));
 }
 
 void QSSGRenderer::endFrame()
 {
     // We need to do this endFrame(), as the material nodes might not exist after this!
-    for (auto *matObj : qAsConst(m_materialClearDirty)) {
+    for (auto *matObj : std::as_const(m_materialClearDirty)) {
         if (matObj->type == QSSGRenderGraphObject::Type::CustomMaterial) {
-            static_cast<QSSGRenderCustomMaterial *>(matObj)->updateDirtyForFrame();
-        } else if (matObj->type == QSSGRenderGraphObject::Type::DefaultMaterial
-                   || matObj->type == QSSGRenderGraphObject::Type::PrincipledMaterial) {
-            static_cast<QSSGRenderDefaultMaterial *>(matObj)->dirty.updateDirtyForFrame();
+            static_cast<QSSGRenderCustomMaterial *>(matObj)->clearDirty();
+        } else if (matObj->type == QSSGRenderGraphObject::Type::DefaultMaterial ||
+                   matObj->type == QSSGRenderGraphObject::Type::PrincipledMaterial ||
+                   matObj->type == QSSGRenderGraphObject::Type::SpecularGlossyMaterial) {
+            static_cast<QSSGRenderDefaultMaterial *>(matObj)->clearDirty();
         }
     }
     m_materialClearDirty.clear();
@@ -272,7 +203,7 @@ QSSGRenderer::PickResultList QSSGRenderer::syncPickAll(const QSSGRenderLayer &la
                                                        const QSSGRenderRay &ray)
 {
     PickResultList pickResults;
-    if (layer.flags.testFlag(QSSGRenderLayer::Flag::Active)) {
+    if (layer.getLocalState(QSSGRenderLayer::LocalState::Active)) {
         getLayerHitObjectList(layer, bufferManager, ray, m_globalPickingEnabled, pickResults);
         // Things are rendered in a particular order and we need to respect that ordering.
         std::stable_sort(pickResults.begin(), pickResults.end(), [](const QSSGRenderPickResult &lhs, const QSSGRenderPickResult &rhs) {
@@ -298,7 +229,7 @@ QSSGRenderPickResult QSSGRenderer::syncPick(const QSSGRenderLayer &layer,
     };
 
     PickResultList pickResults;
-    if (layer.flags.testFlag(QSSGRenderLayer::Flag::Active)) {
+    if (layer.getLocalState(QSSGRenderLayer::LocalState::Active)) {
         if (target) {
             // Pick against only one target
             intersectRayWithSubsetRenderable(bufferManager, ray, *target, pickResults);
@@ -314,41 +245,14 @@ QSSGRenderPickResult QSSGRenderer::syncPick(const QSSGRenderLayer &layer,
     return QSSGPickResultProcessResult();
 }
 
-inline bool pickResultLessThan(const QSSGRenderPickResult &lhs, const QSSGRenderPickResult &rhs)
+bool QSSGRenderer::isGlobalPickingEnabled() const
 {
-    return lhs.m_distanceSq < rhs.m_distanceSq;
+    return m_globalPickingEnabled;
 }
 
 void QSSGRenderer::setGlobalPickingEnabled(bool isEnabled)
 {
     m_globalPickingEnabled = isEnabled;
-}
-
-QSSGPickResultProcessResult QSSGRenderer::processPickResultList(bool inPickEverything)
-{
-    Q_UNUSED(inPickEverything);
-    if (m_lastPickResults.empty())
-        return QSSGPickResultProcessResult();
-    // Things are rendered in a particular order and we need to respect that ordering.
-    std::stable_sort(m_lastPickResults.begin(), m_lastPickResults.end(), pickResultLessThan);
-
-    // We need to pick against sub objects basically somewhat recursively
-    // but if we don't hit any sub objects and the parent isn't pickable then
-    // we need to move onto the next item in the list.
-    // We need to keep in mind that theQuery->Pick will enter this method in a later
-    // stack frame so *if* we get to sub objects we need to pick against them but if the pick
-    // completely misses *and* the parent object locally pickable is false then we need to move
-    // onto the next object.
-
-    const int numToCopy = m_lastPickResults.size();
-    Q_ASSERT(numToCopy >= 0);
-    size_t numCopyBytes = size_t(numToCopy) * sizeof(QSSGRenderPickResult);
-    QSSGRenderPickResult *thePickResults = reinterpret_cast<QSSGRenderPickResult *>(
-            m_contextInterface->perFrameAllocator().allocate(numCopyBytes));
-    ::memcpy(thePickResults, m_lastPickResults.data(), numCopyBytes);
-    m_lastPickResults.clear();
-    QSSGPickResultProcessResult thePickResult(thePickResults[0]);
-    return thePickResult;
 }
 
 QSSGRhiQuadRenderer *QSSGRenderer::rhiQuadRenderer()
@@ -362,9 +266,16 @@ QSSGRhiQuadRenderer *QSSGRenderer::rhiQuadRenderer()
     return m_rhiQuadRenderer;
 }
 
-void QSSGRenderer::layerNeedsFrameClear(QSSGLayerRenderData &inLayer)
+QSSGRhiCubeRenderer *QSSGRenderer::rhiCubeRenderer()
 {
-    m_lastFrameLayers.push_back(&inLayer);
+    if (!m_contextInterface->rhiContext()->isValid())
+        return nullptr;
+
+    if (!m_rhiCubeRenderer)
+        m_rhiCubeRenderer = new QSSGRhiCubeRenderer;
+
+    return m_rhiCubeRenderer;
+
 }
 
 void QSSGRenderer::beginLayerDepthPassRender(QSSGLayerRenderData &inLayer)
@@ -413,7 +324,7 @@ void QSSGRenderer::getLayerHitObjectList(const QSSGRenderLayer &layer,
 
     for (int idx = renderables.size() - 1; idx >= 0; --idx) {
         const auto &pickableObject = renderables.at(idx);
-        if (inPickEverything || pickableObject->flags.testFlag(QSSGRenderNode::Flag::LocallyPickable))
+        if (inPickEverything || pickableObject->getLocalState(QSSGRenderNode::LocalState::Pickable))
             intersectRayWithSubsetRenderable(bufferManager, ray, *pickableObject, outIntersectionResult);
     }
 }
@@ -441,16 +352,9 @@ void QSSGRenderer::intersectRayWithSubsetRenderable(const QSSGRef<QSSGBufferMana
     // guard should really only be locked whenever a custom geometry buffer is being updated
     // on the render thread.  Still naughty though because this can block the render thread.
     QMutexLocker mutexLocker(bufferManager->meshUpdateMutex());
-    auto mesh = bufferManager->getMesh(model.meshPath);
-    if (!mesh) {
-        // Check if there is custom geometry before bailing out
-        if (model.geometry)
-            mesh = bufferManager->getMesh(model.geometry);
-
-        // If there is still no geometry bail out
-        if (!mesh)
-            return;
-    }
+    auto mesh = bufferManager->getMeshForPicking(model);
+    if (!mesh)
+        return;
 
     const auto &globalTransform = model.globalTransform;
     auto rayData = QSSGRenderRay::createRayData(globalTransform, inRay);
@@ -483,7 +387,7 @@ void QSSGRenderer::intersectRayWithSubsetRenderable(const QSSGRef<QSSGBufferMana
                 results.clear();
                 inRay.intersectWithBVH(rayData, subMesh.bvhRoot, mesh, results);
                 float subMeshMinRayLength = std::numeric_limits<float>::max();
-                for (const auto &subMeshResult : qAsConst(results)) {
+                for (const auto &subMeshResult : std::as_const(results)) {
                     if (subMeshResult.rayLengthSquared < subMeshMinRayLength) {
                         result = subMeshResult;
                         subMeshMinRayLength = result.rayLengthSquared;
@@ -506,14 +410,13 @@ void QSSGRenderer::intersectRayWithSubsetRenderable(const QSSGRef<QSSGBufferMana
     if (!intersectionResult.intersects)
         return;
 
-    outIntersectionResultList.push_back(
-                QSSGRenderPickResult(model,
-                                     intersectionResult.rayLengthSquared,
-                                     intersectionResult.relXY,
-                                     intersectionResult.scenePosition,
-                                     intersectionResult.localPosition,
-                                     intersectionResult.faceNormal,
-                                     resultSubset));
+    outIntersectionResultList.push_back(QSSGRenderPickResult { &model,
+                                                               intersectionResult.rayLengthSquared,
+                                                               intersectionResult.relXY,
+                                                               intersectionResult.scenePosition,
+                                                               intersectionResult.localPosition,
+                                                               intersectionResult.faceNormal,
+                                                               resultSubset });
 }
 
 void QSSGRenderer::intersectRayWithItem2D(const QSSGRenderRay &inRay, const QSSGRenderItem2D &item2D, QSSGRenderer::PickResultList &outIntersectionResultList)
@@ -533,18 +436,18 @@ void QSSGRenderer::intersectRayWithItem2D(const QSSGRenderRay &inRay, const QSSG
             const QMatrix4x4 inverseGlobalTransform = item2D.globalTransform.inverted();
             const QVector3D localIntersectionPoint = mat44::transform(inverseGlobalTransform, intersectionPoint);
             const QVector2D qmlCoordinate(localIntersectionPoint.x(), -localIntersectionPoint.y());
-            outIntersectionResultList.push_back(QSSGRenderPickResult(item2D,
-                                                                     intersectionTime * intersectionTime,
-                                                                     qmlCoordinate,
-                                                                     intersectionPoint,
-                                                                     localIntersectionPoint,
-                                                                     normal));
+            outIntersectionResultList.push_back(QSSGRenderPickResult { &item2D,
+                                                                       intersectionTime * intersectionTime,
+                                                                       qmlCoordinate,
+                                                                       intersectionPoint,
+                                                                       localIntersectionPoint,
+                                                                       normal });
         }
     }
 }
 
 QSSGRef<QSSGRhiShaderPipeline> QSSGRenderer::getRhiShaders(QSSGSubsetRenderable &inRenderable,
-                                                           const ShaderFeatureSetList &inFeatureSet)
+                                                           const QSSGShaderFeatures &inFeatureSet)
 {
     if (Q_UNLIKELY(m_currentLayer == nullptr)) {
         Q_ASSERT(false);
@@ -568,7 +471,9 @@ QSSGRef<QSSGRhiShaderPipeline> QSSGRenderer::getRhiShaders(QSSGSubsetRenderable 
                                              inRenderable.shaderDescription);
     auto it = m_shaderMap.find(skey);
     if (it == m_shaderMap.end()) {
+        Q_QUICK3D_PROFILE_START(QQuick3DProfiler::Quick3DGenerateShader);
         shaderPipeline = generateRhiShaderPipeline(inRenderable, inFeatureSet);
+        Q_QUICK3D_PROFILE_END(QQuick3DProfiler::Quick3DGenerateShader);
         // make skey useable as a key for the QHash (makes copies of materialKey and featureSet, instead of just referencing)
         skey.detach();
         // insert it no matter what, no point in trying over and over again
@@ -608,9 +513,9 @@ QSSGLayerGlobalRenderProperties QSSGRenderer::getLayerGlobalRenderProperties()
                                               *theData.camera,
                                               *theData.cameraDirection,
                                               theData.shadowMapManager,
-                                              theData.m_rhiDepthTexture.texture,
-                                              theData.m_rhiAoTexture.texture,
-                                              theData.m_rhiScreenTexture.texture,
+                                              theData.rhiDepthTexture.texture,
+                                              theData.rhiAoTexture.texture,
+                                              theData.rhiScreenTexture.texture,
                                               theLayer.lightProbe,
                                               theLayer.probeHorizon,
                                               theLayer.probeExposure,
@@ -618,28 +523,6 @@ QSSGLayerGlobalRenderProperties QSSGRenderer::getLayerGlobalRenderProperties()
                                               isYUpInFramebuffer,
                                               isYUpInNDC,
                                               isClipDepthZeroToOne};
-}
-
-const QSSGRef<QSSGProgramGenerator> &QSSGRenderer::getProgramGenerator()
-{
-    return m_contextInterface->shaderProgramGenerator();
-}
-
-QSSGRenderPickResult::QSSGRenderPickResult(const QSSGRenderGraphObject &inHitObject,
-                                           float inCameraDistance,
-                                           const QVector2D &inLocalUVCoords,
-                                           const QVector3D &scenePosition,
-                                           const QVector3D &inLocalPosition,
-                                           const QVector3D &faceNormal,
-                                           int subset)
-    : m_hitObject(&inHitObject)
-    , m_distanceSq(inCameraDistance)
-    , m_localUVCoords(inLocalUVCoords)
-    , m_scenePosition(scenePosition)
-    , m_localPosition(inLocalPosition)
-    , m_faceNormal(faceNormal.normalized())
-    , m_subset(subset)
-{
 }
 
 QT_END_NAMESPACE

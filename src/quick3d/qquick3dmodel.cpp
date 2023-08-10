@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qquick3dmodel_p.h"
 #include "qquick3dobject_p.h"
@@ -130,7 +104,7 @@ QQuick3DModel::~QQuick3DModel()
 {
     disconnect(m_skeletonConnection);
     disconnect(m_geometryConnection);
-    for (const auto &connection : qAsConst(m_connections))
+    for (const auto &connection : std::as_const(m_connections))
         disconnect(connection);
 
     auto matList = materials();
@@ -238,6 +212,28 @@ QQuick3DNode *QQuick3DModel::instanceRoot() const
     return m_instanceRoot;
 }
 
+// Source URL's need a bit of translation for the engine because of the
+// use of fragment syntax for specifiying primitives and sub-meshes
+// So we need to check for the fragment before translating to a qmlfile
+
+QString QQuick3DModel::translateMeshSource(const QUrl &source, QObject *contextObject)
+{
+    QString fragment;
+    if (source.hasFragment()) {
+        // Check if this is an index, or primitive
+        bool isNumber = false;
+        source.fragment().toInt(&isNumber);
+        fragment = QStringLiteral("#") + source.fragment();
+        // If it wasn't an index, then it was a primitive
+        if (!isNumber)
+            return fragment;
+    }
+
+    const QQmlContext *context = qmlContext(contextObject);
+    const auto resolvedUrl = context ? context->resolvedUrl(source) : source;
+    const auto qmlSource = QQmlFile::urlToLocalFileOrQrc(resolvedUrl);
+    return (qmlSource.isEmpty() ? source.path() : qmlSource) + fragment;
+}
 
 void QQuick3DModel::markAllDirty()
 {
@@ -249,7 +245,10 @@ void QQuick3DModel::markAllDirty()
     \qmlproperty bool Model::castsShadows
 
     When this property is \c true, the geometry of this model is used when
-    rendering to the shadow maps.
+    rendering to the shadow maps, and is also generating shadows in baked
+    lighting.
+
+    The default value is \c true.
 */
 
 bool QQuick3DModel::castsShadows() const
@@ -260,8 +259,14 @@ bool QQuick3DModel::castsShadows() const
 /*!
     \qmlproperty bool Model::receivesShadows
 
-    When this property is set to \c true, the model's materials take shadow contribution from
-    shadow casting lights into account.
+    When this property is set to \c true, the model's materials take shadow
+    contribution from shadow casting lights into account.
+
+    \note When lightmapping is enabled for this model, fully baked lights with
+    Light::bakeMode set to Light.BakeModeAll will always generate (baked)
+    shadows on the model, regardless of the value of this property.
+
+    The default value is \c true.
 */
 
 bool QQuick3DModel::receivesShadows() const
@@ -313,6 +318,26 @@ QQuick3DSkeleton *QQuick3DModel::skeleton() const
 }
 
 /*!
+    \qmlproperty Skin Model::skin
+
+    Contains the skeleton for the model. The Skeleton is used for
+    \l {Vertex Skinning}{skinning}.
+
+    \note Meshes of the model must have both joints and weights attributes.
+    \note If this property is set, skinning animation is enabled. This means
+    the \l {Model} will be transformed based on \l {Skin::joints} and the
+    Model's global transformation will be ignored.
+    \note If a model has both a skeleton and a skin, then the skin will be used.
+
+    \sa {Model::skeleton} {Qt Quick 3D - Simple Skinning Example}
+*/
+QQuick3DSkin *QQuick3DModel::skin() const
+{
+    return m_skin;
+}
+
+
+/*!
     \qmlproperty List<matrix4x4> Model::inverseBindPoses
 
     This property contains a list of Inverse Bind Pose matrixes used for the
@@ -355,6 +380,133 @@ QQuick3DBounds3 QQuick3DModel::bounds() const
 float QQuick3DModel::depthBias() const
 {
     return m_depthBias;
+}
+
+/*!
+    \qmlproperty bool Model::receivesReflections
+
+    When this property is set to \c true, the model's materials take reflections contribution from
+    a reflection probe. If the model is inside more than one reflection probe at the same time,
+    the nearest reflection probe is taken into account.
+*/
+
+bool QQuick3DModel::receivesReflections() const
+{
+    return m_receivesReflections;
+}
+
+/*!
+    \qmlproperty bool Model::castsReflections
+    \since 6.4
+
+    When this property is set to \c true, the model is rendered by reflection probes and can be
+    seen in the reflections.
+*/
+bool QQuick3DModel::castsReflections() const
+{
+    return m_castsReflections;
+}
+
+/*!
+    \qmlproperty bool Model::usedInBakedLighting
+
+    When this property is set to \c true, the model contributes to baked
+    lighting, such as lightmaps, for example in form of casting shadows or
+    indirect light. This setting is independent of controlling lightmap
+    generation for the model, use \l bakedLightmap for that.
+
+    The default value is \c false.
+
+    \note The default value is false, because designers and developers must
+    always evaluate on a per-model basis if the object is suitable to take part
+    in baked lighting.
+
+    \warning Models with dynamically changing properties, for example, animated
+    position, rotation, or other properties, are not suitable for participating
+    in baked lighting.
+
+    For more information on how to bake lightmaps, see the \l Lightmapper
+    documentation.
+
+    This property is relevant only when baking lightmaps. It has no effect
+    afterwards, when using the generated lightmaps during rendering.
+
+    \sa Light::bakeMode, bakedLightmap, Lightmapper, {Lightmaps and Global Illumination}
+ */
+
+bool QQuick3DModel::isUsedInBakedLighting() const
+{
+    return m_usedInBakedLighting;
+}
+
+/*!
+    \qmlproperty int Model::lightmapBaseResolution
+
+    Defines the approximate size of the lightmap for this model. The default
+    value is 1024, indicating 1024x1024 as the base size. The actual size of
+    the lightmap texture is likely to be different, often bigger, depending on
+    the mesh.
+
+    For simpler, smaller meshes, or when it is known that using a bigger
+    lightmap is unnecessary, the value can be set to something smaller, for
+    example, 512 or 256.
+
+    The minimum value is 128.
+
+    This setting applies both to persistently stored and for intermediate,
+    partial lightmaps. When baking lightmaps, all models that have \l
+    usedInBakedLighting enabled are part of the path-traced scene. Thus all of
+    them need to have lightmap UV unwrapping performed and the rasterization
+    steps necessary to compute direct lighting which then can be taken into
+    account for indirect light bounces in the scene. However, for models that
+    just contribute to, but do not store a lightmap the default value is often
+    sufficient. Fine-tuning is more relevant for models that store and then use
+    the generated lightmaps.
+
+    This property is relevant only when baking lightmaps. It has no effect
+    afterwards, when using the generated lightmaps during rendering.
+
+    Models that have lightmap UV data pre-generated during asset import time
+    (e.g. via the balsam tool) will ignore this property because the lightmap
+    UV unwrapping and the lightmap size hint evaluation have already been done,
+    and will not be performed again during lightmap baking.
+ */
+int QQuick3DModel::lightmapBaseResolution() const
+{
+    return m_lightmapBaseResolution;
+}
+
+/*!
+    \qmlproperty BakedLightmap Model::bakedLightmap
+
+    When this property is set to a valid, enabled BakedLightmap object, the
+    model will get a lightmap generated when baking lighting, the lightmap is
+    then stored persistently. When rendering, the model will load and use the
+    associated lightmap. The default value is null.
+
+    \note When the intention is to generate a persistently stored lightmap for
+    a Model, both bakedLightmap and \l usedInBakedLighting must be set on it,
+    in order to indicate that the Model not only participates in the
+    lightmapped scene, but also wants a full lightmap to be baked and stored.
+
+    For more information on how to bake lightmaps, see the \l Lightmapper
+    documentation.
+
+    This property is relevant both when baking and when using lightmaps. A
+    consistent state between the baking run and the subsequent runs that use
+    the generated data is essential. For example, changing the lightmap key
+    will make it impossible to load the previously generated data. An exception
+    is \l enabled, which can be used to dynamically toggle the usage of
+    lightmaps (outside of the baking run), but be aware that the rendered
+    results will depend on the Lights' \l{Light::bakeMode}{bakeMode} settings
+    in the scene.
+
+    \sa usedInBakedLighting, Lightmapper
+ */
+
+QQuick3DBakedLightmap *QQuick3DModel::bakedLightmap() const
+{
+    return m_bakedLightmap;
 }
 
 void QQuick3DModel::setSource(const QUrl &source)
@@ -448,6 +600,21 @@ void QQuick3DModel::setSkeleton(QQuick3DSkeleton *skeleton)
     markDirty(SkeletonDirty);
 }
 
+void QQuick3DModel::setSkin(QQuick3DSkin *skin)
+{
+    if (skin == m_skin)
+        return;
+
+    // Make sure to disconnect if the skin gets deleted out from under us
+    QQuick3DObjectPrivate::updatePropertyListener(skin, m_skin, QQuick3DObjectPrivate::get(this)->sceneManager, QByteArrayLiteral("skin"), m_connections, [this](QQuick3DObject *n) {
+        setSkin(qobject_cast<QQuick3DSkin *>(n));
+    });
+
+    m_skin = skin;
+    emit skinChanged();
+    markDirty(SkinDirty);
+}
+
 void QQuick3DModel::setInverseBindPoses(const QList<QMatrix4x4> &poses)
 {
     if (m_inverseBindPoses == poses)
@@ -508,6 +675,70 @@ void QQuick3DModel::setDepthBias(float bias)
     emit depthBiasChanged();
 }
 
+void QQuick3DModel::setReceivesReflections(bool receivesReflections)
+{
+    if (m_receivesReflections == receivesReflections)
+        return;
+
+    m_receivesReflections = receivesReflections;
+    emit receivesReflectionsChanged();
+    markDirty(ReflectionDirty);
+}
+
+void QQuick3DModel::setCastsReflections(bool castsReflections)
+{
+    if (m_castsReflections == castsReflections)
+        return;
+    m_castsReflections = castsReflections;
+    emit castsReflectionsChanged();
+    markDirty(ReflectionDirty);
+}
+
+void QQuick3DModel::setUsedInBakedLighting(bool enable)
+{
+    if (m_usedInBakedLighting == enable)
+        return;
+
+    m_usedInBakedLighting = enable;
+    emit usedInBakedLightingChanged();
+    markDirty(PropertyDirty);
+}
+
+void QQuick3DModel::setLightmapBaseResolution(int resolution)
+{
+    resolution = qMax(128, resolution);
+    if (m_lightmapBaseResolution == resolution)
+        return;
+
+    m_lightmapBaseResolution = resolution;
+    emit lightmapBaseResolutionChanged();
+    markDirty(PropertyDirty);
+}
+
+void QQuick3DModel::setBakedLightmap(QQuick3DBakedLightmap *bakedLightmap)
+{
+    if (m_bakedLightmap == bakedLightmap)
+        return;
+
+    if (m_bakedLightmap)
+        m_bakedLightmap->disconnect(m_bakedLightmapSignalConnection);
+
+    m_bakedLightmap = bakedLightmap;
+
+    m_bakedLightmapSignalConnection = QObject::connect(m_bakedLightmap, &QQuick3DBakedLightmap::changed, this,
+                                                       [this] { markDirty(PropertyDirty); });
+
+    QObject::connect(m_bakedLightmap, &QObject::destroyed, this,
+                     [this]
+    {
+        m_bakedLightmap = nullptr;
+        markDirty(PropertyDirty);
+    });
+
+    emit bakedLightmapChanged();
+    markDirty(PropertyDirty);
+}
+
 void QQuick3DModel::itemChange(ItemChange change, const ItemChangeData &value)
 {
     if (change == QQuick3DObject::ItemSceneChange)
@@ -526,9 +757,9 @@ QSSGRenderGraphObject *QQuick3DModel::updateSpatialNode(QSSGRenderGraphObject *n
 
     auto modelNode = static_cast<QSSGRenderModel *>(node);
     if (m_dirtyAttributes & SourceDirty)
-        modelNode->meshPath = QSSGRenderPath(translateSource());
+        modelNode->meshPath = QSSGRenderPath(translateMeshSource(m_source, this));
     if (m_dirtyAttributes & PickingDirty)
-        modelNode->flags.setFlag(QSSGRenderModel::Flag::LocallyPickable, m_pickable);
+        modelNode->setState(QSSGRenderModel::LocalState::Pickable, m_pickable);
 
     if (m_dirtyAttributes & ShadowsDirty) {
         modelNode->castsShadows = m_castsShadows;
@@ -567,7 +798,7 @@ QSSGRenderGraphObject *QQuick3DModel::updateSpatialNode(QSSGRenderGraphObject *n
             const int numMorphTarget = m_morphTargets.size();
             if (modelNode->morphTargets.isEmpty()) {
                 // Easy mode, just add each morphTarget
-                for (const auto morphTarget : qAsConst(m_morphTargets)) {
+                for (const auto morphTarget : std::as_const(m_morphTargets)) {
                     QSSGRenderGraphObject *graphObject = QQuick3DObjectPrivate::get(morphTarget)->spatialNode;
                     if (graphObject)
                         modelNode->morphTargets.append(graphObject);
@@ -618,40 +849,43 @@ QSSGRenderGraphObject *QQuick3DModel::updateSpatialNode(QSSGRenderGraphObject *n
             modelNode->skeleton = nullptr;
     }
 
+    if (m_dirtyAttributes & SkinDirty) {
+        if (m_skin)
+            modelNode->skin = static_cast<QSSGRenderSkin *>(QQuick3DObjectPrivate::get(m_skin)->spatialNode);
+        else
+            modelNode->skin = nullptr;
+    }
+
     if (m_dirtyAttributes & PoseDirty) {
         modelNode->inverseBindPoses = m_inverseBindPoses.toVector();
         modelNode->skinningDirty = true;
     }
 
-    if (m_dirtyAttributes & PropertyDirty)
+    if (m_dirtyAttributes & PropertyDirty) {
         modelNode->m_depthBias = m_depthBias;
+        modelNode->usedInBakedLighting = m_usedInBakedLighting;
+        modelNode->lightmapBaseResolution = uint(m_lightmapBaseResolution);
+        if (m_bakedLightmap && m_bakedLightmap->isEnabled()) {
+            modelNode->lightmapKey = m_bakedLightmap->key();
+            const QString srcPrefix = m_bakedLightmap->loadPrefix();
+            const QString srcPath = srcPrefix.isEmpty() ? QStringLiteral(".") : srcPrefix;
+            const QQmlContext *context = qmlContext(m_bakedLightmap);
+            const QUrl resolvedUrl = context ? context->resolvedUrl(srcPath) : srcPath;
+            modelNode->lightmapLoadPath = QQmlFile::urlToLocalFileOrQrc(resolvedUrl);
+        } else {
+            modelNode->lightmapKey.clear();
+            modelNode->lightmapLoadPath.clear();
+        }
+    }
+
+    if (m_dirtyAttributes & ReflectionDirty) {
+        modelNode->receivesReflections = m_receivesReflections;
+        modelNode->castsReflections = m_castsReflections;
+    }
 
     m_dirtyAttributes = dirtyAttribute;
 
     return modelNode;
-}
-
-// Source URL's need a bit of translation for the engine because of the
-// use of fragment syntax for specifiying primitives and sub-meshes
-// So we need to check for the fragment before translating to a qmlfile
-
-QString QQuick3DModel::translateSource()
-{
-    QString fragment;
-    if (m_source.hasFragment()) {
-        // Check if this is an index, or primitive
-        bool isNumber = false;
-        m_source.fragment().toInt(&isNumber);
-        fragment = QStringLiteral("#") + m_source.fragment();
-        // If it wasn't an index, then it was a primitive
-        if (!isNumber)
-            return fragment;
-    }
-
-    const QQmlContext *context = qmlContext(this);
-    const auto resolvedUrl = context ? context->resolvedUrl(m_source) : m_source;
-    const auto qmlSource = QQmlFile::urlToLocalFileOrQrc(resolvedUrl);
-    return (qmlSource.isEmpty() ? m_source.path() : qmlSource) + fragment;
 }
 
 void QQuick3DModel::markDirty(QQuick3DModel::QSSGModelDirtyType type)
@@ -667,6 +901,7 @@ void QQuick3DModel::updateSceneManager(QQuick3DSceneManager *sceneManager)
     if (sceneManager) {
         sceneManager->dirtyBoundingBoxList.append(this);
         QQuick3DObjectPrivate::refSceneManager(m_skeleton, *sceneManager);
+        QQuick3DObjectPrivate::refSceneManager(m_skin, *sceneManager);
         QQuick3DObjectPrivate::refSceneManager(m_geometry, *sceneManager);
         QQuick3DObjectPrivate::refSceneManager(m_instancing, *sceneManager);
         for (Material &mat : m_materials) {
@@ -679,6 +914,7 @@ void QQuick3DModel::updateSceneManager(QQuick3DSceneManager *sceneManager)
         }
     } else {
         QQuick3DObjectPrivate::derefSceneManager(m_skeleton);
+        QQuick3DObjectPrivate::derefSceneManager(m_skin);
         QQuick3DObjectPrivate::derefSceneManager(m_geometry);
         QQuick3DObjectPrivate::derefSceneManager(m_instancing);
         for (Material &mat : m_materials) {
@@ -693,7 +929,7 @@ void QQuick3DModel::updateSceneManager(QQuick3DSceneManager *sceneManager)
 void QQuick3DModel::onMaterialDestroyed(QObject *object)
 {
     bool found = false;
-    for (int i = 0; i < m_materials.count(); ++i) {
+    for (int i = 0; i < m_materials.size(); ++i) {
         if (m_materials[i].material == object) {
             m_materials.removeAt(i--);
             found = true;
@@ -745,7 +981,7 @@ QQuick3DMaterial *QQuick3DModel::qmlMaterialAt(QQmlListProperty<QQuick3DMaterial
 qsizetype QQuick3DModel::qmlMaterialsCount(QQmlListProperty<QQuick3DMaterial> *list)
 {
     QQuick3DModel *self = static_cast<QQuick3DModel *>(list->object);
-    return self->m_materials.count();
+    return self->m_materials.size();
 }
 
 void QQuick3DModel::qmlClearMaterials(QQmlListProperty<QQuick3DMaterial> *list)
@@ -819,13 +1055,13 @@ QQuick3DMorphTarget *QQuick3DModel::qmlMorphTargetAt(QQmlListProperty<QQuick3DMo
 qsizetype QQuick3DModel::qmlMorphTargetsCount(QQmlListProperty<QQuick3DMorphTarget> *list)
 {
     QQuick3DModel *self = static_cast<QQuick3DModel *>(list->object);
-    return self->m_morphTargets.count();
+    return self->m_morphTargets.size();
 }
 
 void QQuick3DModel::qmlClearMorphTargets(QQmlListProperty<QQuick3DMorphTarget> *list)
 {
     QQuick3DModel *self = static_cast<QQuick3DModel *>(list->object);
-    for (const auto &morph : qAsConst(self->m_morphTargets)) {
+    for (const auto &morph : std::as_const(self->m_morphTargets)) {
         if (morph->parentItem() == nullptr)
             QQuick3DObjectPrivate::get(morph)->derefSceneManager();
         morph->disconnect(self, SLOT(onMorphTargetDestroyed(QObject*)));

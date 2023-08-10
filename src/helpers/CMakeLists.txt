@@ -13,12 +13,17 @@ qt_internal_add_qml_module(Quick3DHelpers
     PAST_MAJOR_VERSIONS 1
     SOURCES
         gridgeometry.cpp gridgeometry_p.h
+        heightfieldgeometry.cpp heightfieldgeometry_p.h
         randominstancing.cpp randominstancing_p.h
+        lookatnode.cpp lookatnode_p.h
+        instancerepeater.cpp instancerepeater_p.h
+        proceduralskytexturedata.cpp proceduralskytexturedata_p.h
         qtquick3dhelpersglobal_p.h
     QML_FILES
         AxisHelper.qml
         DebugView.qml
         WasdController.qml
+        OrbitCameraController.qml
     RESOURCES
         meshes/axisGrid.mesh
     DEFINES
@@ -29,6 +34,8 @@ qt_internal_add_qml_module(Quick3DHelpers
         Qt::Qml
         Qt::Quick
         Qt::Quick3DPrivate
+    GENERATE_CPP_EXPORTS
+    GENERATE_PRIVATE_CPP_EXPORTS
 )
 
 if(QT_FEATURE_quick_designer AND QT_BUILD_SHARED_LIBS) # special case handle unconverted static

@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2020 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2020 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "genshaders.h"
 
@@ -50,7 +24,7 @@
 #include <QtQuick3DUtils/private/qqsbcollection_p.h>
 
 #include <private/qssgrenderer_p.h>
-#include <private/qssgrendererimpllayerrenderdata_p.h>
+#include <private/qssglayerrenderdata_p.h>
 
 #include <QtQuick3DRuntimeRender/private/qssgrhieffectsystem_p.h>
 
@@ -61,26 +35,29 @@ static inline void qDryRunPrintQsbcAdd(const QByteArray &id)
     printf("Shader pipeline generated for (dry run):\n %s\n\n", qPrintable(id));
 }
 
-static void initBaker(QShaderBaker *baker, QRhi::Implementation target)
+static void initBaker(QShaderBaker *baker, QRhi *rhi)
 {
-    Q_UNUSED(target);
+    Q_UNUSED(rhi); // that's a Null-backed rhi here anyways
     QVector<QShaderBaker::GeneratedShader> outputs;
     // TODO: For simplicity we're just going to add all off these for now.
     outputs.append({ QShader::SpirvShader, QShaderVersion(100) }); // Vulkan 1.0
     outputs.append({ QShader::HlslShader, QShaderVersion(50) }); // Shader Model 5.0
     outputs.append({ QShader::MslShader, QShaderVersion(12) }); // Metal 1.2
     outputs.append({ QShader::GlslShader, QShaderVersion(300, QShaderVersion::GlslEs) }); // GLES 3.0+
-    outputs.append({ QShader::GlslShader, QShaderVersion(130) }); // OpenGL 3.0+
+    outputs.append({ QShader::GlslShader, QShaderVersion(140) }); // OpenGL 3.1+
 
     baker->setGeneratedShaders(outputs);
     baker->setGeneratedShaderVariants({ QShader::StandardShader });
 }
 
-static QQsbShaderFeatureSet toQsbShaderFeatureSet(const ShaderFeatureSetList &featureSet)
+static QQsbShaderFeatureSet toQsbShaderFeatureSet(const QSSGShaderFeatures &featureSet)
 {
     QQsbShaderFeatureSet ret;
-    for (const auto &f : featureSet)
-        ret.insert(f.name, f.enabled);
+    for (quint32 i = 0, end = QSSGShaderFeatures::Count; i != end; ++i) {
+        auto def = QSSGShaderFeatures::fromIndex(i);
+        if (featureSet.isSet(def))
+            ret.insert(QSSGShaderFeatures::asDefineString(def), true);
+    }
     return ret;
 }
 
@@ -96,13 +73,11 @@ GenShaders::GenShaders()
     rhiContext->initialize(rhi);
     rhiContext->setCommandBuffer(cb);
 
-    auto shaderCache = new QSSGShaderCache(rhiContext, &initBaker);
     renderContext = QSSGRef<QSSGRenderContextInterface>(new QSSGRenderContextInterface(rhiContext,
-                                                                                       new QSSGBufferManager(rhiContext, shaderCache),
-                                                                                       new QSSGResourceManager(rhiContext),
+                                                                                       new QSSGBufferManager,
                                                                                        new QSSGRenderer,
                                                                                        new QSSGShaderLibraryManager,
-                                                                                       shaderCache,
+                                                                                       new QSSGShaderCache(rhiContext, &initBaker),
                                                                                        new QSSGCustomMaterialSystem,
                                                                                        new QSSGProgramGenerator));
     sceneManager->rci = renderContext.data();
@@ -234,9 +209,9 @@ bool GenShaders::process(const MaterialParser::SceneData &sceneData,
     const auto generateShaderForModel = [&](QSSGRenderModel &model) {
         layerData.resetForFrame();
         layer.addChild(model);
-        layerData.prepareForRender(QSize(888, 666));
+        layerData.prepareForRender();
 
-        const auto &features = layerData.getShaderFeatureSet();
+        const auto &features = layerData.features;
 
         auto &materialPropertis = layerData.renderer->defaultMaterialShaderKeyProperties();
 
@@ -246,7 +221,7 @@ bool GenShaders::process(const MaterialParser::SceneData &sceneData,
         else if (!layerData.transparentObjects.isEmpty())
             renderable = layerData.transparentObjects.at(0).obj;
 
-        auto generateShader = [&](const ShaderFeatureSetList &features) {
+        auto generateShader = [&](const QSSGShaderFeatures &features) {
             if (renderable->renderableFlags.testFlag(QSSGRenderableObjectFlag::DefaultMaterialMeshSubset)) {
                 auto shaderPipeline = QSSGRenderer::generateRhiShaderPipelineImpl(*static_cast<QSSGSubsetRenderable *>(renderable), shaderLibraryManager, shaderCache, shaderProgramGenerator, materialPropertis, features, shaderString);
                 if (!shaderPipeline.isNull()) {
@@ -289,19 +264,19 @@ bool GenShaders::process(const MaterialParser::SceneData &sceneData,
         if (renderable) {
             generateShader(features);
 
-            ShaderFeatureSetList depthPassFeatures;
-            depthPassFeatures.append({ QSSGShaderDefines::DepthPass, true });
+            QSSGShaderFeatures depthPassFeatures;
+            depthPassFeatures.set(QSSGShaderFeatures::Feature::DepthPass, true);
             generateShader(depthPassFeatures);
 
             if (shadowCubePass) {
-                ShaderFeatureSetList shadowPassFeatures;
-                shadowPassFeatures.append({ QSSGShaderDefines::CubeShadowPass, true });
+                QSSGShaderFeatures shadowPassFeatures;
+                shadowPassFeatures.set(QSSGShaderFeatures::Feature::CubeShadowPass, true);
                 generateShader(shadowPassFeatures);
             }
 
             if (shadowMapPass) {
-                ShaderFeatureSetList shadowPassFeatures;
-                shadowPassFeatures.append({ QSSGShaderDefines::OrthoShadowPass, true });
+                QSSGShaderFeatures shadowPassFeatures;
+                shadowPassFeatures.set(QSSGShaderFeatures::Feature::OrthoShadowPass, true);
                 generateShader(shadowPassFeatures);
             }
         }
@@ -351,7 +326,7 @@ bool GenShaders::process(const MaterialParser::SceneData &sceneData,
                             if (dryRun)
                                 qDryRunPrintQsbcAdd(key);
                             else
-                                qsbc.addQsbEntry(key, toQsbShaderFeatureSet(ShaderFeatureSetList()), vertexStage->shader(), fragmentStage->shader(), hkey);
+                                qsbc.addQsbEntry(key, toQsbShaderFeatureSet(QSSGShaderFeatures()), vertexStage->shader(), fragmentStage->shader(), hkey);
                         }
                     }
                 }
@@ -371,7 +346,7 @@ bool GenShaders::process(const MaterialParser::SceneData &sceneData,
     }
 
     // Free Effects
-    for (const auto &effect : qAsConst(sceneData.effects))
+    for (const auto &effect : std::as_const(sceneData.effects))
         generateEffectShader(*effect);
 
     if (!qsbc.getEntries().isEmpty())

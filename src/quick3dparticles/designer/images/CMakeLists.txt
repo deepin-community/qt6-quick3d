@@ -16,6 +16,9 @@ qt_copy_or_install(
         gravity-16px.png
         gravity-24px.png
         gravity-24px@2x.png
+        line-particle-16px.png
+        line-particle-24px.png
+        line-particle-24px@2x.png
         model-blend-particle-16px.png
         model-blend-particle-24px.png
         model-blend-particle-24px@2x.png
@@ -28,18 +31,27 @@ qt_copy_or_install(
         particle-shape-16px.png
         particle-shape-24px.png
         particle-shape-24px@2x.png
+        particle-custom-shape-16px.png
+        particle-custom-shape-24px.png
+        particle-custom-shape-24px@2x.png
         particle-system-16px.png
         particle-system-24px.png
         particle-system-24px@2x.png
         point-rotator-16px.png
         point-rotator-24px.png
         point-rotator-24px@2x.png
+        repeller-16px.png
+        repeller-24px.png
+        repeller-24px@2x.png
         sprite-particle-16px.png
         sprite-particle-24px.png
         sprite-particle-24px@2x.png
         sprite-sequence-16px.png
         sprite-sequence-24px.png
         sprite-sequence-24px@2x.png
+        scale-affector-16px.png
+        scale-affector-24px.png
+        scale-affector-24px@2x.png
         target-direction-16px.png
         target-direction-24px.png
         target-direction-24px@2x.png

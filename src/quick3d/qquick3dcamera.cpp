@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qquick3dcamera_p.h"
 
@@ -123,6 +97,42 @@ void QQuick3DCamera::setFrustumCullingEnabled(bool frustumCullingEnabled)
 }
 
 /*!
+    \qmlproperty Node Camera::lookAtNode
+
+    If this property is set to a \c non-null value, the rotation of this camera is automatically
+    updated so that this camera keeps looking at the specified node whenever the scene position of
+    this camera or the specified node changes.
+    By default this property is set to \c{null}.
+
+    \sa lookAt
+*/
+QQuick3DNode *QQuick3DCamera::lookAtNode() const
+{
+    return m_lookAtNode;
+}
+
+void QQuick3DCamera::setLookAtNode(QQuick3DNode *node)
+{
+    if (m_lookAtNode == node)
+        return;
+
+    if (m_lookAtNode) {
+        disconnect(m_lookAtNode, &QQuick3DNode::scenePositionChanged, this, &QQuick3DCamera::updateLookAt);
+        disconnect(this, &QQuick3DNode::scenePositionChanged, this, &QQuick3DCamera::updateLookAt);
+    }
+
+    m_lookAtNode = node;
+
+    if (m_lookAtNode) {
+        connect(m_lookAtNode, &QQuick3DNode::scenePositionChanged, this, &QQuick3DCamera::updateLookAt);
+        connect(this, &QQuick3DNode::scenePositionChanged, this, &QQuick3DCamera::updateLookAt);
+    }
+
+    emit lookAtNodeChanged();
+    updateLookAt();
+}
+
+/*!
     \qmlmethod vector3d Camera::mapToViewport(vector3d scenePos)
 
     Transforms \a scenePos from global scene space (3D) into viewport space (2D).
@@ -150,7 +160,7 @@ QVector3D QQuick3DCamera::mapToViewport(const QVector3D &scenePos) const
     const QMatrix4x4 projectionViewMatrix = cameraNode->projection * sceneToCamera;
     const QVector4D transformedScenePos = mat44::transform(projectionViewMatrix, scenePosRightHand);
 
-    if (qFuzzyIsNull(transformedScenePos.w()))
+    if (qFuzzyIsNull(transformedScenePos.w()) || qIsNaN(transformedScenePos.w()))
         return QVector3D(0, 0, 0);
 
     // Normalize scenePosView between [-1, 1]
@@ -161,10 +171,14 @@ QVector3D QQuick3DCamera::mapToViewport(const QVector3D &scenePos) const
     const QVector4D clipNearPos(scenePosView.x(), scenePosView.y(), -1, 1);
     auto invProj = projectionViewMatrix.inverted();
     const QVector4D clipNearPosTransformed = mat44::transform(invProj, clipNearPos);
+    if (qFuzzyIsNull(clipNearPosTransformed.w()) || qIsNaN(clipNearPosTransformed.w()))
+        return QVector3D(0, 0, 0);
     const QVector4D clipNearPosScene = clipNearPosTransformed / clipNearPosTransformed.w();
     QVector4D clipFarPos = clipNearPos;
     clipFarPos.setZ(0);
     const QVector4D clipFarPosTransformed = mat44::transform(invProj, clipFarPos);
+    if (qFuzzyIsNull(clipFarPosTransformed.w()) || qIsNaN(clipFarPosTransformed.w()))
+        return QVector3D(0, 0, 0);
     const QVector4D clipFarPosScene = clipFarPosTransformed / clipFarPosTransformed.w();
     const QVector3D direction = (clipFarPosScene - clipNearPosScene).toVector3D();
     const QVector3D scenePosVec = (scenePosRightHand - clipNearPosScene).toVector3D();
@@ -221,7 +235,8 @@ QVector3D QQuick3DCamera::mapFromViewport(const QVector3D &viewportPos) const
     const QVector4D transformedClipNearPos = mat44::transform(projectionViewMatrixInv, clipNearPos);
     const QVector4D transformedClipFarPos = mat44::transform(projectionViewMatrixInv, clipFarPos);
 
-    if (qFuzzyIsNull(transformedClipNearPos.w()))
+    if (qFuzzyIsNull(transformedClipNearPos.w()) || qIsNaN(transformedClipNearPos.w()) ||
+        qFuzzyIsNull(transformedClipFarPos.w()) || qIsNaN(transformedClipFarPos.w()))
         return QVector3D(0, 0, 0);
 
     // Reverse the projection
@@ -331,8 +346,15 @@ QSSGRenderGraphObject *QQuick3DCamera::updateSpatialNode(QSSGRenderGraphObject *
 
     QSSGRenderCamera *camera = static_cast<QSSGRenderCamera *>(node);
     if (qUpdateIfNeeded(camera->enableFrustumClipping, m_frustumCullingEnabled))
-        camera->flags.setFlag(QSSGRenderNode::Flag::CameraDirty);
+        camera->markDirty(QSSGRenderCamera::DirtyFlag::CameraDirty);
 
     return node;
 }
+
+void QQuick3DCamera::updateLookAt()
+{
+    if (m_lookAtNode)
+        lookAt(m_lookAtNode);
+}
+
 QT_END_NAMESPACE

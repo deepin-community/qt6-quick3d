@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2021 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2021 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qquick3dparticlemodelblendparticle_p.h"
 #include "qquick3dparticleemitter_p.h"
@@ -50,9 +24,6 @@ QT_BEGIN_NAMESPACE
     \inherits Particle3D
     \inqmlmodule QtQuick3D.Particles3D
     \brief Blends particle effect with a 3D model.
-    \preliminary
-
-    \note This type is in tech preview in 6.2. \b {The API is under development and subject to change.}
 
     The type provides a way to blend particle effect with a 3D model. The provided model needs to be
     triangle-based. Each triangle in the model is converted into a particle, which are then used by
@@ -67,8 +38,8 @@ QT_BEGIN_NAMESPACE
     transferred from one place to another.
     \endlist
 
-    The particles are emitted in the order they are specified in the model unless \l activationNode is set
-    or \l random is set to \c true.
+    By default the particles are emitted in the order they are specified in the model unless \l emitMode is set
+    to \c Random or \l emitMode is set to \c Activation and \l activationNode is set.
 
     Some features defined in base class and emitters are not functional with this type:
     \list
@@ -99,7 +70,7 @@ QQuick3DParticleModelBlendParticle::~QQuick3DParticleModelBlendParticle()
 
 /*!
     \qmlproperty Component ModelBlendParticle3D::delegate
-    \preliminary
+
     The delegate provides a template defining the model for the ModelBlendParticle3D.
 
     For example, using the default sphere model with default material
@@ -138,7 +109,7 @@ void QQuick3DParticleModelBlendParticle::setDelegate(QQmlComponent *delegate)
 
 /*!
     \qmlproperty Node ModelBlendParticle3D::endNode
-    \preliminary
+
     This property holds the node that specifies the transformation for the model at the end
     of particle effect. It defines the size, position and rotation where the model is constructed
     when using the \c ModelBlendParticle3D.Construct and \c ModelBlendParticle3D.Transfer blend modes.
@@ -150,7 +121,7 @@ QQuick3DNode *QQuick3DParticleModelBlendParticle::endNode() const
 
 /*!
     \qmlproperty enumeration ModelBlendParticle3D::ModelBlendMode
-    \preliminary
+
     Defines the blending mode for the particle effect.
 
     \value ModelBlendParticle3D.Explode
@@ -162,7 +133,7 @@ QQuick3DNode *QQuick3DParticleModelBlendParticle::endNode() const
 */
 /*!
     \qmlproperty ModelBlendMode ModelBlendParticle3D::modelBlendMode
-    \preliminary
+
     This property holds blending mode for the particle effect.
 */
 QQuick3DParticleModelBlendParticle::ModelBlendMode QQuick3DParticleModelBlendParticle::modelBlendMode() const
@@ -172,7 +143,7 @@ QQuick3DParticleModelBlendParticle::ModelBlendMode QQuick3DParticleModelBlendPar
 
 /*!
     \qmlproperty int ModelBlendParticle3D::endTime
-    \preliminary
+
     This property holds the end time of the particle in milliseconds. The end time is used during construction
     and defines duration from particle lifetime at the end where the effect is blended with
     the model positions. Before the end time the particles positions are defined only by the
@@ -186,7 +157,7 @@ int QQuick3DParticleModelBlendParticle::endTime() const
 
 /*!
     \qmlproperty Node ModelBlendParticle3D::activationNode
-    \preliminary
+
     This property holds a node that activates particles and overrides the reqular emit routine.
     The activation node can be used to control how the particles are emitted spatially when the
     model is exploded/constructed from the particles.
@@ -200,15 +171,25 @@ QQuick3DNode *QQuick3DParticleModelBlendParticle::activationNode() const
 }
 
 /*!
-    \qmlproperty bool ModelBlendParticle3D::random
-    \preliminary
-    This property holds whether the particles are emitted in random order instead of in the order
-    they are specified in the model. The default is \c false.
-    \note This property is ignored if \l activationNode is set.
+    \qmlproperty enumeration ModelBlendParticle3D::ModelBlendEmitMode
+
+    Defines the emit mode of the particles
+
+    \value ModelBlendParticle3D.Sequential
+        The particles are emitted in the order they are defined in the model.
+    \value ModelBlendParticle3D.Random
+        The particles are emitted in random order.
+    \value ModelBlendParticle3D.Activation
+        The particles are emitted when they are activated by the \l activationNode.
 */
-bool QQuick3DParticleModelBlendParticle::random() const
+/*!
+    \qmlproperty bool ModelBlendParticle3D::emitMode
+
+    This property holds the emit mode of the particles.
+*/
+QQuick3DParticleModelBlendParticle::ModelBlendEmitMode QQuick3DParticleModelBlendParticle::emitMode() const
 {
-    return m_random;
+    return m_emitMode;
 }
 
 void QQuick3DParticleModelBlendParticle::setEndNode(QQuick3DNode *node)
@@ -255,13 +236,13 @@ void QQuick3DParticleModelBlendParticle::setActivationNode(QQuick3DNode *activat
     Q_EMIT activationNodeChanged();
 }
 
-void QQuick3DParticleModelBlendParticle::setRandom(bool random)
+void QQuick3DParticleModelBlendParticle::setEmitMode(ModelBlendEmitMode emitMode)
 {
-    if (m_random == random)
+    if (m_emitMode == emitMode)
         return;
 
-    m_random = random;
-    Q_EMIT randomChanged();
+    m_emitMode = emitMode;
+    Q_EMIT emitModeChanged();
 }
 
 void QQuick3DParticleModelBlendParticle::regenerate()
@@ -302,15 +283,11 @@ static QSSGMesh::Mesh loadMesh(const QString &source)
     src = QDir::cleanPath(src);
     if (src.startsWith(QLatin1String("qrc:/")))
         src = src.mid(3);
-    QSSGMesh::Mesh mesh;
-    QFileInfo fileInfo = QFileInfo(src);
-    if (fileInfo.exists()) {
-        QFile file(fileInfo.absoluteFilePath());
-        if (!file.open(QFile::ReadOnly))
-            return {};
-        mesh = QSSGMesh::Mesh::loadMesh(&file);
-    }
-    return mesh;
+
+    QFile file(src);
+    if (!file.open(QFile::ReadOnly))
+        return {};
+    return QSSGMesh::Mesh::loadMesh(&file);
 }
 
 static QVector3D getPosition(const quint8 *srcVertices, quint32 idx, quint32 vertexStride, quint32 posOffset)
@@ -319,8 +296,14 @@ static QVector3D getPosition(const quint8 *srcVertices, quint32 idx, quint32 ver
     return *reinterpret_cast<const QVector3D *>(vertex + posOffset);
 }
 
+static float calcTriangleRadius(const QVector3D &center, const QVector3D &p0, const QVector3D &p1, const QVector3D &p2)
+{
+    return qMax(center.distanceToPoint(p1), qMax(center.distanceToPoint(p2), center.distanceToPoint(p0)));
+}
+
 static void copyToUnindexedVertices(QByteArray &unindexedVertexData,
                                     QVector<QVector3D> &centerData,
+                                    float &maxTriangleRadius,
                                     const QByteArray &vertexBufferData,
                                     quint32 vertexStride,
                                     quint32 posOffset,
@@ -349,6 +332,7 @@ static void copyToUnindexedVertices(QByteArray &unindexedVertexData,
         QVector3D p2 = getPosition(srcVertices, i2, vertexStride, posOffset);
         QVector3D center = (p0 + p1 + p2) * c_div3;
         centerData[i] = center;
+        maxTriangleRadius = qMax(maxTriangleRadius, calcTriangleRadius(center, p0, p1, p2));
         memcpy(dst, srcVertices + i0 * vertexStride, vertexStride);
         dst += vertexStride;
         memcpy(dst, srcVertices + i1 * vertexStride, vertexStride);
@@ -359,6 +343,7 @@ static void copyToUnindexedVertices(QByteArray &unindexedVertexData,
 }
 
 static void getVertexCenterData(QVector<QVector3D> &centerData,
+                                float &maxTriangleRadius,
                                 const QByteArray &vertexBufferData,
                                 quint32 vertexStride,
                                 quint32 posOffset,
@@ -372,11 +357,14 @@ static void getVertexCenterData(QVector<QVector3D> &centerData,
         QVector3D p2 = getPosition(srcVertices, 3 * i + 2, vertexStride, posOffset);
         QVector3D center = (p0 + p1 + p2) * c_div3;
         centerData[i] = center;
+        maxTriangleRadius = qMax(maxTriangleRadius, calcTriangleRadius(center, p0, p1, p2));
     }
 }
 
 void QQuick3DParticleModelBlendParticle::updateParticles()
 {
+    m_maxTriangleRadius = 0.f;
+
     // The primitives needs to be triangle list without indexing, because each triangle
     // needs to be it's own primitive and we need vertex index to get the particle index,
     // which we don't get with indexed primitives
@@ -430,7 +418,15 @@ void QQuick3DParticleModelBlendParticle::updateParticles()
             unindexedVertexData.resize(geometry->stride() * primitiveCount * 3);
             m_centerData.resize(primitiveCount);
             m_particleCount = primitiveCount;
-            copyToUnindexedVertices(unindexedVertexData, m_centerData, vertexBuffer, geometry->stride(), attributeBySemantic(geometry, QQuick3DGeometry::Attribute::PositionSemantic).offset, indexBuffer, u16IndexType, primitiveCount);
+            copyToUnindexedVertices(unindexedVertexData,
+                                    m_centerData,
+                                    m_maxTriangleRadius,
+                                    vertexBuffer,
+                                    geometry->stride(),
+                                    attributeBySemantic(geometry, QQuick3DGeometry::Attribute::PositionSemantic).offset,
+                                    indexBuffer,
+                                    u16IndexType,
+                                    primitiveCount);
 
             m_modelGeometry->setVertexData(unindexedVertexData);
             m_model->setGeometry(m_modelGeometry);
@@ -439,7 +435,12 @@ void QQuick3DParticleModelBlendParticle::updateParticles()
             quint32 primitiveCount = vertexBuffer.size() / geometry->stride() / 3;
             m_centerData.resize(primitiveCount);
             m_particleCount = primitiveCount;
-            getVertexCenterData(m_centerData, vertexBuffer, geometry->stride(), attributeBySemantic(geometry, QQuick3DGeometry::Attribute::PositionSemantic).offset, primitiveCount);
+            getVertexCenterData(m_centerData,
+                                m_maxTriangleRadius,
+                                vertexBuffer,
+                                geometry->stride(),
+                                attributeBySemantic(geometry, QQuick3DGeometry::Attribute::PositionSemantic).offset,
+                                primitiveCount);
         }
     } else {
         const QQmlContext *context = qmlContext(this);
@@ -494,7 +495,15 @@ void QQuick3DParticleModelBlendParticle::updateParticles()
             m_centerData.resize(primitiveCount);
             m_particleCount = primitiveCount;
 
-            copyToUnindexedVertices(unindexedVertexData, m_centerData, vertexBuffer.data, vertexBuffer.stride, entryOffset(vertexBuffer, QByteArray(QSSGMesh::MeshInternal::getPositionAttrName())), indexBuffer.data, u16IndexType, primitiveCount);
+            copyToUnindexedVertices(unindexedVertexData,
+                                    m_centerData,
+                                    m_maxTriangleRadius,
+                                    vertexBuffer.data,
+                                    vertexBuffer.stride,
+                                    entryOffset(vertexBuffer, QByteArray(QSSGMesh::MeshInternal::getPositionAttrName())),
+                                    indexBuffer.data,
+                                    u16IndexType,
+                                    primitiveCount);
             m_modelGeometry->setBounds(mesh.subsets().first().bounds.min, mesh.subsets().first().bounds.max);
             m_modelGeometry->setStride(vertexBuffer.stride);
             m_modelGeometry->setVertexData(unindexedVertexData);
@@ -504,17 +513,22 @@ void QQuick3DParticleModelBlendParticle::updateParticles()
             quint32 primitiveCount = vertexBuffer.data.size() / vertexBuffer.stride / 3;
             m_centerData.resize(primitiveCount);
             m_particleCount = primitiveCount;
-            getVertexCenterData(m_centerData, vertexBuffer.data, vertexBuffer.stride, entryOffset(vertexBuffer, QByteArray(QSSGMesh::MeshInternal::getPositionAttrName())), primitiveCount);
+            getVertexCenterData(m_centerData,
+                                m_maxTriangleRadius,
+                                vertexBuffer.data,
+                                vertexBuffer.stride,
+                                entryOffset(vertexBuffer, QByteArray(QSSGMesh::MeshInternal::getPositionAttrName())),
+                                primitiveCount);
             m_modelGeometry->setBounds(mesh.subsets().first().bounds.min, mesh.subsets().first().bounds.max);
             m_modelGeometry->setStride(vertexBuffer.stride);
             m_modelGeometry->setVertexData(vertexBuffer.data);
             m_modelGeometry->setPrimitiveType(QQuick3DGeometry::PrimitiveType::Triangles);
         }
-        QQuick3DGeometryPrivate *geometryPrivate = static_cast<QQuick3DGeometryPrivate *>(QQuick3DGeometryPrivate::get(m_modelGeometry));
         for (auto &e : vertexBuffer.entries)
             m_modelGeometry->addAttribute(toAttribute(e));
         for (auto &s : mesh.subsets())
-            geometryPrivate->m_subsets.append({s.name, s.bounds.min, s.bounds.max, s.offset, s.count});
+            m_modelGeometry->addSubset(s.offset, s.count, s.bounds.min, s.bounds.max, s.name);
+
         m_model->setSource({});
         m_model->setGeometry(m_modelGeometry);
     }
@@ -522,12 +536,17 @@ void QQuick3DParticleModelBlendParticle::updateParticles()
     QMatrix4x4 transform = m_model->sceneTransform();
     if (m_model->parentNode())
         transform = m_model->parentNode()->sceneTransform().inverted() * transform;
+    const QVector3D scale = mat44::getScale(transform);
+    // Take max component scale for a conservative bounds estimation
+    const float scaleMax = qMax(scale.x(), qMax(scale.y(), scale.z()));
+    m_maxTriangleRadius *= scaleMax;
+
     m_triangleParticleData.resize(m_particleCount);
     m_particleData.resize(m_particleCount);
     m_particleData.fill({});
     for (int i = 0; i < m_particleCount; i++) {
         m_triangleParticleData[i].center = m_centerData[i];
-        m_centerData[i] = transform * m_centerData[i];
+        m_centerData[i] = transform.map(m_centerData[i]);
         if (m_modelBlendMode == Construct) {
             m_triangleParticleData[i].size = 0.0f;
         } else {
@@ -558,7 +577,7 @@ QSSGRenderGraphObject *QQuick3DParticleModelBlendParticle::updateSpatialNode(QSS
     QMatrix4x4 particleMatrix = psystem->sceneTransform().inverted() * m_model->sceneTransform();
     model->particleMatrix = particleMatrix.inverted();
     model->hasTransparency = fadeInEffect() == QQuick3DParticle::FadeOpacity || fadeOutEffect() == QQuick3DParticle::FadeOpacity;
-    updateParticleBuffer(model->particleBuffer);
+    updateParticleBuffer(model->particleBuffer, psystem->sceneTransform());
 
     return node;
 }
@@ -619,7 +638,7 @@ QQuick3DParticleModelBlendParticle::PerEmitterData &QQuick3DParticleModelBlendPa
     return n_noPerEmitterData;
 }
 
-void QQuick3DParticleModelBlendParticle::updateParticleBuffer(QSSGParticleBuffer *buffer)
+void QQuick3DParticleModelBlendParticle::updateParticleBuffer(QSSGParticleBuffer *buffer, const QMatrix4x4 &sceneTransform)
 {
     const auto &particles = m_triangleParticleData;
 
@@ -654,6 +673,9 @@ void QQuick3DParticleModelBlendParticle::updateParticleBuffer(QSSGParticleBuffer
         }
         dest += ss;
     }
+
+    bounds.fatten(m_maxTriangleRadius);
+    bounds.transform(sceneTransform);
     buffer->setBounds(bounds);
     m_dataChanged = false;
 }
@@ -743,7 +765,7 @@ void QQuick3DParticleModelBlendParticle::handleEndNodeChanged()
 
 QVector3D QQuick3DParticleModelBlendParticle::particleEndPosition(int idx) const
 {
-    return m_endRotationMatrix * QVector3D(m_endNodeScale * m_centerData[idx]) + m_endNodePosition;
+    return m_endRotationMatrix.map(QVector3D(m_endNodeScale * m_centerData[idx])) + m_endNodePosition;
 }
 
 QVector3D QQuick3DParticleModelBlendParticle::particleEndRotation(int) const

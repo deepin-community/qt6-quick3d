@@ -1,32 +1,6 @@
-/****************************************************************************
-**
-** Copyright (C) 2008-2012 NVIDIA Corporation.
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2008-2012 NVIDIA Corporation.
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #ifndef QSSG_SHADER_MATERIAL_ADAPTER_H
 #define QSSG_SHADER_MATERIAL_ADAPTER_H
@@ -57,10 +31,14 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGShaderMaterialAdapter
     virtual ~QSSGShaderMaterialAdapter();
 
     virtual bool isPrincipled() = 0;
+    virtual bool isSpecularGlossy() = 0;
     virtual bool isMetalnessEnabled() = 0;
     virtual bool isSpecularEnabled() = 0;
     virtual bool isVertexColorsEnabled() = 0;
+    virtual bool isClearcoatEnabled() = 0;
+    virtual bool isTransmissionEnabled() = 0;
     virtual bool hasLighting() = 0;
+    virtual bool usesCustomSkinning() = 0;
     virtual QSSGRenderDefaultMaterial::MaterialSpecularModel specularModel() = 0;
     virtual QSSGRenderDefaultMaterial::MaterialAlphaMode alphaMode() = 0;
 
@@ -83,6 +61,12 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGShaderMaterialAdapter
     virtual float heightAmount() = 0;
     virtual float minHeightSamples() = 0;
     virtual float maxHeightSamples() = 0;
+    virtual float clearcoatAmount() = 0;
+    virtual float clearcoatRoughnessAmount() = 0;
+    virtual float transmissionFactor() = 0;
+    virtual float thicknessFactor() = 0;
+    virtual float attenuationDistance() = 0;
+    virtual QVector3D attenuationColor() = 0;
 
     virtual bool isUnshaded();
     virtual bool hasCustomShaderSnippet(QSSGShaderCache::ShaderType type);
@@ -102,10 +86,14 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGShaderDefaultMaterialAdapter final : pu
     QSSGShaderDefaultMaterialAdapter(const QSSGRenderDefaultMaterial &material);
 
     bool isPrincipled() override;
+    bool isSpecularGlossy() override;
     bool isMetalnessEnabled() override;
     bool isSpecularEnabled() override;
     bool isVertexColorsEnabled() override;
+    bool isClearcoatEnabled() override;
+    bool isTransmissionEnabled() override;
     bool hasLighting() override;
+    bool usesCustomSkinning() override;
     QSSGRenderDefaultMaterial::MaterialSpecularModel specularModel() override;
     QSSGRenderDefaultMaterial::MaterialAlphaMode alphaMode() override;
 
@@ -128,6 +116,12 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGShaderDefaultMaterialAdapter final : pu
     float heightAmount() override;
     float minHeightSamples() override;
     float maxHeightSamples() override;
+    float clearcoatAmount() override;
+    float clearcoatRoughnessAmount() override;
+    float transmissionFactor() override;
+    float thicknessFactor() override;
+    float attenuationDistance() override;
+    QVector3D attenuationColor() override;
 
 private:
     const QSSGRenderDefaultMaterial &m_material;
@@ -138,10 +132,14 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGShaderCustomMaterialAdapter final : pub
     QSSGShaderCustomMaterialAdapter(const QSSGRenderCustomMaterial &material);
 
     bool isPrincipled() override;
+    bool isSpecularGlossy() override;
     bool isMetalnessEnabled() override;
     bool isSpecularEnabled() override;
     bool isVertexColorsEnabled() override;
+    bool isClearcoatEnabled() override;
+    bool isTransmissionEnabled() override;
     bool hasLighting() override;
+    bool usesCustomSkinning() override;
     QSSGRenderDefaultMaterial::MaterialSpecularModel specularModel() override;
     QSSGRenderDefaultMaterial::MaterialAlphaMode alphaMode() override;
 
@@ -164,6 +162,12 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGShaderCustomMaterialAdapter final : pub
     float heightAmount() override;
     float minHeightSamples() override;
     float maxHeightSamples() override;
+    float clearcoatAmount() override;
+    float clearcoatRoughnessAmount() override;
+    float transmissionFactor() override;
+    float thicknessFactor() override;
+    float attenuationDistance() override;
+    QVector3D attenuationColor() override;
 
     bool isUnshaded() override;
     bool hasCustomShaderSnippet(QSSGShaderCache::ShaderType type) override;
@@ -196,6 +200,13 @@ struct QSSGCustomMaterialVariableSubstitution
     QByteArrayView builtin;
     QByteArrayView actualName;
 };
+
+namespace QtQuick3DEditorHelpers {
+// NOTE: Returns a copy of the actual list, cache as needed!
+namespace CustomMaterial {
+[[nodiscard]] Q_QUICK3DRUNTIMERENDER_EXPORT QList<QByteArrayView> preprocessorVars();
+}
+}
 
 QT_END_NAMESPACE
 

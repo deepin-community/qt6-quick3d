@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qquick3dnode_p.h"
 #include "qquick3dnode_p_p.h"
@@ -340,7 +314,7 @@ QVector3D QQuick3DNode::scenePosition() const
 }
 
 /*!
-    \qmlproperty vector3d QtQuick3D::Node::sceneRotation
+    \qmlproperty quaternion QtQuick3D::Node::sceneRotation
     \readonly
 
     This property returns the rotation of the node in scene space.
@@ -381,7 +355,7 @@ void QQuick3DNodePrivate::calculateGlobalVariables()
 {
     Q_Q(QQuick3DNode);
     m_sceneTransformDirty = false;
-    QMatrix4x4 localTransform = calculateLocalTransform();
+    QMatrix4x4 localTransform = QSSGRenderNode::calculateTransformMatrix(m_position, m_scale, m_pivot, m_rotation);
     QQuick3DNode *parent = q->parentNode();
     if (!parent) {
         m_sceneTransform = localTransform;
@@ -401,28 +375,6 @@ void QQuick3DNodePrivate::calculateGlobalVariables()
         const QVector3D ps = privateParent->m_scale;
         m_hasInheritedUniformScale = qFuzzyCompare(ps.x(), ps.y()) && qFuzzyCompare(ps.x(), ps.z());
     }
-}
-
-QMatrix4x4 QQuick3DNodePrivate::calculateLocalTransform()
-{
-    const QVector3D pivot = -m_pivot * m_scale;
-    QMatrix4x4 localTransform;
-
-    localTransform(0, 0) = m_scale[0];
-    localTransform(1, 1) = m_scale[1];
-    localTransform(2, 2) = m_scale[2];
-
-    localTransform(0, 3) = pivot[0];
-    localTransform(1, 3) = pivot[1];
-    localTransform(2, 3) = pivot[2];
-
-    localTransform = localRotationMatrix() * localTransform;
-
-    localTransform(0, 3) += m_position[0];
-    localTransform(1, 3) += m_position[1];
-    localTransform(2, 3) += m_position[2];
-
-    return localTransform;
 }
 
 QMatrix4x4 QQuick3DNodePrivate::localRotationMatrix() const
@@ -452,7 +404,7 @@ QMatrix4x4 QQuick3DNodePrivate::sceneRotationMatrix() const
     // the rotation from the sceneMatrix directly. Instead, we need to calculate
     // it separately, which is slightly more costly.
     const QMatrix4x4 parentRotationMatrix = QQuick3DNodePrivate::get(q->parentNode())->sceneRotationMatrix();
-    return localRotationMatrix() * parentRotationMatrix;
+    return parentRotationMatrix * localRotationMatrix();
 }
 
 void QQuick3DNodePrivate::emitChangesToSceneTransform()
@@ -469,8 +421,7 @@ void QQuick3DNodePrivate::emitChangesToSceneTransform()
         // Instead of calling forward(), up() and right(), calculate them here.
         // This way m_sceneTransform isn't updated due to m_sceneTransformDirty and
         // common theDirMatrix operations are not duplicated.
-        QMatrix3x3 theDirMatrix = mat44::getUpper3x3(m_sceneTransform);
-        theDirMatrix = mat33::getInverse(theDirMatrix).transposed();
+        QMatrix3x3 theDirMatrix = m_sceneTransform.normalMatrix();
         prevForward = mat33::transform(theDirMatrix, QVector3D(0, 0, -1)).normalized();
         prevUp = mat33::transform(theDirMatrix, QVector3D(0, 1, 0)).normalized();
         prevRight = mat33::transform(theDirMatrix, QVector3D(1, 0, 0)).normalized();
@@ -482,8 +433,7 @@ void QQuick3DNodePrivate::emitChangesToSceneTransform()
     const QQuaternion newRotation = QQuaternion::fromRotationMatrix(mat44::getUpper3x3(m_sceneTransform)).normalized();
     const QVector3D newScale = mat44::getScale(m_sceneTransform);
     if (emitDirectionChanges) {
-        QMatrix3x3 theDirMatrix = mat44::getUpper3x3(m_sceneTransform);
-        theDirMatrix = mat33::getInverse(theDirMatrix).transposed();
+        QMatrix3x3 theDirMatrix = m_sceneTransform.normalMatrix();
         newForward = mat33::transform(theDirMatrix, QVector3D(0, 0, -1)).normalized();
         newUp = mat33::transform(theDirMatrix, QVector3D(0, 1, 0)).normalized();
         newRight = mat33::transform(theDirMatrix, QVector3D(1, 0, 0)).normalized();
@@ -491,7 +441,7 @@ void QQuick3DNodePrivate::emitChangesToSceneTransform()
 
     const bool positionChanged = prevPosition != newPosition;
     const bool rotationChanged = prevRotation != newRotation;
-    const bool scaleChanged = prevScale != newScale;
+    const bool scaleChanged = !qFuzzyCompare(prevScale, newScale);
 
     if (!positionChanged && !rotationChanged && !scaleChanged)
         return;
@@ -649,7 +599,6 @@ void QQuick3DNode::setRotation(const QQuaternion &rotation)
         return;
 
     d->m_rotation = rotation;
-    d->m_eulerRotationDirty = true;
     d->markSceneTransformDirty();
     emit rotationChanged();
     emit eulerRotationChanged();
@@ -740,18 +689,14 @@ void QQuick3DNode::setStaticFlags(int staticFlags)
 
 void QQuick3DNode::setEulerRotation(const QVector3D &eulerRotation) {
     Q_D(QQuick3DNode);
-    if (this->eulerRotation() == eulerRotation)
+
+    if (d->m_rotation == eulerRotation)
         return;
 
-    d->m_eulerRotationAngles = eulerRotation;
+    d->m_rotation = eulerRotation;
 
-    QQuaternion rotation = QQuaternion::fromEulerAngles(d->m_eulerRotationAngles);
-    if (rotation != d->m_rotation) {
-        d->m_rotation = rotation;
-        emit rotationChanged();
-        d->markSceneTransformDirty();
-    }
-
+    emit rotationChanged();
+    d->markSceneTransformDirty();
     emit eulerRotationChanged();
     update();
 }
@@ -803,7 +748,6 @@ void QQuick3DNode::rotate(qreal degrees, const QVector3D &axis, TransformSpace s
         return;
 
     d->m_rotation = newRotationQuaternion;
-    d->m_eulerRotationDirty = true;
     d->markSceneTransformDirty();
 
     emit rotationChanged();
@@ -822,43 +766,46 @@ QSSGRenderGraphObject *QQuick3DNode::updateSpatialNode(QSSGRenderGraphObject *no
 
     auto spacialNode = static_cast<QSSGRenderNode *>(node);
     bool transformIsDirty = false;
-    if (spacialNode->position != d->m_position) {
-        transformIsDirty = true;
-        spacialNode->position = d->m_position;
-    }
 
-    if (spacialNode->rotation != d->m_rotation) {
-        transformIsDirty = true;
-        spacialNode->rotation = d->m_rotation;
-    }
-
-    if (spacialNode->scale != d->m_scale) {
-        transformIsDirty = true;
-        spacialNode->scale = d->m_scale;
-    }
     if (spacialNode->pivot != d->m_pivot) {
         transformIsDirty = true;
         spacialNode->pivot = d->m_pivot;
     }
 
-    spacialNode->staticFlags = d->m_staticFlags;
-    spacialNode->localOpacity = d->m_opacity;
+    if (!qFuzzyCompare(spacialNode->localOpacity, d->m_opacity)) {
+        spacialNode->localOpacity = d->m_opacity;
+        spacialNode->markDirty(QSSGRenderNode::DirtyFlag::OpacityDirty);
+    }
 
-    // The Hidden in Editor flag overrides the visible value
-    if (d->m_isHiddenInEditor)
-        spacialNode->flags.setFlag(QSSGRenderNode::Flag::Active, false);
-    else
-        spacialNode->flags.setFlag(QSSGRenderNode::Flag::Active, d->m_visible);
+    if (!transformIsDirty && !qFuzzyCompare(d->m_position, mat44::getPosition(spacialNode->localTransform)))
+        transformIsDirty = true;
+
+    if (!transformIsDirty && !qFuzzyCompare(d->m_scale, mat44::getScale(spacialNode->localTransform)))
+        transformIsDirty = true;
+
+    if (!transformIsDirty && !qFuzzyCompare(d->m_rotation, QQuaternion::fromRotationMatrix(mat44::getUpper3x3(spacialNode->localTransform))))
+        transformIsDirty = true;
 
     if (transformIsDirty) {
-        spacialNode->markDirty(QSSGRenderNode::TransformDirtyFlag::TransformIsDirty);
+        spacialNode->localTransform = QSSGRenderNode::calculateTransformMatrix(d->m_position, d->m_scale, d->m_pivot, d->m_rotation);;
+        spacialNode->markDirty(QSSGRenderNode::DirtyFlag::TransformDirty);
+    }
+
+    spacialNode->staticFlags = d->m_staticFlags;
+
+    // The Hidden in Editor flag overrides the visible value
+    const bool nodeActive = spacialNode->getLocalState(QSSGRenderNode::LocalState::Active);
+    if (nodeActive && d->m_isHiddenInEditor)
+        spacialNode->setState(QSSGRenderNode::LocalState::Active, false);
+    else
+        spacialNode->setState(QSSGRenderNode::LocalState::Active, d->m_visible);
+
+    if (spacialNode->isDirty(QSSGRenderNode::DirtyFlag::GlobalValuesDirty)) {
         spacialNode->calculateGlobalVariables();
-        // Still needs to be marked dirty if it will show up correctly in the backend
-        // Note: no longer sure if this is still needed after we now do our own
-        // calculation of the global matrix from the front-end.
-        spacialNode->flags.setFlag(QSSGRenderNode::Flag::Dirty, true);
-    } else {
-        spacialNode->markDirty(QSSGRenderNode::TransformDirtyFlag::TransformNotDirty);
+        // calculateGlobalVariables clears the dirty flag so transform has to be set dirty again
+        // so that the layer can check node dirtiness afterwards
+        if (transformIsDirty)
+            spacialNode->markDirty(QSSGRenderNode::DirtyFlag::TransformDirty);
     }
 
     return spacialNode;
@@ -938,8 +885,7 @@ QVector3D QQuick3DNode::mapPositionFromNode(const QQuick3DNode *node, const QVec
 */
 QVector3D QQuick3DNode::mapDirectionToScene(const QVector3D &localDirection) const
 {
-    QMatrix3x3 theDirMatrix = mat44::getUpper3x3(sceneTransform());
-    theDirMatrix = mat33::getInverse(theDirMatrix).transposed();
+    QMatrix3x3 theDirMatrix = sceneTransform().normalMatrix();
     return mat33::transform(theDirMatrix, localDirection);
 }
 
@@ -1025,13 +971,14 @@ void QQuick3DNode::markAllDirty()
 QVector3D QQuick3DNode::eulerRotation() const
 {
     const Q_D(QQuick3DNode);
-    if (d->m_eulerRotationDirty) {
-        auto dd = QQuick3DNodePrivate::get(const_cast<QQuick3DNode *>(this));
-        dd->m_eulerRotationAngles = dd->m_rotation.toEulerAngles();
-        dd->m_eulerRotationDirty = false;
-    }
 
-    return d->m_eulerRotationAngles;
+    return d->m_rotation;
+}
+
+void QQuick3DNode::itemChange(ItemChange change, const ItemChangeData &)
+{
+    if (change == QQuick3DObject::ItemParentHasChanged)
+        QQuick3DNodePrivate::get(this)->markSceneTransformDirty();
 }
 
 QT_END_NAMESPACE

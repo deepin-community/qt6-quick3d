@@ -1,32 +1,6 @@
-/****************************************************************************
-**
-** Copyright (C) 2008-2012 NVIDIA Corporation.
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2008-2012 NVIDIA Corporation.
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include <QtQuick3DRuntimeRender/private/qssgrenderloadedtexture_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendererutil_p.h>
@@ -39,6 +13,12 @@
 #include <QtQuick3DUtils/private/qssgutils_p.h>
 
 #include <private/qtexturefilereader_p.h>
+
+#define TINYEXR_IMPLEMENTATION
+#define TINYEXR_USE_MINIZ 0
+#define TINYEXR_USE_THREAD 1
+#include <zlib.h>
+#include <tinyexr.h>
 
 QT_BEGIN_NAMESPACE
 
@@ -73,7 +53,7 @@ QSharedPointer<QIODevice> QSSGInputUtil::getStreamForFile(const QString &inPath,
 QSharedPointer<QIODevice> QSSGInputUtil::getStreamForTextureFile(const QString &inPath, bool inQuiet,
                                                                  QString *outPath, FileType *outFileType)
 {
-    static const QList<QByteArray> hdrFormats = QList<QByteArray>({ "hdr" });
+    static const QList<QByteArray> hdrFormats = QList<QByteArray>({ "hdr", "exr" });
     static const QList<QByteArray> textureFormats = QTextureFileReader::supportedFileFormats();
     static const QList<QByteArray> imageFormats = QImageReader::supportedImageFormats();
     static const QList<QByteArray> allFormats = textureFormats + hdrFormats + imageFormats;
@@ -286,11 +266,11 @@ static inline QSSGRenderTextureFormat fromGLtoTextureFormat(quint32 internalForm
     }
 }
 
-QSSGLoadedTexture *QSSGLoadedTexture::loadQImage(const QString &inPath, qint32 flipVertical)
+static QImage loadImage(const QString &inPath, bool flipVertical)
 {
     QImage image(inPath);
     if (image.isNull())
-        return nullptr;
+        return image;
     const QPixelFormat pixFormat = image.pixelFormat();
     QImage::Format targetFormat = QImage::Format_RGBA8888_Premultiplied;
     if (image.colorCount()) // a palleted image
@@ -305,7 +285,14 @@ QSSGLoadedTexture *QSSGLoadedTexture::loadQImage(const QString &inPath, qint32 f
     image.convertTo(targetFormat); // convert to a format mappable to QRhiTexture::Format
     if (flipVertical)
         image.mirror(); // Flip vertically to the conventional Y-up orientation
+    return image;
+}
 
+QSSGLoadedTexture *QSSGLoadedTexture::loadQImage(const QString &inPath, qint32 flipVertical)
+{
+    QImage image = loadImage(inPath, flipVertical);
+    if (image.isNull())
+        return nullptr;
     QSSGLoadedTexture *retval = new QSSGLoadedTexture;
     retval->width = image.width();
     retval->height = image.height();
@@ -338,14 +325,14 @@ QSSGLoadedTexture *QSSGLoadedTexture::loadCompressedImage(const QString &inPath)
         return retval;
     }
     retval = new QSSGLoadedTexture;
-    retval->compressedData = reader->read();
+    retval->textureFileData = reader->read();
 
     // Fill out what makes sense, leave the rest at the default 0 and null.
-    retval->width = retval->compressedData.size().width();
-    retval->height = retval->compressedData.size().height();
-    auto glFormat = retval->compressedData.glInternalFormat()
-            ? retval->compressedData.glInternalFormat()
-            : retval->compressedData.glFormat();
+    retval->width = retval->textureFileData.size().width();
+    retval->height = retval->textureFileData.size().height();
+    auto glFormat = retval->textureFileData.glInternalFormat()
+            ? retval->textureFileData.glInternalFormat()
+            : retval->textureFileData.glFormat();
     retval->format = fromGLtoTextureFormat(glFormat);
 
     delete reader;
@@ -449,73 +436,270 @@ void decodeScanlineToTexture(RGBE *scanline, int width, void *outBuf, quint32 of
     }
 }
 
+QSSGLoadedTexture *loadRadianceHdr(const QSharedPointer<QIODevice> &source, const QSSGRenderTextureFormat &format)
+{
+    QSSGLoadedTexture *imageData = nullptr;
+
+    char sig[256];
+    source->seek(0);
+    source->read(sig, 11);
+    if (!strncmp(sig, "#?RADIANCE\n", 11)) {
+        QByteArray buf = source->readAll();
+        const char *p = buf.constData();
+        const char *pEnd = p + buf.size();
+
+        // Process lines until the empty one.
+        QByteArray line;
+        while (p < pEnd) {
+            char c = *p++;
+            if (c == '\n') {
+                if (line.isEmpty())
+                    break;
+                if (line.startsWith(QByteArrayLiteral("FORMAT="))) {
+                    const QByteArray format = line.mid(7).trimmed();
+                    if (format != QByteArrayLiteral("32-bit_rle_rgbe")) {
+                        qWarning("HDR format '%s' is not supported", format.constData());
+                        return imageData;
+                    }
+                }
+                line.clear();
+            } else {
+                line.append(c);
+            }
+        }
+        if (p == pEnd) {
+            qWarning("Malformed HDR image data at property strings");
+            return imageData;
+        }
+
+        // Get the resolution string.
+        while (p < pEnd) {
+            char c = *p++;
+            if (c == '\n')
+                break;
+            line.append(c);
+        }
+        if (p == pEnd) {
+            qWarning("Malformed HDR image data at resolution string");
+            return imageData;
+        }
+
+        int width = 0;
+        int height = 0;
+        // We only care about the standard orientation.
+#ifdef Q_CC_MSVC
+        if (!sscanf_s(line.constData(), "-Y %d +X %d", &height, &width)) {
+#else
+        if (!sscanf(line.constData(), "-Y %d +X %d", &height, &width)) {
+#endif
+            qWarning("Unsupported HDR resolution string '%s'", line.constData());
+            return imageData;
+        }
+        if (width <= 0 || height <= 0) {
+            qWarning("Invalid HDR resolution");
+            return imageData;
+        }
+
+        const int bytesPerPixel = format.getSizeofFormat();
+        const int bitCount = bytesPerPixel * 8;
+        const int pitch = calculatePitch(calculateLine(width, bitCount));
+        const quint32 dataSize = quint32(height * pitch);
+        imageData = new QSSGLoadedTexture;
+        imageData->dataSizeInBytes = dataSize;
+        imageData->data = ::malloc(dataSize);
+        imageData->width = width;
+        imageData->height = height;
+        imageData->format = format;
+        imageData->components = format.getNumberOfComponent();
+
+        // Allocate a scanline worth of RGBE data
+        RGBE *scanline = new RGBE[width];
+
+        // Note we are writing to the data buffer from bottom to top
+        // to correct for -Y orientation
+        for (int y = 0; y < height; ++y) {
+            quint32 byteOffset = quint32((height - 1 - y) * width * bytesPerPixel);
+            if (pEnd - p < 4) {
+                qWarning("Unexpected end of HDR data");
+                delete[] scanline;
+                return imageData;
+            }
+            decrunchScanline(p, pEnd, scanline, width);
+            decodeScanlineToTexture(scanline, width, imageData->data, byteOffset, format);
+        }
+
+        delete[] scanline;
+    }
+
+    return imageData;
+}
+
+QSSGLoadedTexture *loadExr(const QSharedPointer<QIODevice> &source, const QSSGRenderTextureFormat format)
+{
+    QSSGLoadedTexture *imageData = nullptr;
+
+    char versionBuffer[tinyexr::kEXRVersionSize];
+    source->seek(0);
+    auto size = source->read(versionBuffer, tinyexr::kEXRVersionSize);
+    // Check if file is big enough
+    if (size != tinyexr::kEXRVersionSize)
+        return imageData;
+    // Try to load the Version
+    EXRVersion exrVersion;
+    if (ParseEXRVersionFromMemory(&exrVersion, reinterpret_cast<unsigned char *>(versionBuffer), tinyexr::kEXRVersionSize) != TINYEXR_SUCCESS)
+        return imageData;
+
+    // Check that the file is not a multipart file
+    if (exrVersion.multipart)
+        return imageData;
+
+    // If we get here, than this is an EXR file
+    source->seek(0);
+    QByteArray buf = source->readAll();
+    const char *err = nullptr;
+    // Header
+    EXRHeader exrHeader;
+    InitEXRHeader(&exrHeader);
+    if (ParseEXRHeaderFromMemory(&exrHeader,
+                                 &exrVersion,
+                                 reinterpret_cast<const unsigned char *>(buf.constData()),
+                                 buf.size(),
+                                 &err) != TINYEXR_SUCCESS) {
+        qWarning("Failed to parse EXR Header with error: '%s'", err);
+        FreeEXRErrorMessage(err);
+        return imageData;
+    }
+
+    // Make sure we get floats instead of half floats
+    for (int i = 0; i < exrHeader.num_channels; i++) {
+        if (exrHeader.pixel_types[i] == TINYEXR_PIXELTYPE_HALF)
+            exrHeader.requested_pixel_types[i] = TINYEXR_PIXELTYPE_FLOAT;
+    }
+
+    // Image
+    EXRImage exrImage;
+
+    InitEXRImage(&exrImage);
+    if (LoadEXRImageFromMemory(&exrImage,
+                               &exrHeader,
+                               reinterpret_cast<const unsigned char *>(buf.constData()),
+                               buf.size(),
+                               &err) != TINYEXR_SUCCESS) {
+        qWarning("Failed to load EXR Image with error: '%s'", err);
+        FreeEXRHeader(&exrHeader);
+        FreeEXRErrorMessage(err);
+        return imageData;
+    }
+
+    // Setup Output container
+    const int bytesPerPixel = format.getSizeofFormat();
+    const int bitCount = bytesPerPixel * 8;
+    const int pitch = calculatePitch(calculateLine(exrImage.width, bitCount));
+    const quint32 dataSize = quint32(exrImage.height * pitch);
+    imageData = new QSSGLoadedTexture;
+    imageData->dataSizeInBytes = dataSize;
+    imageData->data = ::malloc(dataSize);
+    imageData->width = exrImage.width;
+    imageData->height = exrImage.height;
+    imageData->format = format;
+    imageData->components = format.getNumberOfComponent();
+    imageData->isSRGB = false;
+
+    quint8 *target = reinterpret_cast<quint8 *>(imageData->data);
+
+    // Convert data
+    // RGBA
+    int idxR = -1;
+    int idxG = -1;
+    int idxB = -1;
+    int idxA = -1;
+    for (int c = 0; c < exrHeader.num_channels; c++) {
+        if (strcmp(exrHeader.channels[c].name, "R") == 0)
+            idxR = c;
+        else if (strcmp(exrHeader.channels[c].name, "G") == 0)
+            idxG = c;
+        else if (strcmp(exrHeader.channels[c].name, "B") == 0)
+            idxB = c;
+        else if (strcmp(exrHeader.channels[c].name, "A") == 0)
+            idxA = c;
+    }
+    const bool isSingleChannel = exrHeader.num_channels == 1;
+    float rgbaF32[4];
+
+    if (exrHeader.tiled) {
+        for (int it = 0; it < exrImage.num_tiles; it++) {
+            for (int j = 0; j < exrHeader.tile_size_y; j++)
+                for (int i = 0; i < exrHeader.tile_size_x; i++) {
+                    const int ii =
+                            exrImage.tiles[it].offset_x * exrHeader.tile_size_x + i;
+                    const int jj =
+                            exrImage.tiles[it].offset_y * exrHeader.tile_size_y + j;
+                    const int inverseJJ = std::abs(jj - (exrImage.height - 1));
+                    const int idx = ii + inverseJJ * exrImage.width;
+
+                    // out of region check.
+                    if (ii >= exrImage.width) {
+                        continue;
+                    }
+                    if (jj >= exrImage.height) {
+                        continue;
+                    }
+                    const int srcIdx = i + j * exrHeader.tile_size_x;
+                    unsigned char **src = exrImage.tiles[it].images;
+                    if (isSingleChannel) {
+                        rgbaF32[R] = reinterpret_cast<float **>(src)[0][srcIdx];
+                        rgbaF32[G] = rgbaF32[R];
+                        rgbaF32[B] = rgbaF32[R];
+                        rgbaF32[3] = rgbaF32[R];
+                    } else {
+                        rgbaF32[R] = reinterpret_cast<float **>(src)[idxR][srcIdx];
+                        rgbaF32[G] = reinterpret_cast<float **>(src)[idxG][srcIdx];
+                        rgbaF32[B] = reinterpret_cast<float **>(src)[idxB][srcIdx];
+                        if (idxA != -1)
+                            rgbaF32[3] = reinterpret_cast<float **>(src)[idxA][srcIdx];
+                        else
+                            rgbaF32[3] = 1.0f;
+                    }
+                    format.encodeToPixel(rgbaF32, target, idx * bytesPerPixel);
+                }
+        }
+    } else {
+        int idx = 0;
+        for (int y = exrImage.height - 1; y >= 0; --y) {
+            for (int x = 0; x < exrImage.width; x++) {
+                const int i = y * exrImage.width + x;
+                if (isSingleChannel) {
+                    rgbaF32[R] = reinterpret_cast<float **>(exrImage.images)[0][i];
+                    rgbaF32[G] = rgbaF32[R];
+                    rgbaF32[B] = rgbaF32[R];
+                    rgbaF32[3] = rgbaF32[R];
+                } else {
+                    rgbaF32[R] = reinterpret_cast<float **>(exrImage.images)[idxR][i];
+                    rgbaF32[G] = reinterpret_cast<float **>(exrImage.images)[idxG][i];
+                    rgbaF32[B] = reinterpret_cast<float **>(exrImage.images)[idxB][i];
+                    if (idxA != -1)
+                        rgbaF32[3] = reinterpret_cast<float **>(exrImage.images)[idxA][i];
+                    else
+                        rgbaF32[3] = 1.0f;
+                }
+                format.encodeToPixel(rgbaF32, target, idx * bytesPerPixel);
+                ++idx;
+            }
+        }
+    }
+
+    // Cleanup
+    FreeEXRImage(&exrImage);
+    FreeEXRHeader(&exrHeader);
+
+    return imageData;
+
+}
 }
 
 QSSGLoadedTexture *QSSGLoadedTexture::loadHdrImage(const QSharedPointer<QIODevice> &source, const QSSGRenderTextureFormat &inFormat)
 {
     QSSGLoadedTexture *imageData = nullptr;
-
-    char sig[256];
-    source->read(sig, 11);
-    if (strncmp(sig, "#?RADIANCE\n", 11))
-        return imageData;
-
-    QByteArray buf = source->readAll();
-    const char *p = buf.constData();
-    const char *pEnd = p + buf.size();
-
-    // Process lines until the empty one.
-    QByteArray line;
-    while (p < pEnd) {
-        char c = *p++;
-        if (c == '\n') {
-            if (line.isEmpty())
-                break;
-            if (line.startsWith(QByteArrayLiteral("FORMAT="))) {
-                const QByteArray format = line.mid(7).trimmed();
-                if (format != QByteArrayLiteral("32-bit_rle_rgbe")) {
-                    qWarning("HDR format '%s' is not supported", format.constData());
-                    return imageData;
-                }
-            }
-            line.clear();
-        } else {
-            line.append(c);
-        }
-    }
-    if (p == pEnd) {
-        qWarning("Malformed HDR image data at property strings");
-        return imageData;
-    }
-
-    // Get the resolution string.
-    while (p < pEnd) {
-        char c = *p++;
-        if (c == '\n')
-            break;
-        line.append(c);
-    }
-    if (p == pEnd) {
-        qWarning("Malformed HDR image data at resolution string");
-        return imageData;
-    }
-
-    int width = 0;
-    int height = 0;
-    // We only care about the standard orientation.
-#ifdef Q_CC_MSVC
-    if (!sscanf_s(line.constData(), "-Y %d +X %d", &height, &width)) {
-#else
-    if (!sscanf(line.constData(), "-Y %d +X %d", &height, &width)) {
-#endif
-        qWarning("Unsupported HDR resolution string '%s'", line.constData());
-        return imageData;
-    }
-    if (width <= 0 || height <= 0) {
-        qWarning("Invalid HDR resolution");
-        return imageData;
-    }
-
     // We need to do a sanity check on the inFormat
     QSSGRenderTextureFormat format = inFormat;
     if (format.format == QSSGRenderTextureFormat::Unknown) {
@@ -526,36 +710,12 @@ QSSGLoadedTexture *QSSGLoadedTexture::loadHdrImage(const QSharedPointer<QIODevic
         format = QSSGRenderTextureFormat::RGBA16F;
     }
 
-    const int bytesPerPixel = format.getSizeofFormat();
-    const int bitCount = bytesPerPixel * 8;
-    const int pitch = calculatePitch(calculateLine(width, bitCount));
-    const quint32 dataSize = quint32(height * pitch);
-    imageData = new QSSGLoadedTexture;
-    imageData->dataSizeInBytes = dataSize;
-    imageData->data = ::malloc(dataSize);
-    imageData->width = width;
-    imageData->height = height;
-    imageData->format = format;
-    imageData->components = format.getNumberOfComponent();
-    imageData->isSRGB = false;
+    // .hdr Files
+    imageData = loadRadianceHdr(source, format);
 
-    // Allocate a scanline worth of RGBE data
-    RGBE *scanline = new RGBE[width];
-
-    // Note we are writing to the data buffer from bottom to top
-    // to correct for -Y orientation
-    for (int y = 0; y < height; ++y) {
-        quint32 byteOffset = quint32((height - 1 - y) * width * bytesPerPixel);
-        if (pEnd - p < 4) {
-            qWarning("Unexpected end of HDR data");
-            delete[] scanline;
-            return imageData;
-        }
-        decrunchScanline(p, pEnd, scanline, width);
-        decodeScanlineToTexture(scanline, width, imageData->data, byteOffset, format);
-    }
-
-    delete[] scanline;
+    // .exr Files
+    if (!imageData)
+        imageData = loadExr(source, format);
 
     return imageData;
 }
@@ -688,6 +848,71 @@ bool QSSGLoadedTexture::scanForTransparency() const
     return false;
 }
 
+static bool isCompatible(const QImage &img1, const QImage &img2)
+{
+    if (img1.size() != img2.size())
+        return false;
+    if (img1.pixelFormat().channelCount() != img2.pixelFormat().channelCount())
+        return false;
+
+    return true;
+}
+
+static QSSGLoadedTexture *loadCubeMap(const QString &inPath, bool flipY)
+{
+    QStringList fileNames;
+    if (inPath.contains(QStringLiteral("%p"))) {
+        fileNames.reserve(6);
+        const char *faces[6] = { "posx", "negx", "posy", "negy", "posz", "negz" };
+        for (const auto face : faces) {
+            QString fileName = inPath;
+            fileName.replace(QStringLiteral("%p"), QLatin1StringView(face));
+            fileNames << fileName;
+        }
+
+    } else if (inPath.contains(QStringLiteral(";"))) {
+        fileNames = inPath.split(QChar(u';'));
+    }
+    if (fileNames.size() != 6)
+        return nullptr; // TODO: allow sparse cube maps (with some faces missing)
+    std::unique_ptr<QTextureFileData> textureFileData = std::make_unique<QTextureFileData>(QTextureFileData::ImageMode);
+    textureFileData->setNumFaces(6);
+    textureFileData->setNumLevels(1);
+    textureFileData->setLogName(inPath.toUtf8());
+    QImage prevImage;
+    for (int i = 0; i < 6; ++i) {
+        QString searchName = fileNames[i];
+        QString filePath;
+        auto stream = QSSGInputUtil::getStreamForFile(searchName, true, &filePath);
+        if (!stream)
+            return nullptr;
+
+        QImage face = loadImage(filePath, !flipY); // Cube maps are flipped the other way
+        if (face.isNull() || (!prevImage.isNull() && !isCompatible(prevImage, face))) {
+            return nullptr;
+        }
+        textureFileData->setData(face, 0, i);
+        textureFileData->setSize(face.size());
+        prevImage = face;
+    }
+
+    QSSGLoadedTexture *retval = new QSSGLoadedTexture;
+
+    retval->textureFileData = *textureFileData;
+
+    retval->width = prevImage.width();
+    retval->height = prevImage.height();
+    retval->components = prevImage.pixelFormat().channelCount();
+    retval->image = prevImage;
+    retval->data = (void *)retval->image.bits();
+    retval->dataSizeInBytes = prevImage.sizeInBytes();
+    retval->setFormatFromComponents();
+    // #TODO: This is a very crude way detect color space
+    retval->isSRGB = prevImage.colorSpace().transferFunction() != QColorSpace::TransferFunction::Linear;
+
+    return retval;
+}
+
 QSSGLoadedTexture *QSSGLoadedTexture::load(const QString &inPath,
                                            const QSSGRenderTextureFormat &inFormat,
                                            bool inFlipY)
@@ -715,6 +940,9 @@ QSSGLoadedTexture *QSSGLoadedTexture::load(const QString &inPath,
             theLoadedImage = loadQImage(fileName, inFlipY);
             break;
         }
+    } else {
+        // Check to see if we can find a cubemap
+        return loadCubeMap(inPath, inFlipY);
     }
     return theLoadedImage;
 }

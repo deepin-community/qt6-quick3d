@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2020 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2020 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include <QtQuick3D/qquick3dobject.h>
 #include <QtQuick3D/private/qquick3ditem2d_p.h>
@@ -106,7 +80,7 @@ QQuickItem *QQuick3DItem2D::contentItem() const
 void QQuick3DItem2D::sourceItemDestroyed(QObject *item)
 {
     disconnect(item, SIGNAL(destroyed(QObject*)), this, SLOT(sourceItemDestroyed(QObject*)));
-    auto quickItem = qmlobject_cast<QQuickItem*>(item);
+    auto quickItem = static_cast<QQuickItem*>(item);
     removeChildItem(quickItem);
 }
 
@@ -153,12 +127,41 @@ QSSGRenderGraphObject *QQuick3DItem2D::updateSpatialNode(QSSGRenderGraphObject *
     if (!m_renderer) {
         m_renderer = rc->createRenderer(QSGRendererInterface::RenderMode3D);
         connect(window, SIGNAL(sceneGraphInvalidated()), this, SLOT(invalidated()), Qt::DirectConnection);
-        // direct connection when rendering is on the main thread, queued with the threaded render loop
-        connect(m_renderer, &QSGAbstractRenderer::sceneGraphChanged, this, &QQuick3DObject::update);
+        connect(
+                m_renderer,
+                &QSGAbstractRenderer::sceneGraphChanged,
+                this,
+                [this]() {
+                    if (m_updatingRendererNode)
+                        return;
+                    // direct connection when rendering is on the main thread, queued with
+                    // the threaded render loop
+                    QMetaObject::invokeMethod(this, &QQuick3DObject::update);
+                },
+                Qt::DirectConnection);
+        // item2D rendernode has its own render pass descriptor and it should
+        // be removed before deleting rhi context.
+        // Otherwise, rhi will complain about the unreleased resource.
+        connect(
+                m_renderer,
+                &QObject::destroyed,
+                this,
+                [this]() {
+                    auto itemNode = static_cast<QSSGRenderItem2D *>(QQuick3DObjectPrivate::get(this)->spatialNode);
+                    if (itemNode) {
+                        itemNode->m_rp->deleteLater();
+                        itemNode->m_rp = nullptr;
+                    }
+                },
+                Qt::DirectConnection);
     }
+    // Do not mark this object dirty on m_renderer->nodeChanged(). Otherwise we would end up
+    // with constantly updating even when the 2D contents do not change.
+    m_updatingRendererNode = true;
     m_renderer->setRootNode(m_rootNode);
     m_rootNode->markDirty(QSGNode::DirtyForceUpdate); // Force matrix, clip and opacity update.
     m_renderer->nodeChanged(m_rootNode, QSGNode::DirtyForceUpdate); // Force render list update.
+    m_updatingRendererNode = false;
 
     if (m_pickingDirty) {
         m_pickingDirty = false;
@@ -170,7 +173,7 @@ QSSGRenderGraphObject *QQuick3DItem2D::updateSpatialNode(QSSGRenderGraphObject *
                 break;
             }
         }
-        itemNode->flags.setFlag(QSSGRenderNode::Flag::LocallyPickable, isPickable);
+        itemNode->setState(QSSGRenderNode::LocalState::Pickable, isPickable);
     }
 
     itemNode->m_renderer = m_renderer;
@@ -208,12 +211,35 @@ void QQuick3DItem2D::preSync()
     auto *window = manager->window();
     if (m_window != window) {
         if (m_window) {
+            disconnect(m_window, SIGNAL(destroyed(QObject*)), this, SLOT(derefWindow(QObject*)));
             sourcePrivate->derefWindow();
         }
         m_window = window;
         sourcePrivate->refWindow(window);
+        connect(window, SIGNAL(destroyed(QObject*)), this, SLOT(derefWindow(QObject*)));
         sourcePrivate->refFromEffectItem(true);
     }
+}
+
+static void detachWindow(QQuickItem *item, QObject *win)
+{
+    auto *itemPriv = QQuickItemPrivate::get(item);
+
+    if (win == itemPriv->window) {
+        itemPriv->window = nullptr;
+        itemPriv->windowRefCount = 0;
+
+        itemPriv->prevDirtyItem = nullptr;
+        itemPriv->nextDirtyItem = nullptr;
+    }
+
+    for (auto *child: itemPriv->childItems)
+        detachWindow(child, win);
+}
+
+void QQuick3DItem2D::derefWindow(QObject *win)
+{
+    detachWindow(m_contentItem, win);
 }
 
 QT_END_NAMESPACE

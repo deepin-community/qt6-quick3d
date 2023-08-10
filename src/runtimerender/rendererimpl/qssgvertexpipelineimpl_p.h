@@ -1,32 +1,6 @@
-/****************************************************************************
-**
-** Copyright (C) 2008-2012 NVIDIA Corporation.
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2008-2012 NVIDIA Corporation.
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #ifndef QSSG_VERTEX_PIPELINE_IMPL_H
 #define QSSG_VERTEX_PIPELINE_IMPL_H
@@ -81,20 +55,14 @@ struct QSSGMaterialVertexPipeline
 
     const QSSGShaderDefaultMaterialKeyProperties &defaultMaterialShaderKeyProperties;
     QSSGShaderMaterialAdapter *materialAdapter;
-    QSSGDataView<QMatrix4x4> boneGlobals;
-    QSSGDataView<QMatrix3x3> boneNormals;
     bool useFloatJointIndices;
-    QSSGDataView<float> morphWeights;
     bool hasCustomShadedMain;
     bool usesInstancing;
     bool skipCustomFragmentSnippet;
 
     QSSGMaterialVertexPipeline(const QSSGRef<QSSGProgramGenerator> &inProgram,
                                const QSSGShaderDefaultMaterialKeyProperties &materialProperties,
-                               QSSGShaderMaterialAdapter *materialAdapter,
-                               QSSGDataView<QMatrix4x4> boneGlobals,
-                               QSSGDataView<QMatrix3x3> boneNormals,
-                               QSSGDataView<float> morphWeights);
+                               QSSGShaderMaterialAdapter *materialAdapter);
 
     ~QSSGMaterialVertexPipeline() = default;
 
@@ -157,6 +125,19 @@ struct QSSGMaterialVertexPipeline
             }
         }
     }
+
+    void generateLightmapUVCoords(const QSSGShaderDefaultMaterialKey &inKey)
+    {
+        if (hasAttributeInKey(QSSGShaderKeyVertexAttribute::TexCoordLightmap, inKey)) {
+            addInterpolationParameter("qt_varTexCoordLightmap", "vec2");
+            vertex() << "    qt_varTexCoordLightmap = qt_vertLightmapUV;\n";
+            fragment() <<"    vec2 qt_texCoordLightmap = qt_varTexCoordLightmap;\n";
+        } else {
+            vertex() << "    vec2 qt_varTexCoordLightmap = vec2(0.0);\n";
+            fragment() << "    vec2 qt_texCoordLightmap = vec2(0.0);\n";
+        }
+    }
+
     void generateEnvMapReflection(const QSSGShaderDefaultMaterialKey &inKey)
     {
         if (setCode(GenerationFlag::EnvMapReflection))
@@ -227,10 +208,14 @@ struct QSSGMaterialVertexPipeline
         activeStage().addUniform("qt_modelMatrix", "mat4");
         addInterpolationParameter("qt_varWorldPos", "vec3");
         const bool usesInstancing = defaultMaterialShaderKeyProperties.m_usesInstancing.getValue(inKey);
-        if (!usesInstancing)
-            vertex().append("    vec3 qt_local_model_world_position = (qt_modelMatrix * qt_vertPosition).xyz;");
-        else
+        if (!usesInstancing) {
+            if (m_hasSkinning)
+                vertex().append("    vec3 qt_local_model_world_position = qt_vertPosition.xyz;");
+            else
+                vertex().append("    vec3 qt_local_model_world_position = (qt_modelMatrix * qt_vertPosition).xyz;");
+        } else {
             vertex().append("    vec3 qt_local_model_world_position = (qt_instancedModelMatrix * qt_vertPosition).xyz;");
+        }
 
         assignOutput("qt_varWorldPos", "qt_local_model_world_position");
     }
@@ -253,10 +238,14 @@ struct QSSGMaterialVertexPipeline
         addInterpolationParameter("qt_varShadowWorldPos", "vec3");
 
         const bool usesInstancing = defaultMaterialShaderKeyProperties.m_usesInstancing.getValue(inKey);
-        if (!usesInstancing)
-            vertex().append("    vec4 qt_shadow_world_tmp = qt_modelMatrix * qt_vertPosition;");
-        else
+        if (!usesInstancing) {
+            if (m_hasSkinning)
+                vertex().append("    vec4 qt_shadow_world_tmp = qt_vertPosition;");
+            else
+                vertex().append("    vec4 qt_shadow_world_tmp = qt_modelMatrix * qt_vertPosition;");
+        } else {
             vertex().append("    vec4 qt_shadow_world_tmp = qt_instancedModelMatrix * qt_vertPosition;");
+        }
         vertex().append("    qt_varShadowWorldPos = qt_shadow_world_tmp.xyz / qt_shadow_world_tmp.w;");
     }
 
@@ -357,7 +346,7 @@ struct QSSGMaterialVertexPipeline
 
     // Responsible for beginning all vertex and fragment generation (void main() { etc).
     void beginVertexGeneration(const QSSGShaderDefaultMaterialKey &inKey,
-                               const ShaderFeatureSetList &inFeatureSet,
+                               const QSSGShaderFeatures &inFeatureSet,
                                const QSSGRef<QSSGShaderLibraryManager> &shaderLibraryManager);
     // The fragment shader expects a floating point constant, qt_objectOpacity to be defined
     // post this method.

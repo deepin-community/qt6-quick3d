@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include <QtTest>
 
@@ -114,7 +88,7 @@ void invasivelist::test_push_backSll()
 
     int lastValue = -1;
     int count = 0;
-    for (const auto &item : qAsConst(list)) {
+    for (const auto &item : std::as_const(list)) {
         QVERIFY(item.value > lastValue);
         lastValue = item.value;
         ++count;
@@ -137,7 +111,7 @@ void invasivelist::test_push_frontSll()
 
     int lastValue = 100;
     int count = 0;
-    for (const auto &item : qAsConst(list)) {
+    for (const auto &item : std::as_const(list)) {
         QVERIFY(item.value < lastValue);
         lastValue = item.value;
         ++count;
@@ -160,7 +134,7 @@ void invasivelist::test_push_backLl()
 
     int lastValue = -1;
     int count = 0;
-    for (const auto &item : qAsConst(list)) {
+    for (const auto &item : std::as_const(list)) {
         QVERIFY(item.value > lastValue);
         lastValue = item.value;
         ++count;
@@ -183,7 +157,7 @@ void invasivelist::test_push_frontLl()
 
     int lastValue = 100;
     int count = 0;
-    for (const auto &item : qAsConst(list)) {
+    for (const auto &item : std::as_const(list)) {
         QVERIFY(item.value < lastValue);
         lastValue = item.value;
         ++count;
@@ -203,6 +177,15 @@ void invasivelist::test_removeSll()
         items[i].value = i;
         list.push_back(items[i]);
     }
+
+    // Remove an item somewhere in the middel of the list
+    QCOMPARE(items[49].next, &items[50]);
+    QCOMPARE(items[49].prev, nullptr);
+    QCOMPARE(items[48].next, &items[49]);
+    list.remove(items[49]);
+    QCOMPARE(items[49].next, nullptr);
+    QCOMPARE(items[49].prev, nullptr);
+    QCOMPARE(items[48].next, &items[50]);
 
     QCOMPARE(items[0].prev, nullptr);
     QCOMPARE(items[0].next, &items[1]);
@@ -543,7 +526,7 @@ void invasivelist::test_sublistSll()
 
     int lastValue = -1;
     int count = 0;
-    for (const auto &item : qAsConst(l1)) {
+    for (const auto &item : std::as_const(l1)) {
         QVERIFY(item.value > lastValue);
         lastValue = item.value;
         ++count;
@@ -563,7 +546,7 @@ void invasivelist::test_sublistSll()
 
             lastValue = -1;
             count = 0;
-            for (const auto &item : qAsConst(l1)) {
+            for (const auto &item : std::as_const(l1)) {
                 lastValue = item.value;
                 ++count;
             }
@@ -587,7 +570,7 @@ void invasivelist::test_insertBadNodeLl()
 
     int lastValue = -1;
     int count = 0;
-    for (const auto &item : qAsConst(l1)) {
+    for (const auto &item : std::as_const(l1)) {
         QVERIFY(item.value > lastValue);
         lastValue = item.value;
         ++count;
@@ -608,7 +591,7 @@ void invasivelist::test_insertBadNodeLl()
             // Forwarnd
             lastValue = -1;
             count = 0;
-            for (const auto &item : qAsConst(l1)) {
+            for (const auto &item : std::as_const(l1)) {
                 lastValue = item.value;
                 ++count;
             }
@@ -642,7 +625,7 @@ void invasivelist::test_insertBadNodeLl()
             // Forwarnd
             lastValue = -1;
             count = 0;
-            for (const auto &item : qAsConst(l1)) {
+            for (const auto &item : std::as_const(l1)) {
                 lastValue = item.value;
                 ++count;
             }

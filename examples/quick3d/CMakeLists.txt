@@ -1,5 +1,3 @@
-# Generated from quick3d.pro.
-
 qt_internal_add_example(antialiasing)
 qt_internal_add_example(customshaders)
 qt_internal_add_example(effects)
@@ -28,3 +26,6 @@ qt_internal_add_example(custommorphing)
 qt_internal_add_example(particles3d)
 qt_internal_add_example(runtimeloader)
 qt_internal_add_example(screenspacereflections)
+qt_internal_add_example(reflectionprobes)
+qt_internal_add_example(bakedlightmap)
+qt_internal_add_example(robotarm)

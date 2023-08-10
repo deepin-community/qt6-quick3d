@@ -1,32 +1,6 @@
-/****************************************************************************
-**
-** Copyright (C) 2008-2012 NVIDIA Corporation.
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2008-2012 NVIDIA Corporation.
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qssgvertexpipelineimpl_p.h"
 
@@ -43,21 +17,13 @@ QT_BEGIN_NAMESPACE
 
 QSSGMaterialVertexPipeline::QSSGMaterialVertexPipeline(const QSSGRef<QSSGProgramGenerator> &programGen,
                                                        const QSSGShaderDefaultMaterialKeyProperties &materialProperties,
-                                                       QSSGShaderMaterialAdapter *materialAdapter,
-                                                       QSSGDataView<QMatrix4x4> boneGlobals,
-                                                       QSSGDataView<QMatrix3x3> boneNormals,
-                                                       QSSGDataView<float> morphWeights)
+                                                       QSSGShaderMaterialAdapter *materialAdapter)
     : m_programGenerator(programGen)
     , defaultMaterialShaderKeyProperties(materialProperties)
     , materialAdapter(materialAdapter)
-    , boneGlobals(boneGlobals)
-    , boneNormals(boneNormals)
-    , morphWeights(morphWeights)
     , hasCustomShadedMain(false)
     , skipCustomFragmentSnippet(false)
 {
-    m_hasSkinning = boneGlobals.size() > 0;
-    m_hasMorphing = morphWeights.size() > 0;
 }
 
 static inline void insertProcessorArgs(QByteArray &snippet, const char *argKey, const char* (*argListFunc)(), bool usesShared = false, bool isSharedInout = false)
@@ -94,6 +60,11 @@ static inline void insertAmbientLightProcessorArgs(QByteArray &snippet, bool use
     insertProcessorArgs(snippet, "/*%QT_ARGS_AMBIENT_LIGHT%*/", QSSGMaterialShaderGenerator::ambientLightProcessorArgumentList, usesShared, true);
 }
 
+static inline void insertIblProbeProcessorArgs(QByteArray &snippet, bool usesShared)
+{
+    insertProcessorArgs(snippet, "/*%QT_ARGS_IBL_PROBE%*/", QSSGMaterialShaderGenerator::iblProbeProcessorArgumentList, usesShared, true);
+}
+
 static inline void insertSpecularLightProcessorArgs(QByteArray &snippet, bool usesShared)
 {
     insertProcessorArgs(snippet, "/*%QT_ARGS_SPECULAR_LIGHT%*/", QSSGMaterialShaderGenerator::specularLightProcessorArgumentList, usesShared, true);
@@ -128,7 +99,7 @@ static inline const char *customMainCallWithArguments(bool usesInstancing)
 }
 
 void QSSGMaterialVertexPipeline::beginVertexGeneration(const QSSGShaderDefaultMaterialKey &inKey,
-                                                       const ShaderFeatureSetList &inFeatureSet,
+                                                       const QSSGShaderFeatures &inFeatureSet,
                                                        const QSSGRef<QSSGShaderLibraryManager> &shaderLibraryManager)
 {
     QSSGShaderGeneratorStageFlags theStages(QSSGProgramGenerator::defaultFlags());
@@ -142,6 +113,8 @@ void QSSGMaterialVertexPipeline::beginVertexGeneration(const QSSGShaderDefaultMa
                 QSSGShaderKeyVertexAttribute::TexCoord0, inKey);
     const bool meshHasTexCoord1 = defaultMaterialShaderKeyProperties.m_vertexAttributes.getBitValue(
                 QSSGShaderKeyVertexAttribute::TexCoord1, inKey);
+    const bool meshHasTexCoordLightmap = defaultMaterialShaderKeyProperties.m_vertexAttributes.getBitValue(
+                QSSGShaderKeyVertexAttribute::TexCoordLightmap, inKey);
     const bool meshHasTangents = defaultMaterialShaderKeyProperties.m_vertexAttributes.getBitValue(
                 QSSGShaderKeyVertexAttribute::Tangent, inKey);
     const bool meshHasBinormals = defaultMaterialShaderKeyProperties.m_vertexAttributes.getBitValue(
@@ -157,6 +130,9 @@ void QSSGMaterialVertexPipeline::beginVertexGeneration(const QSSGShaderDefaultMa
     const bool usesFloatJointIndices = defaultMaterialShaderKeyProperties.m_usesFloatJointIndices.getValue(inKey);
     const bool blendParticles = defaultMaterialShaderKeyProperties.m_blendParticles.getValue(inKey);
     usesInstancing = defaultMaterialShaderKeyProperties.m_usesInstancing.getValue(inKey);
+    m_hasSkinning = defaultMaterialShaderKeyProperties.m_boneCount.getValue(inKey) > 0;
+    const auto morphSize = defaultMaterialShaderKeyProperties.m_morphTargetCount.getValue(inKey);
+    m_hasMorphing = morphSize > 0;
 
     vertexShader.addIncoming("attr_pos", "vec3");
     if (usesInstancing) {
@@ -183,11 +159,10 @@ void QSSGMaterialVertexPipeline::beginVertexGeneration(const QSSGShaderDefaultMa
             vertexShader.addIncoming("attr_joints", "ivec4");
         vertexShader.addIncoming("attr_weights", "vec4");
 
-        vertexShader.addUniformArray("qt_boneTransforms", "mat4", boneGlobals.mSize);
-        vertexShader.addUniformArray("qt_boneNormalTransforms", "mat3", boneNormals.mSize);
+        vertexShader.addUniform("qt_boneTexture", "sampler2D");
     }
     if (m_hasMorphing)
-        vertexShader.addUniformArray("qt_morphWeights", "float", morphWeights.mSize);
+        vertexShader.addUniformArray("qt_morphWeights", "float", morphSize);
 
     const bool hasCustomVertexShader = materialAdapter->hasCustomShaderSnippet(QSSGShaderCache::ShaderType::Vertex);
     const bool hasCustomFragmentShader = materialAdapter->hasCustomShaderSnippet(QSSGShaderCache::ShaderType::Fragment);
@@ -203,10 +178,10 @@ void QSSGMaterialVertexPipeline::beginVertexGeneration(const QSSGShaderDefaultMa
             else
                 insertVertexMainArgs(snippet);
 
-            if (m_hasSkinning) {
+            if (materialAdapter->usesCustomSkinning()) {
                 vertexShader.addInclude("skinanim.glsllib");
-                vertexShader.addUniformArray("qt_boneTransforms", "mat4", boneGlobals.mSize);
-                vertexShader.addUniformArray("qt_boneNormalTransforms", "mat3", boneNormals.mSize);
+                vertexShader.addUniform("qt_boneTexture", "sampler2D");
+                m_hasSkinning = false;
             }
 
             if (!materialAdapter->isUnshaded()) {
@@ -229,6 +204,7 @@ void QSSGMaterialVertexPipeline::beginVertexGeneration(const QSSGShaderDefaultMa
     vertexShader.append("    vec3 qt_vertBinormal = vec3(0.0);");
     vertexShader.append("    vec2 qt_vertUV0 = vec2(0.0);");
     vertexShader.append("    vec2 qt_vertUV1 = vec2(0.0);");
+    vertexShader.append("    vec2 qt_vertLightmapUV = vec2(0.0);");
     vertexShader.append("    ivec4 qt_vertJoints = ivec4(0);");
     vertexShader.append("    vec4 qt_vertWeights = vec4(0.0);");
     vertexShader.append("    vec4 qt_vertColor = vec4(1.0);"); // must be 1,1,1,1 to not alter when multiplying with it
@@ -246,16 +222,9 @@ void QSSGMaterialVertexPipeline::beginVertexGeneration(const QSSGShaderDefaultMa
     // depth pass, but not if it is also a OpaqueDepthPrePass
     // because then we need to know the real alpha values
     skipCustomFragmentSnippet = false;
-    bool isDepthPass = false;
-    bool isOpaqueDepthPrePass = false;
-    for (const auto &feature : inFeatureSet) {
-        if (feature.name == QSSGShaderDefines::asString(QSSGShaderDefines::DepthPass))
-            isDepthPass = feature.enabled;
-        else if (feature.name == QSSGShaderDefines::asString(QSSGShaderDefines::OpaqueDepthPrePass))
-            isOpaqueDepthPrePass = feature.enabled;
-    }
-    if (isDepthPass)
-        skipCustomFragmentSnippet = !isOpaqueDepthPrePass;
+    const bool isDepthPass = inFeatureSet.isSet(QSSGShaderFeatures::Feature::DepthPass);
+    const bool isOpaqueDepthPrePass = inFeatureSet.isSet(QSSGShaderFeatures::Feature::OpaqueDepthPrePass);
+    skipCustomFragmentSnippet = (isDepthPass && !isOpaqueDepthPrePass);
 
     if (hasCustomVertexShader || hasCustomFragmentShader) {
         // This is both for unshaded and shaded. Regardless of any other
@@ -287,6 +256,10 @@ void QSSGMaterialVertexPipeline::beginVertexGeneration(const QSSGShaderDefaultMa
         vertexShader.append("    qt_vertUV1 = attr_uv1;");
         vertexShader.addIncoming("attr_uv1", "vec2");
     }
+    if (meshHasTexCoordLightmap) {
+        vertexShader.append("    qt_vertLightmapUV = attr_lightmapuv;");
+        vertexShader.addIncoming("attr_lightmapuv", "vec2");
+    }
     if (meshHasTangents) {
         vertexShader.append("    qt_vertTangent = attr_textan;");
         vertexShader.addIncoming("attr_textan", "vec3");
@@ -300,7 +273,7 @@ void QSSGMaterialVertexPipeline::beginVertexGeneration(const QSSGShaderDefaultMa
         vertexShader.addIncoming("attr_color", "vec4");
     }
 
-    if (meshHasJointsAndWeights) {
+    if (meshHasJointsAndWeights && (m_hasSkinning || hasCustomVertexShader)) {
         if (usesFloatJointIndices) {
             vertexShader.addIncoming("attr_joints", "vec4");
             vertexShader.append("    qt_vertJoints = ivec4(attr_joints);");
@@ -315,7 +288,10 @@ void QSSGMaterialVertexPipeline::beginVertexGeneration(const QSSGShaderDefaultMa
     if (usesInstancing) {
         vertexShader.append("    qt_vertColor *= qt_instanceColor;");
         vertexShader.append("    mat4 qt_instanceMatrix = mat4(qt_instanceTransform0, qt_instanceTransform1, qt_instanceTransform2, vec4(0.0, 0.0, 0.0, 1.0));");
-        vertexShader.append("    mat4 qt_instancedModelMatrix =  qt_parentMatrix * transpose(qt_instanceMatrix) * qt_modelMatrix;");
+        if (m_hasSkinning)
+            vertexShader.append("    mat4 qt_instancedModelMatrix =  qt_parentMatrix * transpose(qt_instanceMatrix);");
+        else
+            vertexShader.append("    mat4 qt_instancedModelMatrix =  qt_parentMatrix * transpose(qt_instanceMatrix) * qt_modelMatrix;");
         vertexShader.append("    mat3 qt_instancedNormalMatrix = mat3(transpose(inverse(qt_instancedModelMatrix)));");
         vertexShader.append("    mat4 qt_instancedMVPMatrix = qt_viewProjectionMatrix * qt_instancedModelMatrix;");
     }
@@ -331,8 +307,11 @@ void QSSGMaterialVertexPipeline::beginVertexGeneration(const QSSGShaderDefaultMa
             vertexShader.append("    qt_vertPosition.xyz = qt_getMorphPosition(qt_vertPosition.xyz);");
 
         if (m_hasSkinning) {
-            vertexShader.append("    if (qt_vertWeights != vec4(0.0))");
-            vertexShader.append("        qt_vertPosition = qt_getSkinMatrix(qt_vertJoints, qt_vertWeights) * qt_vertPosition;");
+            vertexShader.append("    mat4 skinMat = mat4(1);");
+            vertexShader.append("    if (qt_vertWeights != vec4(0.0)) {");
+            vertexShader.append("        skinMat = qt_getSkinMatrix(qt_vertJoints, qt_vertWeights);");
+            vertexShader.append("        qt_vertPosition = skinMat * qt_vertPosition;");
+            vertexShader.append("    }");
         }
         if (blendParticles) {
             vertexShader.append("    qt_vertPosition.xyz = qt_applyParticle(qt_vertPosition.xyz, qt_vertNormal, qt_vertColor, qt_vertNormal, qt_vertColor, qt_particleMatrix);");
@@ -363,6 +342,7 @@ void QSSGMaterialVertexPipeline::beginFragmentGeneration(const QSSGRef<QSSGShade
         if (!materialAdapter->isUnshaded()) {
             const bool usesShared = materialAdapter->usesSharedVariables();
             insertAmbientLightProcessorArgs(snippet, usesShared);
+            insertIblProbeProcessorArgs(snippet, usesShared);
             insertSpecularLightProcessorArgs(snippet, usesShared);
             insertSpotLightProcessorArgs(snippet, usesShared);
             insertPointLightProcessorArgs(snippet, usesShared);
@@ -399,10 +379,16 @@ void QSSGMaterialVertexPipeline::doGenerateWorldNormal(const QSSGShaderDefaultMa
         vertexGenerator.append("    if (qt_vertWeights != vec4(0.0))");
         vertexGenerator.append("        qt_vertNormal = qt_getSkinNormalMatrix(qt_vertJoints, qt_vertWeights) * qt_vertNormal;");
     }
-    if (!usesInstancing)
-        vertexGenerator.append("    vec3 qt_world_normal = normalize(qt_normalMatrix * qt_vertNormal);");
-    else
+    // If new model->skin is used,
+    // both qt_normalMatrix and qt_modelMatrix are identity.
+    if (!usesInstancing) {
+        if (m_hasSkinning)
+            vertexGenerator.append("    vec3 qt_world_normal = normalize(qt_vertNormal);");
+        else
+            vertexGenerator.append("    vec3 qt_world_normal = normalize(qt_normalMatrix * qt_vertNormal);");
+    } else {
         vertexGenerator.append("    vec3 qt_world_normal = normalize(qt_instancedNormalMatrix * qt_vertNormal);");
+    }
     vertexGenerator.append("    qt_varNormal = qt_world_normal;");
 }
 
@@ -411,16 +397,19 @@ void QSSGMaterialVertexPipeline::doGenerateVarTangent(const QSSGShaderDefaultMat
     if (m_hasMorphing)
         vertex() << "    qt_vertTangent = qt_getMorphTangent(qt_vertTangent);\n";
     if (m_hasSkinning) {
-        vertex() << "    if (qt_vertWeights != vec4(0.0)) {\n"
-                 << "       qt_vertTangent = (qt_getSkinMatrix(qt_vertJoints, qt_vertWeights) * vec4(qt_vertTangent, 0.0)).xyz;\n"
-                 << "    }\n";
+        vertex() << "    if (qt_vertWeights != vec4(0.0))\n"
+                 << "       qt_vertTangent = (skinMat * vec4(qt_vertTangent, 0.0)).xyz;\n";
 
     }
     const bool usesInstancing = defaultMaterialShaderKeyProperties.m_usesInstancing.getValue(inKey);
-    if (!usesInstancing)
-        vertex() << "    qt_varTangent = (qt_modelMatrix * vec4(qt_vertTangent, 0.0)).xyz;\n";
-    else
+    if (!usesInstancing) {
+        if (!m_hasSkinning)
+            vertex() << "    qt_varTangent = (qt_modelMatrix * vec4(qt_vertTangent, 0.0)).xyz;\n";
+        else
+            vertex() << "    qt_varTangent = qt_vertTangent;\n";
+    } else {
         vertex() << "    qt_varTangent = (qt_instancedModelMatrix * vec4(qt_vertTangent, 0.0)).xyz;\n";
+    }
 }
 
 void QSSGMaterialVertexPipeline::doGenerateVarBinormal(const QSSGShaderDefaultMaterialKey &inKey)
@@ -428,15 +417,18 @@ void QSSGMaterialVertexPipeline::doGenerateVarBinormal(const QSSGShaderDefaultMa
     if (m_hasMorphing)
         vertex() << "    qt_vertBinormal = qt_getMorphBinormal(qt_vertBinormal);\n";
     if (m_hasSkinning) {
-        vertex() << "    if (qt_vertWeights != vec4(0.0)) {\n"
-                 << "       qt_vertBinormal = (qt_getSkinMatrix(qt_vertJoints, qt_vertWeights) * vec4(qt_vertBinormal, 0.0)).xyz;\n"
-                 << "    }\n";
+        vertex() << "    if (qt_vertWeights != vec4(0.0))\n"
+                 << "       qt_vertBinormal = (skinMat * vec4(qt_vertBinormal, 0.0)).xyz;\n";
     }
     const bool usesInstancing = defaultMaterialShaderKeyProperties.m_usesInstancing.getValue(inKey);
-    if (!usesInstancing)
-        vertex() << "    qt_varBinormal = (qt_modelMatrix * vec4(qt_vertBinormal, 0.0)).xyz;\n";
-    else
+    if (!usesInstancing) {
+        if (!m_hasSkinning)
+            vertex() << "    qt_varBinormal = (qt_modelMatrix * vec4(qt_vertBinormal, 0.0)).xyz;\n";
+        else
+            vertex() << "    qt_varBinormal = qt_vertBinormal;\n";
+    } else {
         vertex() << "    qt_varBinormal = (qt_instancedModelMatrix * vec4(qt_vertBinormal, 0.0)).xyz;\n";
+    }
 }
 
 bool QSSGMaterialVertexPipeline::hasAttributeInKey(QSSGShaderKeyVertexAttribute::VertexAttributeBits inAttr,

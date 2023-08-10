@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #ifndef QSSGVIEW3D_H
 #define QSSGVIEW3D_H
@@ -46,6 +20,7 @@
 
 #include <QtQuick3D/qtquick3dglobal.h>
 #include <QtQuick3D/private/qquick3dpickresult_p.h>
+#include <QtQuick/private/qquickshadereffectsource_p.h>
 
 #include "qquick3dsceneenvironment_p.h"
 #include "qquick3drenderstats_p.h"
@@ -74,6 +49,7 @@ class Q_QUICK3D_EXPORT QQuick3DViewport : public QQuickItem
     Q_PROPERTY(QQuick3DNode *scene READ scene NOTIFY sceneChanged)
     Q_PROPERTY(QQuick3DNode *importScene READ importScene WRITE setImportScene NOTIFY importSceneChanged FINAL)
     Q_PROPERTY(RenderMode renderMode READ renderMode WRITE setRenderMode NOTIFY renderModeChanged FINAL)
+    Q_PROPERTY(QQuickShaderEffectSource::Format renderFormat READ renderFormat WRITE setRenderFormat NOTIFY renderFormatChanged FINAL REVISION(6, 4))
     Q_PROPERTY(QQuick3DRenderStats *renderStats READ renderStats CONSTANT)
     Q_CLASSINFO("DefaultProperty", "data")
 
@@ -98,6 +74,7 @@ public:
     QQuick3DNode *scene() const;
     QQuick3DNode *importScene() const;
     RenderMode renderMode() const;
+    Q_REVISION(6, 4) QQuickShaderEffectSource::Format renderFormat() const;
     QQuick3DRenderStats *renderStats() const;
 
     QQuick3DSceneRenderer *createRenderer() const;
@@ -128,6 +105,7 @@ public Q_SLOTS:
     void setEnvironment(QQuick3DSceneEnvironment * environment);
     void setImportScene(QQuick3DNode *inScene);
     void setRenderMode(QQuick3DViewport::RenderMode renderMode);
+    Q_REVISION(6, 4) void setRenderFormat(QQuickShaderEffectSource::Format format);
     void cleanupDirectRenderer();
 
     // Setting this true enables picking for all the models, regardless of
@@ -144,6 +122,7 @@ Q_SIGNALS:
     void sceneChanged();
     void importSceneChanged();
     void renderModeChanged();
+    Q_REVISION(6, 4) void renderFormatChanged();
 
 private:
     Q_DISABLE_COPY(QQuick3DViewport)
@@ -164,13 +143,12 @@ private:
     mutable QQuick3DSGDirectRenderer *m_directRenderer = nullptr;
     bool m_renderModeDirty = false;
     RenderMode m_renderMode = Offscreen;
+    QQuickShaderEffectSource::Format m_renderFormat = QQuickShaderEffectSource::RGBA8;
     QQuick3DRenderStats *m_renderStats = nullptr;
     QHash<QObject*, QMetaObject::Connection> m_connections;
     bool m_enableInputProcessing = true;
 };
 
 QT_END_NAMESPACE
-
-QML_DECLARE_TYPE(QQuick3DViewport)
 
 #endif // QSSGVIEW3D_H

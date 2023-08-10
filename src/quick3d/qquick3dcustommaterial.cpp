@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qquick3dcustommaterial_p.h"
 #include <QtQuick3DRuntimeRender/private/qssgrendercustommaterial_p.h>
@@ -220,17 +194,17 @@ QT_BEGIN_NAMESPACE
     \li QMatrix4x4, \l{QtQml::Qt::matrix4x4()}{matrix4x4} -> mat4
     \li QQuaternion, \l{QtQml::Qt::quaternion()}{quaternion} -> vec4, scalar value is \c w
 
-    \li TextureInput -> sampler2D - Textures referencing
-    \l{Texture::source}{image files} and \l{Texture::sourceItem}{Qt Quick item
-    layers} are both supported. Setting the \l{TextureInput::enabled}{enabled}
-    property to false leads to exposing a dummy texture to the shader, meaning
-    the shaders are still functional but will sample a texture with opaque
-    black image content. Pay attention to the fact that properties for samplers
-    must always reference a \l TextureInput object, not a \l Texture directly.
-    When it comes to the \l Texture properties, the source, tiling, and
-    filtering related ones are the only ones that are taken into account
-    implicitly with custom materials, as the rest (such as, UV transformations)
-    is up to the custom shaders to implement as they see fit.
+    \li TextureInput -> sampler2D or samplerCube, depending on whether \l
+    Texture or \l CubeMapTexture is used in the texture property of the
+    TextureInput. Setting the \l{TextureInput::enabled}{enabled} property to
+    false leads to exposing a dummy texture to the shader, meaning the shaders
+    are still functional but will sample a texture with opaque black image
+    content. Pay attention to the fact that properties for samplers must always
+    reference a \l TextureInput object, not a \l Texture directly. When it
+    comes to the \l Texture properties, the source, tiling, and filtering
+    related ones are the only ones that are taken into account implicitly with
+    custom materials, as the rest (such as, UV transformations) is up to the
+    custom shaders to implement as they see fit.
 
     \endlist
 
@@ -822,9 +796,44 @@ QT_BEGIN_NAMESPACE
         }
     \endcode
 
+    \li \c{void IBL_PROBE()} When present, this function is called for IBL
+    (Image-Based Lighting).
+    The task of the function is to add both the diffuse and the specular
+    contributions of IBL to writable special variables \c DIFFUSE and
+    \c SPECULAR.
+
+    The function can write to the following special variables:
+
+    \list
+    \li vec3 \c DIFFUSE Accumulates the diffuse light contributions, per fragment.
+    \li vec3 \c SPECULAR Accumulates the specular light contributions, per
+    frament.
     \endlist
 
-    \sa SceneEnvironment::tonemapMode
+    The function can read the following special variables.
+
+    \list
+    \li vec4 \c BASE_COLOR The base color and material alpha value.
+    \li float \c AO_FACTOR The screen space occlusion factor.
+    \li float \c SPECULAR_AMOUNT The specular amount.
+    \li float \c ROUGHNESS The final emissive term of the fragment pipeline.
+    \li vec3 \c NORMAL The normal vector in world space.
+    \li vec3 \c VIEW_VECTOR Points towards the camera.
+    \li mat3 \c IBL_ORIENTATION The orientation of the light probe. It comes
+    from \l {SceneEnvironment::probeOrientation}.
+    \endlist
+
+    \badcode
+        void IBL_PROBE()
+        {
+            vec3 smpDir = IBL_ORIENTATION * NORMAL;
+            DIFFUSE += AO_FACTOR * BASE_COLOR.rgb * textureLod(IBL_TEXTURE, smpDir, IBL_MAXMIPMAP).rgb;
+        }
+    \endcode
+
+    \endlist
+
+    \sa SceneEnvironment::tonemapMode, {Using Image-Based Lighting}
 
     \section2 Custom variables between functions
 
@@ -1004,6 +1013,27 @@ QT_BEGIN_NAMESPACE
         }
     \endcode
 
+    \li float \c IBL_EXPOSE - The amount of light emitted by the light probe.
+    It comes from \l {SceneEnvironment::probeExposure}.
+    \badcode
+        DIFFUSE += AO_FACTOR * IBL_EXPOSE * BASE_COLOR.rgb * textureLod(IBL_TEXTURE, NORMAL, IBL_MAXMIPMAP).rgb;
+    \endcode
+
+    \li float \c IBL_HORIZON - The horizontal cut-off value of reflections from
+    the lower half environment. It comes from \l {SceneEnvironment::probeHorizon}
+    {Horizon Cut-Off} but remapped to [-1, 0).
+    \badcode
+        vec3 diffuse += AO_FACTOR * IBL_EXPOSE * BASE_COLOR.rgb * textureLod(IBL_TEXTURE, NORMAL, IBL_MAXMIPMAP).rgb;
+        if (IBL_HORIZON > -1.0) {
+            float ctr = 0.5 + 0.5 * IBL_HORIZON;
+            float vertWt = smoothstep(ctr * 0.25, ctr + 0.25, NORMAL.y);
+            float wtScaled = mix(1.0, vertWt, IBL_HORIZON + 1.0);
+            diffuse *= wtScaled;
+        }
+    \endcode
+
+    \li float \c IBL_MAXMIPMAP - The maximum mipmap level of IBL_TEXTURE.
+
     \endlist
 
     \section2 Instancing
@@ -1041,16 +1071,13 @@ QT_BEGIN_NAMESPACE
     \list
 
     \li \c SCREEN_TEXTURE - When present, a texture (sampler2D) with the color
-    buffer from a rendering pass containing the opaque objects in the scene is
-    exposed to the shader under this name. This also implies that any object
-    with a custom material where the shaders sample \c SCREEN_TEXTURE will be
-    treated as if it had semi-transparency enabled on it, even when the object
-    opacity is 1.0 and blending was not enabled on the CustomMaterial.
-    This is because such an object cannot be part of the opaque rendering
-    lists, because it itself depends on the rendering results of those objects
-    and thus cannot be rendered in line together with those. Pixels that are
-    not covered by opaque objects will be set to transparent (\c{vec4(0.0)}) in
-    the texture. For example, a fragment shader could contain the following:
+    buffer from a rendering pass containing the contents of the scene excluding
+    any transparent materials or any materials also using the SCREEN_TEXTURE is
+    exposed to the shader under this name. The texture can be used for techniques
+    that require the contents of the framebuffer they are being rendered to. The
+    SCREEN_TEXTURE texture uses the same clear mode as the View3D. The size of
+    these textures matches the size of the View3D in pixels. For example, a
+    fragment shader could contain the following:
     \badcode
         vec2 uv = FRAGCOORD.xy / vec2(textureSize(SCREEN_TEXTURE, 0));
         vec2 displace = vec2(0.1);
@@ -1116,6 +1143,17 @@ QT_BEGIN_NAMESPACE
         ivec2 aoSize = textureSize(AO_TEXTURE, 0);
         vec2 aoUV = (FRAGCOORD.xy) / vec2(aoSize);
         float aoFactor = texture(AO_TEXTURE, aoUV).x;
+    \endcode
+
+    \li \c IBL_TEXTURE - It will not enable any special rendering pass, but it can
+    be used when the material has \l {Material::lightProbe} or the model is in the scope of
+    \l {SceneEnvironment::lightProbe}.
+
+    \badcode
+        void IBL_PROBE()
+        {
+            DIFFUSE += AO_FACTOR * BASE_COLOR.rgb * textureLod(IBL_TEXTURE, NORMAL, IBL_MAXMIPMAP).rgb;
+        }
     \endcode
 
     \endlist
@@ -1317,7 +1355,7 @@ void QQuick3DCustomMaterial::setShadingMode(ShadingMode mode)
         return;
 
     m_shadingMode = mode;
-    markDirty(Dirty::ShaderSettingsDirty);
+    markDirty(*this, Dirty::ShaderSettingsDirty);
     emit shadingModeChanged();
 }
 
@@ -1332,7 +1370,7 @@ void QQuick3DCustomMaterial::setVertexShader(const QUrl &url)
         return;
 
     m_vertexShader = url;
-    markDirty(Dirty::ShaderSettingsDirty);
+    markDirty(*this, Dirty::ShaderSettingsDirty);
     emit vertexShaderChanged();
 }
 
@@ -1347,18 +1385,13 @@ void QQuick3DCustomMaterial::setFragmentShader(const QUrl &url)
         return;
 
     m_fragmentShader = url;
-    markDirty(Dirty::ShaderSettingsDirty);
+    markDirty(*this, Dirty::ShaderSettingsDirty);
     emit fragmentShaderChanged();
 }
 
 float QQuick3DCustomMaterial::lineWidth() const
 {
     return m_lineWidth;
-}
-
-QVector<QQuick3DTexture *> QQuick3DCustomMaterial::dynamicTextureMaps() const
-{
-    return m_dynamicTextureMaps;
 }
 
 void QQuick3DCustomMaterial::setLineWidth(float width)
@@ -1372,8 +1405,16 @@ void QQuick3DCustomMaterial::setLineWidth(float width)
 
 void QQuick3DCustomMaterial::markAllDirty()
 {
-    m_dirtyAttributes = 0xffffffff;
+    m_dirtyAttributes |= Dirty::AllDirty;
     QQuick3DMaterial::markAllDirty();
+}
+
+void QQuick3DCustomMaterial::markDirty(QQuick3DCustomMaterial &that, Dirty type)
+{
+    if (!(that.m_dirtyAttributes & quint32(type))) {
+        that.m_dirtyAttributes |= quint32(type);
+        that.update();
+    }
 }
 
 bool QQuick3DCustomMaterial::alwaysDirty() const
@@ -1407,6 +1448,12 @@ static void setCustomMaterialFlagsFromShader(QSSGRenderCustomMaterial *material,
         material->m_renderFlags.setFlag(QSSGRenderCustomMaterial::RenderFlag::InverseProjectionMatrix, true);
     if (meta.flags.testFlag(QSSGCustomShaderMetaData::UsesVarColor))
         material->m_renderFlags.setFlag(QSSGRenderCustomMaterial::RenderFlag::VarColor, true);
+    if (meta.flags.testFlag(QSSGCustomShaderMetaData::UsesIblOrientation))
+        material->m_renderFlags.setFlag(QSSGRenderCustomMaterial::RenderFlag::IblOrientation, true);
+    if (meta.flags.testFlag(QSSGCustomShaderMetaData::UsesLightmap))
+        material->m_renderFlags.setFlag(QSSGRenderCustomMaterial::RenderFlag::Lightmap, true);
+    if (meta.flags.testFlag(QSSGCustomShaderMetaData::UsesSkinning))
+        material->m_renderFlags.setFlag(QSSGRenderCustomMaterial::RenderFlag::Skinning, true);
 }
 
 QSSGRenderGraphObject *QQuick3DCustomMaterial::updateSpatialNode(QSSGRenderGraphObject *node)
@@ -1503,21 +1550,26 @@ QSSGRenderGraphObject *QQuick3DCustomMaterial::updateSpatialNode(QSSGRenderGraph
             QSSGRenderCustomMaterial::TextureProperty textureData;
             textureData.texInput = &texture;
             textureData.name = name;
-            textureData.shaderDataType = QSSGRenderShaderDataType::Texture2D;
+            textureData.shaderDataType = QSSGRenderShaderDataType::Texture;
 
             if (newBackendNode) {
                 connect(&texture, &QQuick3DShaderUtilsTextureInput::enabledChanged, this, &QQuick3DCustomMaterial::onTextureDirty);
                 connect(&texture, &QQuick3DShaderUtilsTextureInput::textureChanged, this, &QQuick3DCustomMaterial::onTextureDirty);
             } // else already connected
 
-            uniforms.append({ QByteArrayLiteral("sampler2D"), textureData.name });
+            QQuick3DTexture *tex = texture.texture(); // may be null if the TextureInput has no 'texture' set
+            if (tex && QQuick3DObjectPrivate::get(tex)->type == QQuick3DObjectPrivate::Type::ImageCube)
+                uniforms.append({ QByteArrayLiteral("samplerCube"), textureData.name });
+            else
+                uniforms.append({ QByteArrayLiteral("sampler2D"), textureData.name });
+
             customMaterial->m_textureProperties.push_back(textureData);
         };
 
-        for (const auto &textureProperty : qAsConst(textureProperties))
+        for (const auto &textureProperty : std::as_const(textureProperties))
             processTextureProperty(*textureProperty.first, textureProperty.second);
 
-        if (customMaterial->incompleteBuildTimeObject) { // This object came from the shadergen tool
+        if (customMaterial->incompleteBuildTimeObject || (m_dirtyAttributes & DynamicPropertiesDirty)) { // This object came from the shadergen tool
             const auto names = dynamicPropertyNames();
             for (const auto &name : names) {
                 QVariant propValue = property(name.constData());
@@ -1548,7 +1600,7 @@ QSSGRenderGraphObject *QQuick3DCustomMaterial::updateSpatialNode(QSSGRenderGraph
                 }
             }
 
-            for (const auto &property : qAsConst(textureProperties))
+            for (const auto &property : std::as_const(textureProperties))
                 processTextureProperty(*property.first, property.second);
         }
 
@@ -1600,7 +1652,7 @@ QSSGRenderGraphObject *QQuick3DCustomMaterial::updateSpatialNode(QSSGRenderGraph
 
         customMaterial->m_customShaderPresence = {};
         if (!vertex.isEmpty() || !fragment.isEmpty()) {
-            customMaterial->m_shaderPathKey = shaderPathKey.append(':' + QCryptographicHash::hash(vertex + fragment, QCryptographicHash::Algorithm::Sha1).toHex());
+            customMaterial->m_shaderPathKey = shaderPathKey.append(':' + QCryptographicHash::hash(QByteArray(vertex + fragment), QCryptographicHash::Algorithm::Sha1).toHex());
 
             if (!vertex.isEmpty()) {
                 customMaterial->m_customShaderPresence.setFlag(QSSGRenderCustomMaterial::CustomShaderPresenceFlag::Vertex);
@@ -1614,7 +1666,7 @@ QSSGRenderGraphObject *QQuick3DCustomMaterial::updateSpatialNode(QSSGRenderGraph
         }
     }
 
-    customMaterial->m_alwaysDirty = m_alwaysDirty;
+    customMaterial->setAlwaysDirty(m_alwaysDirty);
     if (m_srcBlend != BlendMode::NoBlend && m_dstBlend != BlendMode::NoBlend) { // both must be set to something other than NoBlend
         customMaterial->m_renderFlags.setFlag(QSSGRenderCustomMaterial::RenderFlag::Blending, true);
         customMaterial->m_srcBlend = toRhiBlendFactor(m_srcBlend);
@@ -1658,6 +1710,22 @@ QSSGRenderGraphObject *QQuick3DCustomMaterial::updateSpatialNode(QSSGRenderGraph
             } else {
                 prop.texImage = nullptr;
             }
+
+            if (tex != prop.lastConnectedTexture) {
+                prop.lastConnectedTexture = tex;
+                disconnect(prop.minFilterChangedConn);
+                disconnect(prop.magFilterChangedConn);
+                disconnect(prop.mipFilterChangedConn);
+                disconnect(prop.horizontalTilingChangedConn);
+                disconnect(prop.verticalTilingChangedConn);
+                if (tex) {
+                    prop.minFilterChangedConn = connect(tex, &QQuick3DTexture::minFilterChanged, this, &QQuick3DCustomMaterial::onTextureDirty);
+                    prop.magFilterChangedConn = connect(tex, &QQuick3DTexture::magFilterChanged, this, &QQuick3DCustomMaterial::onTextureDirty);
+                    prop.mipFilterChangedConn = connect(tex, &QQuick3DTexture::mipFilterChanged, this, &QQuick3DCustomMaterial::onTextureDirty);
+                    prop.horizontalTilingChangedConn = connect(tex, &QQuick3DTexture::horizontalTilingChanged, this, &QQuick3DCustomMaterial::onTextureDirty);
+                    prop.verticalTilingChangedConn = connect(tex, &QQuick3DTexture::verticalTilingChanged, this, &QQuick3DCustomMaterial::onTextureDirty);
+                }
+            }
         }
     }
 
@@ -1671,48 +1739,48 @@ void QQuick3DCustomMaterial::itemChange(QQuick3DObject::ItemChange change, const
     QQuick3DMaterial::itemChange(change, value);
     if (change == QQuick3DObject::ItemSceneChange) {
         if (auto sceneManager = value.sceneManager) {
-            for (auto it : m_dynamicTextureMaps)
-                QQuick3DObjectPrivate::refSceneManager(it, *sceneManager);
+            for (const auto &it : std::as_const(m_dynamicTextureMaps)) {
+                if (auto tex = it->texture())
+                    QQuick3DObjectPrivate::refSceneManager(tex, *sceneManager);
+            }
         } else {
-            for (auto it : m_dynamicTextureMaps)
-                QQuick3DObjectPrivate::derefSceneManager(it);
+            for (const auto &it : std::as_const(m_dynamicTextureMaps)) {
+                if (auto tex = it->texture())
+                    QQuick3DObjectPrivate::derefSceneManager(tex);
+            }
         }
     }
 }
 
 void QQuick3DCustomMaterial::onPropertyDirty()
 {
-    markDirty(Dirty::PropertyDirty);
+    markDirty(*this, Dirty::PropertyDirty);
     update();
 }
 
 void QQuick3DCustomMaterial::onTextureDirty()
 {
-    markDirty(Dirty::TextureDirty);
+    markDirty(*this, Dirty::TextureDirty);
     update();
 }
 
-void QQuick3DCustomMaterial::setDynamicTextureMap(QQuick3DTexture *textureMap, const QByteArray &name)
+void QQuick3DCustomMaterial::setDynamicTextureMap(QQuick3DShaderUtilsTextureInput *textureMap)
 {
-    if (!textureMap)
-        return;
+    // There can only be one texture input per property, as the texture input is a combination
+    // of the texture used and the uniform name!
+    auto it = m_dynamicTextureMaps.constFind(textureMap);
 
-    auto it = m_dynamicTextureMaps.begin();
-    const auto end = m_dynamicTextureMaps.end();
-    for (; it != end; ++it) {
-        if (*it == textureMap)
-            break;
+    if (it == m_dynamicTextureMaps.constEnd()) {
+        // Track the object, if it's destroyed we need to remove it from our table.
+        connect(textureMap, &QQuick3DShaderUtilsTextureInput::destroyed, this, [this, textureMap]() {
+            auto it = m_dynamicTextureMaps.constFind(textureMap);
+            if (it != m_dynamicTextureMaps.constEnd())
+                m_dynamicTextureMaps.erase(it);
+        });
+        m_dynamicTextureMaps.insert(textureMap);
+
+        update();
     }
-
-    if (it != end)
-        return;
-
-    QQuick3DObjectPrivate::updatePropertyListener(textureMap, nullptr, QQuick3DObjectPrivate::get(this)->sceneManager, name, m_connections, [this, name](QQuick3DObject *n) {
-        setDynamicTextureMap(qobject_cast<QQuick3DTexture *>(n), name);
-    });
-
-    m_dynamicTextureMaps.push_back(textureMap);
-    update();
 }
 
 QT_END_NAMESPACE

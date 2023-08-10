@@ -1,35 +1,10 @@
-/****************************************************************************
-**
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qquick3dsceneenvironment_p.h"
 #include "qquick3dobject_p.h"
 #include "qquick3dtexture_p.h"
+#include "qquick3dcubemaptexture_p.h"
 
 QT_BEGIN_NAMESPACE
 
@@ -78,7 +53,7 @@ QQuick3DSceneEnvironment::~QQuick3DSceneEnvironment()
     silhouettes.
 
     \b Cons: Usually more expensive than MSAA. Increases video memory usage.
-    Only supported with View3D items with renderMode set to Offscreen as the
+    Supported with View3D items with all renderMode except Inline as the
     technique implies rendering to a texture first.
 
     \b Multisampling
@@ -93,14 +68,17 @@ QQuick3DSceneEnvironment::~QQuick3DSceneEnvironment()
 
     \b Cons: Does not help with texture or reflection issues. Increases video
     memory usage. Can be expensive to use on less powerful graphics hardware.
-    When using View3D items with a renderMode other than Offscreen, MSAA can
-    only be controlled on a per-window basis, it cannot be enabled or disabled
-    separately for the individual View3D items.
+    Can be controlled on a per-window basis or for individual View3D items
+    depending on the renderMode. When using Underlay/Overlay with an effect
+    applied or Offscreen, MSAA can be controlled for each View3D item. On the
+    other hand, using Underlay/Overlay without any effect or Inline will make
+    MSAA contolled per-window.
 
     \note For View3D items with a \l{QtQuick3D::View3D::renderMode}{renderMode}
-    other than Offscreen, multisampling can only be enabled via the
-    \l{QSurfaceFormat::setSamples()}{QSurfaceFormat} of the QQuickWindow or
-    QQuickView. This will then affect all content, both 2D and 3D, in that window.
+    other than Underlay/Overlay with effects or Offscreen, multisampling can only
+    be enabled via the \l{QSurfaceFormat::setSamples()}{QSurfaceFormat} of the
+    QQuickWindow or QQuickView. This will then affect all content,
+    both 2D and 3D, in that window.
 
     \b {Progressive antialiasing}
 
@@ -171,13 +149,18 @@ QQuick3DSceneEnvironment::QQuick3DEnvironmentAAQualityValues QQuick3DSceneEnviro
 
     \value SceneEnvironment.Transparent
         The scene is cleared to be transparent. This is useful to render 3D content on top of another item.
-        This mode has no effect when the View3D is using a renderMode of Underlay or Overlay.
+        This mode has no effect when the View3D is using a renderMode of Underlay or Overlay without any
+        post processing enabled.
     \value SceneEnvironment.Color
         The scene is cleared with the color specified by the clearColor property.
-        This mode has no effect when the View3D is using a renderMode of Underlay or Overlay.
+        This mode has no effect when the View3D is using a renderMode of Underlay or Overlay without any
+        post processing enabled.
     \value SceneEnvironment.SkyBox
         The scene will not be cleared, but instead a SkyBox or Skydome will be rendered. The SkyBox
         is defined using the HDRI map defined in the lightProbe property.
+    \value SceneEnvironment.SkyBoxCubeMap
+        The scene will not be cleared, but instead a SkyBox or Skydome will be rendered. The SkyBox
+        is defined using the cubemap defined in the skyBoxCubeMap property.
 
     The default value is \c SceneEnvironment.Transparent
 
@@ -331,9 +314,14 @@ QQuick3DTexture *QQuick3DSceneEnvironment::lightProbe() const
 /*!
     \qmlproperty float QtQuick3D::SceneEnvironment::probeExposure
 
-    This property modifies the amount of light emitted by the light probe.
+    This property modifies the amount of light emitted by the light probe. Part
+    of the tonemapping is exposure mapping, and this property adjusts how
+    the light values in the light probes get tonemaped.
 
     By default exposure is set to is 1.0
+
+    \note This property does not have an effect when \l tonemapMode is set to
+    \c SceneEnvironment.TonemapModeNone.
 */
 float QQuick3DSceneEnvironment::probeExposure() const
 {
@@ -418,6 +406,17 @@ float QQuick3DSceneEnvironment::temporalAAStrength() const
 }
 
 /*!
+    \qmlproperty bool QtQuick3D::SceneEnvironment::specularAAEnabled
+    \since 6.4
+
+    When this property is enabled specular aliasing will be mitigated.
+*/
+bool QQuick3DSceneEnvironment::specularAAEnabled() const
+{
+    return m_specularAAEnabled;
+}
+
+/*!
     \qmlproperty bool QtQuick3D::SceneEnvironment::depthTestEnabled
 
     The default value is \c true. By default the renderer classifies the objects
@@ -490,6 +489,9 @@ bool QQuick3DSceneEnvironment::depthPrePassEnabled() const
     This property contains a list of post-processing effects that will be
     applied to the entire viewport. The result of each effect is fed to the
     next so the order is significant.
+
+    \note For technical reasons, adding the same \l{QtQuick3D::Effect}{Effect}
+    node several times to the list is unsupported and will give unexpected results.
 */
 QQmlListProperty<QQuick3DEffect> QQuick3DSceneEnvironment::effects()
 {
@@ -534,6 +536,25 @@ QQmlListProperty<QQuick3DEffect> QQuick3DSceneEnvironment::effects()
 QQuick3DSceneEnvironment::QQuick3DEnvironmentTonemapModes QQuick3DSceneEnvironment::tonemapMode() const
 {
     return m_tonemapMode;
+}
+
+/*!
+    \qmlproperty float QQuick3D::SceneEnvironment::skyboxBlurAmount
+    \since 6.4
+
+    This property determines how much much the skybox should be blurred when
+    using \c SceneEnvironment.SkyBox for the
+    \l{QtQuick3D::View3D::backgroundMode}{backgroundMode} property. The default
+    value is \c 0.0 which means there is no blurring.
+
+    Acceptable values range between 0.0 and 1.0, all other values will be clamped
+    to this range.
+
+*/
+
+float QQuick3DSceneEnvironment::skyboxBlurAmount() const
+{
+    return m_skyboxBlurAmount;
 }
 
 void QQuick3DSceneEnvironment::setAntialiasingMode(QQuick3DSceneEnvironment::QQuick3DEnvironmentAAModeValues antialiasingMode)
@@ -728,10 +749,13 @@ void QQuick3DSceneEnvironment::itemChange(QQuick3DObject::ItemChange change, con
 
 void QQuick3DSceneEnvironment::updateSceneManager(QQuick3DSceneManager *manager)
 {
-    if (manager)
+    if (manager) {
         QQuick3DObjectPrivate::refSceneManager(m_lightProbe, *manager);
-    else
+        QQuick3DObjectPrivate::refSceneManager(m_skyBoxCubeMap, *manager);
+    } else {
         QQuick3DObjectPrivate::derefSceneManager(m_lightProbe);
+        QQuick3DObjectPrivate::derefSceneManager(m_skyBoxCubeMap);
+    }
 }
 
 void QQuick3DSceneEnvironment::setTemporalAAEnabled(bool temporalAAEnabled)
@@ -751,6 +775,16 @@ void QQuick3DSceneEnvironment::setTemporalAAStrength(float strength)
 
     m_temporalAAStrength = strength;
     emit temporalAAStrengthChanged();
+    update();
+}
+
+void QQuick3DSceneEnvironment::setSpecularAAEnabled(bool enabled)
+{
+    if (m_specularAAEnabled == enabled)
+        return;
+
+    m_specularAAEnabled = enabled;
+    emit specularAAEnabledChanged();
     update();
 }
 
@@ -776,7 +810,7 @@ QQuick3DEffect *QQuick3DSceneEnvironment::qmlEffectAt(QQmlListProperty<QQuick3DE
 qsizetype QQuick3DSceneEnvironment::qmlEffectsCount(QQmlListProperty<QQuick3DEffect> *list)
 {
     QQuick3DSceneEnvironment *self = static_cast<QQuick3DSceneEnvironment *>(list->object);
-    return self->m_effects.count();
+    return self->m_effects.size();
 }
 
 void QQuick3DSceneEnvironment::qmlClearEffects(QQmlListProperty<QQuick3DEffect> *list)
@@ -784,6 +818,93 @@ void QQuick3DSceneEnvironment::qmlClearEffects(QQmlListProperty<QQuick3DEffect> 
     QQuick3DSceneEnvironment *self = static_cast<QQuick3DSceneEnvironment *>(list->object);
     self->m_effects.clear();
     self->update();
+}
+
+void QQuick3DSceneEnvironment::setSkyboxBlurAmount(float newSkyboxBlurAmount)
+{
+    newSkyboxBlurAmount = qBound(0.0f, newSkyboxBlurAmount, 1.0f);
+
+    if (qFuzzyCompare(m_skyboxBlurAmount, newSkyboxBlurAmount))
+        return;
+
+    m_skyboxBlurAmount = newSkyboxBlurAmount;
+    emit skyboxBlurAmountChanged();
+    update();
+}
+
+/*!
+    \qmlproperty Lightmapper SceneEnvironment::lightmapper
+
+    When this property is set to a valid Lightmapper object, the settings
+    specified by the object will be taken into account when baking lightmaps.
+
+    The default value is null, which means using default values for all the
+    baking-related settings.
+
+    For more information on how to bake lightmaps, see the \l Lightmapper
+    documentation.
+
+    When lightmaps are not relevant to an application and baked lighting is
+    never generated, the property and the associated object serve no purpose in
+    practice.
+
+    \sa Model::usedInBakedLighting, Model::bakedLightmap, Light::bakeMode, Lightmapper
+ */
+
+QQuick3DLightmapper *QQuick3DSceneEnvironment::lightmapper() const
+{
+    return m_lightmapper;
+}
+
+void QQuick3DSceneEnvironment::setLightmapper(QQuick3DLightmapper *lightmapper)
+{
+    if (m_lightmapper == lightmapper)
+        return;
+
+    if (m_lightmapper)
+        m_lightmapper->disconnect(m_lightmapperSignalConnection);
+
+    m_lightmapper = lightmapper;
+
+    m_lightmapperSignalConnection = QObject::connect(m_lightmapper, &QQuick3DLightmapper::changed, this,
+                                                     [this] { update(); });
+
+    QObject::connect(m_lightmapper, &QObject::destroyed, this,
+                     [this]
+    {
+        m_lightmapper = nullptr;
+        update();
+    });
+
+    emit lightmapperChanged();
+    update();
+}
+
+/*!
+    \qmlproperty QtQuick3D::CubeMapTexture QtQuick3D::SceneEnvironment::skyBoxCubeMap
+
+    This property defines a cubemap to be used as a skybox when the background mode is \c SkyBoxCubeMap.
+
+    \since 6.4
+*/
+QQuick3DCubeMapTexture *QQuick3DSceneEnvironment::skyBoxCubeMap() const
+{
+    return m_skyBoxCubeMap;
+}
+
+void QQuick3DSceneEnvironment::setSkyBoxCubeMap(QQuick3DCubeMapTexture *newSkyBoxCubeMap)
+{
+    if (m_skyBoxCubeMap == newSkyBoxCubeMap)
+        return;
+
+
+    QQuick3DObjectPrivate::updatePropertyListener(newSkyBoxCubeMap, m_skyBoxCubeMap, QQuick3DObjectPrivate::get(this)->sceneManager, QByteArrayLiteral("skyboxCubeMap"), m_connections,
+                           [this](QQuick3DObject *n) {
+        setSkyBoxCubeMap(qobject_cast<QQuick3DCubeMapTexture *>(n));
+    });
+
+    m_skyBoxCubeMap = newSkyBoxCubeMap;
+    emit skyBoxCubeMapChanged();
 }
 
 QT_END_NAMESPACE

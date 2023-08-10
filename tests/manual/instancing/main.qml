@@ -1,56 +1,10 @@
-/****************************************************************************
-**
-** Copyright (C) 2020 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of the examples of the Qt Toolkit.
-**
-** $QT_BEGIN_LICENSE:BSD$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** BSD License Usage
-** Alternatively, you may use this file under the terms of the BSD license
-** as follows:
-**
-** "Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions are
-** met:
-**   * Redistributions of source code must retain the above copyright
-**     notice, this list of conditions and the following disclaimer.
-**   * Redistributions in binary form must reproduce the above copyright
-**     notice, this list of conditions and the following disclaimer in
-**     the documentation and/or other materials provided with the
-**     distribution.
-**   * Neither the name of The Qt Company Ltd nor the names of its
-**     contributors may be used to endorse or promote products derived
-**     from this software without specific prior written permission.
-**
-**
-** THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-** "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-** LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-** A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-** OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-** SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-** LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-** OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2020 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 
 import QtQuick
 import QtQuick3D
 import QtQuick3D.Helpers
+import QtQuick.Controls
 
 import InstancingTest
 
@@ -260,6 +214,184 @@ Window {
                 }
             ]
         }
+
+        Repeater3D {
+            model: cubeModel.instancing.instanceCount
+
+            Model {
+                id: delegate
+                source: "#Cube"
+                pickable: true
+                property int instanceIndex: index
+                position: cubeModel.instancing.instancePosition(index)
+                scale: cubeModel.instancing.instanceScale(index)
+                rotation: cubeModel.instancing.instanceRotation(index)
+                property color instanceColor: cubeModel.instancing.instanceColor(index)
+
+                visible: false
+            }
+        }
+
+    } // View3D
+
+    MouseArea {
+        anchors.fill: viewport
+
+        onClicked: (mouse) => {
+            pickPosition.text = "(" + mouse.x + ", " + mouse.y + ")"
+            var result = viewport.pick(mouse.x, mouse.y);
+            if (result.objectHit) {
+                var pickedObject = result.objectHit;
+
+                pickName.text = "Index: " + pickedObject.instanceIndex
+                pickColor.color = pickedObject.instanceColor
+
+                uvPosition.text = "("
+                        + result.uvPosition.x.toFixed(2) + ", "
+                        + result.uvPosition.y.toFixed(2) + ")";
+                distance.text = result.distance.toFixed(2);
+                scenePosition.text = "("
+                        + result.scenePosition.x.toFixed(2) + ", "
+                        + result.scenePosition.y.toFixed(2) + ", "
+                        + result.scenePosition.z.toFixed(2) + ")";
+                localPosition.text = "("
+                        + result.position.x.toFixed(2) + ", "
+                        + result.position.y.toFixed(2) + ", "
+                        + result.position.z.toFixed(2) + ")";
+                worldNormal.text = "("
+                        + result.sceneNormal.x.toFixed(2) + ", "
+                        + result.sceneNormal.y.toFixed(2) + ", "
+                        + result.sceneNormal.z.toFixed(2) + ")";
+                localNormal.text = "("
+                        + result.normal.x.toFixed(2) + ", "
+                        + result.normal.y.toFixed(2) + ", "
+                        + result.normal.z.toFixed(2) + ")";
+                pickInfo.visible = true
+            } else {
+                pickInfo.visible = false
+                pickName.text = "None";
+                uvPosition.text = "";
+                distance.text = "";
+                scenePosition.text = "";
+                localPosition.text = "";
+                worldNormal.text = "";
+                localNormal.text = "";
+            }
+        }
+    }
+
+    Row {
+        id: pickInfo
+        visible: false
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+        anchors.leftMargin: 8
+        spacing: 10
+        Column {
+            Label {
+                color: "white"
+                font.pointSize: 14
+                text: "Last Pick:"
+            }
+            Label {
+                color: "white"
+                font.pointSize: 14
+                text: "Instance color:"
+            }
+
+            Label {
+                color: "white"
+                font.pointSize: 14
+                text: "Screen Position:"
+            }
+            Label {
+                color: "white"
+                font.pointSize: 14
+                text: "UV Position:"
+            }
+            Label {
+                color: "white"
+                font.pointSize: 14
+                text: "Distance:"
+            }
+            Label {
+                color: "white"
+                font.pointSize: 14
+                text: "World Position:"
+            }
+            Label {
+                color: "white"
+                font.pointSize: 14
+                text: "Local Position:"
+            }
+
+            Label {
+                color: "white"
+                font.pointSize: 14
+                text: "World Normal:"
+            }
+            Label {
+                color: "white"
+                font.pointSize: 14
+                text: "Local Normal:"
+            }
+        }
+        Column {
+            Label {
+                id: pickName
+                color: "white"
+                font.pointSize: 14
+            }
+            Rectangle {
+                id: pickColor
+                color: "transparent"
+                width: pickName.width
+                height: pickName.height
+            }
+            Label {
+                id: pickPosition
+                color: "white"
+                font.pointSize: 14
+            }
+            Label {
+                id: uvPosition
+                color: "white"
+                font.pointSize: 14
+            }
+            Label {
+                id: distance
+                color: "white"
+                font.pointSize: 14
+            }
+            Label {
+                id: scenePosition
+                color: "white"
+                font.pointSize: 14
+            }
+            Label {
+                id: localPosition
+                color: "white"
+                font.pointSize: 14
+            }
+            Label {
+                id: worldNormal
+                color: "white"
+                font.pointSize: 14
+            }
+            Label {
+                id: localNormal
+                color: "white"
+                font.pointSize: 14
+            }
+
+        }
+    }
+
+    DebugView {
+        source: viewport
+        anchors.top: parent.top
+        anchors.left: parent.left
+
         TapHandler {
             onTapped: {
                 if (cubeModel.instancing == randomWithData) {
@@ -281,11 +413,5 @@ Window {
                 console.log("right clicked: switching depth sorting to", customInstancing.depthSortingEnabled)
             }
         }
-    } // View3D
-
-    DebugView {
-        source: viewport
-        anchors.top: parent.top
-        anchors.left: parent.left
     }
 }

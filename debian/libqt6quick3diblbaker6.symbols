@@ -1,11 +1,6 @@
-# SymbolsHelper-Confirmed: 6.2.2 amd64 armel armhf hurd-i386 i386 ia64 ppc64el riscv64
+# SymbolsHelper-Confirmed: 6.4.1 amd64
 libQt6Quick3DIblBaker.so.6 libqt6quick3diblbaker6 #MINVER#
 * Build-Depends-Package: qt6-quick3d-dev
  _ZN12QSSGIblBaker6importERK7QStringRK4QDirP5QListIS0_E@Base 6.2.2
  _ZNK12QSSGIblBaker15inputExtensionsEv@Base 6.2.2
  _ZNK12QSSGIblBaker15outputExtensionEv@Base 6.2.2
- (optional=templinst)_ZNSt8_Rb_treeINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEESt4pairIKS5_S5_ESt10_Select1stIS8_ESt4lessIS5_ESaIS8_EE24_M_get_insert_unique_posERS7_@Base 6.2.2
- (optional=templinst|arch=amd64 ia64 ppc64el riscv64)_ZNSt8_Rb_treeINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEESt4pairIKS5_S5_ESt10_Select1stIS8_ESt4lessIS5_ESaIS8_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS8_ERS7_@Base 6.2.2
- (optional=templinst|arch=amd64)_ZNSt8_Rb_treeIiSt4pairIKi5QSizeESt10_Select1stIS3_ESt4lessIiESaIS3_EE16_M_insert_uniqueIS3_EES0_ISt17_Rb_tree_iteratorIS3_EbEOT_@Base 6.2.2
- (optional=templinst)_ZNSt8_Rb_treeIiSt4pairIKi5QSizeESt10_Select1stIS3_ESt4lessIiESaIS3_EE24_M_get_insert_unique_posERS1_@Base 6.2.2
- (optional=templinst|arch=amd64 ia64 ppc64el riscv64)_ZNSt8_Rb_treeIiSt4pairIKi5QSizeESt10_Select1stIS3_ESt4lessIiESaIS3_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS3_ERS1_@Base 6.2.2

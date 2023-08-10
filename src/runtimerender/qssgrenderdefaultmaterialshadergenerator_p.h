@@ -1,32 +1,6 @@
-/****************************************************************************
-**
-** Copyright (C) 2008-2012 NVIDIA Corporation.
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2008-2012 NVIDIA Corporation.
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #ifndef QSSG_RENDER_DEFAULT_MATERIAL_SHADER_GENERATOR_H
 #define QSSG_RENDER_DEFAULT_MATERIAL_SHADER_GENERATOR_H
@@ -94,7 +68,7 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGMaterialShaderGenerator
                                                                     QSSGMaterialVertexPipeline &vertexGenerator,
                                                                     const QSSGShaderDefaultMaterialKey &key,
                                                                     QSSGShaderDefaultMaterialKeyProperties &inProperties,
-                                                                    const ShaderFeatureSetList &inFeatureSet,
+                                                                    const QSSGShaderFeatures &inFeatureSet,
                                                                     const QSSGRenderGraphObject &inMaterial,
                                                                     const QSSGShaderLightList &inLights,
                                                                     QSSGRenderableImage *inFirstImage, const QSSGRef<QSSGShaderLibraryManager> &shaderLibraryManager,
@@ -114,15 +88,16 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGMaterialShaderGenerator
                                          const QMatrix4x4 &clipSpaceCorrMatrix,
                                          const QMatrix4x4 &localInstanceTransform,
                                          const QMatrix4x4 &globalInstanceTransform,
-                                         const QSSGDataView<QMatrix4x4> &inBoneGlobals,
-                                         const QSSGDataView<QMatrix3x3> &inBoneNormals,
                                          const QSSGDataView<float> &inMorphWeights,
                                          QSSGRenderableImage *inFirstImage,
                                          float inOpacity,
                                          const QSSGLayerGlobalRenderProperties &inRenderProperties,
                                          const QSSGShaderLightList &inLights,
+                                         const QSSGShaderReflectionProbe &reflectionProbe,
                                          bool receivesShadows,
-                                         const QVector2D *shadowDepthAdjust);
+                                         bool receivesReflections,
+                                         const QVector2D *shadowDepthAdjust,
+                                         QRhiTexture *lightmapTexture);
 
     static const char *directionalLightProcessorArgumentList();
     static const char *pointLightProcessorArgumentList();
@@ -131,6 +106,7 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGMaterialShaderGenerator
     static const char *specularLightProcessorArgumentList();
     static const char *shadedFragmentMainArgumentList();
     static const char *postProcessorArgumentList();
+    static const char *iblProbeProcessorArgumentList();
     static const char *vertexMainArgumentList();
     static const char *vertexInstancedMainArgumentList();
 
@@ -138,6 +114,13 @@ private:
     QSSGMaterialShaderGenerator() = delete;
     Q_DISABLE_COPY(QSSGMaterialShaderGenerator)
 };
+
+namespace QtQuick3DEditorHelpers {
+namespace CustomMaterial {
+// NOTE: Returns a copy of the actual list, cache as needed!
+[[nodiscard]] Q_QUICK3DRUNTIMERENDER_EXPORT QList<QByteArrayView> reservedArgumentNames();
+}
+}
 
 QT_END_NAMESPACE
 #endif

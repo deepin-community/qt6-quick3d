@@ -1,5 +1,7 @@
 usr/lib/qt6/bin/balsam
 usr/lib/qt6/bin/balsamui
 usr/lib/qt6/bin/instancer
+usr/lib/qt6/bin/materialeditor
 usr/lib/qt6/bin/meshdebug
 usr/lib/qt6/bin/shadergen
+usr/lib/qt6/bin/shapegen

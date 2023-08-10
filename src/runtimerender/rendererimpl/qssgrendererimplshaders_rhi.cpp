@@ -1,32 +1,6 @@
-/****************************************************************************
-**
-** Copyright (C) 2008-2012 NVIDIA Corporation.
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2008-2012 NVIDIA Corporation.
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include <QtQuick3DRuntimeRender/private/qssgrenderer_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderlight_p.h>
@@ -78,6 +52,11 @@ QSSGRef<QSSGRhiShaderPipeline> QSSGRenderer::getRhiSsaoShader()
     return getBuiltinRhiShader(QByteArrayLiteral("ssao"), m_ssaoRhiShader);
 }
 
+QSSGRef<QSSGRhiShaderPipeline> QSSGRenderer::getRhiSkyBoxCubeShader()
+{
+    return getBuiltinRhiShader(QByteArrayLiteral("skyboxcube"), m_skyBoxCubeRhiShader);
+}
+
 QSSGRef<QSSGRhiShaderPipeline> QSSGRenderer::getRhiSkyBoxShader(QSSGRenderLayer::TonemapMode tonemapMode, bool isRGBE)
 {
     // Skybox shader is special and has multiple possible shaders so we have to do
@@ -110,6 +89,8 @@ QSSGRef<QSSGRhiShaderPipeline> QSSGRenderer::getRhiSkyBoxShader(QSSGRenderLayer:
         }
 
         result = m_contextInterface->shaderCache()->loadBuiltinForRhi(name);
+        m_skyboxTonemapMode = tonemapMode;
+        m_isSkyboxRGBE = isRGBE;
     }
     return result;
 }
@@ -139,10 +120,62 @@ QSSGRef<QSSGRhiShaderPipeline> QSSGRenderer::getRhiParticleShader(QSSGRenderPart
         return getBuiltinRhiShader(QByteArrayLiteral("particlesnolightmapped"), m_particlesNoLightingMappedRhiShader);
         break;
     case QSSGRenderParticles::FeatureLevel::Animated:
-    default:
         return getBuiltinRhiShader(QByteArrayLiteral("particlesnolightanimated"), m_particlesNoLightingAnimatedRhiShader);
         break;
+    case QSSGRenderParticles::FeatureLevel::SimpleVLight:
+        return getBuiltinRhiShader(QByteArrayLiteral("particlesvlightsimple"), m_particlesVLightingSimpleRhiShader);
+        break;
+    case QSSGRenderParticles::FeatureLevel::MappedVLight:
+        return getBuiltinRhiShader(QByteArrayLiteral("particlesvlightmapped"), m_particlesVLightingMappedRhiShader);
+        break;
+    case QSSGRenderParticles::FeatureLevel::AnimatedVLight:
+        return getBuiltinRhiShader(QByteArrayLiteral("particlesvlightanimated"), m_particlesVLightingAnimatedRhiShader);
+        break;
+    case QSSGRenderParticles::FeatureLevel::Line:
+        return getBuiltinRhiShader(QByteArrayLiteral("lineparticles"), m_lineParticlesRhiShader);
+        break;
+    case QSSGRenderParticles::FeatureLevel::LineMapped:
+        return getBuiltinRhiShader(QByteArrayLiteral("lineparticlesmapped"), m_lineParticlesMappedRhiShader);
+        break;
+    case QSSGRenderParticles::FeatureLevel::LineAnimated:
+        return getBuiltinRhiShader(QByteArrayLiteral("lineparticlesanimated"), m_lineParticlesAnimatedRhiShader);
+        break;
+    case QSSGRenderParticles::FeatureLevel::LineVLight:
+        return getBuiltinRhiShader(QByteArrayLiteral("lineparticlesvlightsimple"), m_lineParticlesVLightRhiShader);
+        break;
+    case QSSGRenderParticles::FeatureLevel::LineMappedVLight:
+        return getBuiltinRhiShader(QByteArrayLiteral("lineparticlesvlightmapped"), m_lineParticlesMappedVLightRhiShader);
+        break;
+    case QSSGRenderParticles::FeatureLevel::LineAnimatedVLight:
+        return getBuiltinRhiShader(QByteArrayLiteral("lineparticlesvlightanimated"), m_lineParticlesAnimatedVLightRhiShader);
+        break;
     }
+    return getBuiltinRhiShader(QByteArrayLiteral("particlesnolightanimated"), m_particlesNoLightingAnimatedRhiShader);
+}
+
+QSSGRef<QSSGRhiShaderPipeline> QSSGRenderer::getRhiSimpleQuadShader()
+{
+    return getBuiltinRhiShader(QByteArrayLiteral("simplequad"), m_simpleQuadRhiShader);
+}
+
+QSSGRef<QSSGRhiShaderPipeline> QSSGRenderer::getRhiLightmapUVRasterizationShader(LightmapUVRasterizationShaderMode mode)
+{
+    switch (mode) {
+    case LightmapUVRasterizationShaderMode::BaseColorMap:
+        return getBuiltinRhiShader(QByteArrayLiteral("lightmapuvraster_basecolormap"), m_lightmapUVRasterShader_basecolormap);
+    case LightmapUVRasterizationShaderMode::EmissiveMap:
+        return getBuiltinRhiShader(QByteArrayLiteral("lightmapuvraster_emissivemap"), m_lightmapUVRasterShader_emissivemap);
+    case LightmapUVRasterizationShaderMode::BaseColorAndEmissiveMaps:
+        return getBuiltinRhiShader(QByteArrayLiteral("lightmapuvraster_both"), m_lightmapUVRasterShader_both);
+    default:
+        break;
+    }
+    return getBuiltinRhiShader(QByteArrayLiteral("lightmapuvraster"), m_lightmapUVRasterShader);
+}
+
+QSSGRef<QSSGRhiShaderPipeline> QSSGRenderer::getRhiLightmapDilateShader()
+{
+    return getBuiltinRhiShader(QByteArrayLiteral("lightmapdilate"), m_lightmapDilateShader);
 }
 
 QT_END_NAMESPACE

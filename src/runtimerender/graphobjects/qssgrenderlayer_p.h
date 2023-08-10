@@ -1,32 +1,6 @@
-/****************************************************************************
-**
-** Copyright (C) 2008-2012 NVIDIA Corporation.
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2008-2012 NVIDIA Corporation.
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #ifndef QSSG_RENDER_LAYER_H
 #define QSSG_RENDER_LAYER_H
@@ -43,13 +17,17 @@
 //
 
 #include <QtQuick3DRuntimeRender/private/qssgrendernode_p.h>
+#include <QtQuick3DRuntimeRender/private/qssglightmapper_p.h>
+#include <QtCore/qvarlengtharray.h>
+#include <QtCore/qlist.h>
 
 QT_BEGIN_NAMESPACE
 class QSSGRenderContextInterface;
 struct QSSGRenderPresentation;
 struct QSSGRenderEffect;
 struct QSSGRenderImage;
-struct QSSGLayerRenderData;
+class QSSGLayerRenderData;
+struct QSSGRenderResourceLoader;
 
 class QRhiShaderResourceBindings;
 
@@ -99,7 +77,8 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderLayer : public QSSGRenderNode
         Transparent = 0,
         Unspecified,
         Color,
-        SkyBox
+        SkyBox,
+        SkyBoxCubeMap
     };
 
     enum class TonemapMode : quint8
@@ -110,6 +89,14 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderLayer : public QSSGRenderNode
         HejlDawson,
         Filmic
     };
+
+    enum class LayerFlag
+    {
+        EnableDepthTest = 0x1,
+        EnableDepthPrePass = 0x2, ///< True when we render a depth pass before
+        RenderToTarget = 0x3 ///< Does this layer render to the normal render target,
+    };
+    Q_DECLARE_FLAGS(LayerFlags, LayerFlag)
 
     // First effect in a list of effects.
     QSSGRenderEffect *firstEffect;
@@ -157,12 +144,16 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderLayer : public QSSGRenderNode
     QSSGRenderImage *lightProbe;
     float probeExposure;
     float probeHorizon;
-    QMatrix4x4 probeOrientation;
+    QMatrix3x3 probeOrientation;
     QVector3D probeOrientationAngles;
+
+    QSSGRenderImage *skyBoxCubeMap = nullptr;
 
     bool temporalAAEnabled;
     float temporalAAStrength;
+    bool ssaaEnabled;
     float ssaaMultiplier;
+    bool specularAAEnabled;
 
     //TODO: move render state somewhere more suitable
     bool temporalAAIsActive;
@@ -178,10 +169,22 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderLayer : public QSSGRenderNode
     // Tonemapping
     TonemapMode tonemapMode;
 
+    LayerFlags layerFlags { LayerFlag::RenderToTarget,
+                            LayerFlag::EnableDepthTest,
+                            LayerFlag::EnableDepthPrePass };
+
     // references to objects owned by the QSSGRhiContext
     QRhiShaderResourceBindings *skyBoxSrb = nullptr;
     QVarLengthArray<QRhiShaderResourceBindings *, 4> item2DSrbs;
     bool skyBoxIsRgbe8 = false;
+
+    // Skybox
+    float skyboxBlurAmount = 0.0f;
+
+    // Lightmapper config
+    QSSGLightmapperOptions lmOptions;
+
+    QVector<QSSGRenderGraphObject *> resourceLoaders;
 
     QSSGRenderLayer();
     ~QSSGRenderLayer();
@@ -189,6 +192,7 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderLayer : public QSSGRenderNode
     void setProbeOrientation(const QVector3D &angles);
 
     void addEffect(QSSGRenderEffect &inEffect);
+    bool hasEffect(QSSGRenderEffect *inEffect) const;
 
     QSSGRenderEffect *getLastEffect();
 

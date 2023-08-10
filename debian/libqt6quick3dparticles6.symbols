@@ -1,4 +1,4 @@
-# SymbolsHelper-Confirmed: 6.2.2 amd64 armel armhf hurd-i386 i386 sh4
+# SymbolsHelper-Confirmed: 6.4.1 amd64
 libQt6Quick3DParticles.so.6 libqt6quick3dparticles6 #MINVER#
 * Build-Depends-Package: qt6-quick3d-dev
  _Z40qml_register_types_QtQuick3D_Particles3Dv@Base 6.2.2
@@ -178,6 +178,7 @@ libQt6Quick3DParticles.so.6 libqt6quick3dparticles6 #MINVER#
  _ZN23QQuick3DParticleEmitter28setParticleEndScaleVariationEf@Base 6.2.2
  _ZN23QQuick3DParticleEmitter28setParticleRotationVariationERK9QVector3D@Base 6.2.2
  _ZN23QQuick3DParticleEmitter29particleScaleVariationChangedEv@Base 6.2.2
+ _ZN23QQuick3DParticleEmitter30getEmitAmountFromDynamicBurstsEi@Base 6.3.0
  _ZN23QQuick3DParticleEmitter31particleRotationVelocityChangedEv@Base 6.2.2
  _ZN23QQuick3DParticleEmitter32particleEndScaleVariationChangedEv@Base 6.2.2
  _ZN23QQuick3DParticleEmitter32particleRotationVariationChangedEv@Base 6.2.2
@@ -231,6 +232,19 @@ libQt6Quick3DParticles.so.6 libqt6quick3dparticles6 #MINVER#
  _ZN24QQuick3DParticleAffectorD0Ev@Base 6.2.2
  _ZN24QQuick3DParticleAffectorD1Ev@Base 6.2.2
  _ZN24QQuick3DParticleAffectorD2Ev@Base 6.2.2
+ _ZN24QQuick3DParticleRepeller11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.4.0
+ _ZN24QQuick3DParticleRepeller11qt_metacastEPKc@Base 6.4.0
+ _ZN24QQuick3DParticleRepeller11setStrengthEf@Base 6.4.0
+ _ZN24QQuick3DParticleRepeller13radiusChangedEv@Base 6.4.0
+ _ZN24QQuick3DParticleRepeller14affectParticleERK20QQuick3DParticleDataP27QQuick3DParticleDataCurrentf@Base 6.4.0
+ _ZN24QQuick3DParticleRepeller14setOuterRadiusEf@Base 6.4.0
+ _ZN24QQuick3DParticleRepeller15prepareToAffectEv@Base 6.4.0
+ _ZN24QQuick3DParticleRepeller15strengthChangedEv@Base 6.4.0
+ _ZN24QQuick3DParticleRepeller16staticMetaObjectE@Base 6.4.0
+ _ZN24QQuick3DParticleRepeller18outerRadiusChangedEv@Base 6.4.0
+ _ZN24QQuick3DParticleRepeller9setRadiusEf@Base 6.4.0
+ _ZN24QQuick3DParticleRepellerC1EP12QQuick3DNode@Base 6.4.0
+ _ZN24QQuick3DParticleRepellerC2EP12QQuick3DNode@Base 6.4.0
  _ZN25QQuick3DParticleAttractor11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.2.2
  _ZN25QQuick3DParticleAttractor11qt_metacastEPKc@Base 6.2.2
  _ZN25QQuick3DParticleAttractor11setDurationEi@Base 6.2.2
@@ -290,6 +304,69 @@ libQt6Quick3DParticles.so.6 libqt6quick3dparticles6 #MINVER#
  _ZN26QQuick3DParticleModelShapeD0Ev@Base 6.2.2
  _ZN26QQuick3DParticleModelShapeD1Ev@Base 6.2.2
  _ZN26QQuick3DParticleModelShapeD2Ev@Base 6.2.2
+ _ZN27QQuick3DParticleCustomShape11getPositionEi@Base 6.3.0
+ _ZN27QQuick3DParticleCustomShape11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.3.0
+ _ZN27QQuick3DParticleCustomShape11qt_metacastEPKc@Base 6.3.0
+ _ZN27QQuick3DParticleCustomShape13sourceChangedEv@Base 6.3.0
+ _ZN27QQuick3DParticleCustomShape14loadFromSourceEv@Base 6.3.0
+ _ZN27QQuick3DParticleCustomShape15doRandomizeDataEv@Base 6.3.0
+ _ZN27QQuick3DParticleCustomShape16setRandomizeDataEb@Base 6.3.0
+ _ZN27QQuick3DParticleCustomShape16staticMetaObjectE@Base 6.3.0
+ _ZN27QQuick3DParticleCustomShape20randomizeDataChangedEv@Base 6.3.0
+ _ZN27QQuick3DParticleCustomShape9setSourceERK4QUrl@Base 6.3.0
+ _ZN27QQuick3DParticleCustomShapeC1EP7QObject@Base 6.3.0
+ _ZN27QQuick3DParticleCustomShapeC2EP7QObject@Base 6.3.0
+ _ZN28QQuick3DParticleDynamicBurst10setEnabledEb@Base 6.3.0
+ _ZN28QQuick3DParticleDynamicBurst11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.3.0
+ _ZN28QQuick3DParticleDynamicBurst11qt_metacastEPKc@Base 6.3.0
+ _ZN28QQuick3DParticleDynamicBurst14enabledChangedEv@Base 6.3.0
+ _ZN28QQuick3DParticleDynamicBurst14setTriggerModeENS_11TriggerModeE@Base 6.3.0
+ _ZN28QQuick3DParticleDynamicBurst16staticMetaObjectE@Base 6.3.0
+ _ZN28QQuick3DParticleDynamicBurst18setAmountVariationEi@Base 6.3.0
+ _ZN28QQuick3DParticleDynamicBurst18triggerModeChangedEv@Base 6.3.0
+ _ZN28QQuick3DParticleDynamicBurst22amountVariationChangedEv@Base 6.3.0
+ _ZN28QQuick3DParticleDynamicBurstC1EP7QObject@Base 6.3.0
+ _ZN28QQuick3DParticleDynamicBurstC2EP7QObject@Base 6.3.0
+ _ZN28QQuick3DParticleLineParticle11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle11qt_metacastEPKc@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle12clearSegmentEi@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle12setAlphaFadeEf@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle13lengthChangedEv@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle14updateLineNodeEP21QSSGRenderGraphObject@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle15commitParticlesEf@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle15saveLineSegmentEif@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle15setParticleDataEiRK9QVector3DS2_RK9QVector4Dfff@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle15setSegmentCountEi@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle15setTexcoordModeENS_12TexcoordModeE@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle16alphaFadeChangedEv@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle16nextCurrentIndexEPK23QQuick3DParticleEmitter@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle16staticMetaObjectE@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle16updateLineBufferEPNS_22LineParticleUpdateNodeEP21QSSGRenderGraphObject@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle17resetParticleDataEi@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle17setLengthDeltaMinEf@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle17updateLineSegmentEi@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle18setLengthVariationEf@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle18setScaleMultiplierEf@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle19handleSystemChangedEP22QQuick3DParticleSystem@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle19segmentCountChangedEv@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle19texcoordModeChangedEv@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle21lengthDeltaMinChangedEv@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle21setEolFadeOutDurationEi@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle21setTexcoordMultiplierEf@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle22LineParticleUpdateNode17updateSpatialNodeEP21QSSGRenderGraphObject@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle22handleMaxAmountChangedEi@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle22lengthVariationChangedEv@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle22scaleMultiplierChangedEv@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle25eolFadeOutDurationChangedEv@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle25handleSegmentCountChangedEv@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle25texcoordMultiplierChangedEv@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle5resetEv@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticle9setLengthEf@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticleC1EP12QQuick3DNode@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticleC2EP12QQuick3DNode@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticleD0Ev@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticleD1Ev@Base 6.4.0
+ _ZN28QQuick3DParticleLineParticleD2Ev@Base 6.4.0
  _ZN28QQuick3DParticlePointRotator11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.2.2
  _ZN28QQuick3DParticlePointRotator11qt_metacastEPKc@Base 6.2.2
  _ZN28QQuick3DParticlePointRotator12setDirectionERK9QVector3D@Base 6.2.2
@@ -308,11 +385,12 @@ libQt6Quick3DParticles.so.6 libqt6quick3dparticles6 #MINVER#
  _ZN28QQuick3DParticleTrailEmitter11qt_metacastEPKc@Base 6.2.2
  _ZN28QQuick3DParticleTrailEmitter13followChangedEv@Base 6.2.2
  _ZN28QQuick3DParticleTrailEmitter16staticMetaObjectE@Base 6.2.2
- _ZN28QQuick3DParticleTrailEmitter18emitTrailParticlesEP27QQuick3DParticleDataCurrenti@Base 6.2.2
+ _ZN28QQuick3DParticleTrailEmitter18emitTrailParticlesERK9QVector3Dii@Base 6.3.0
  _ZN28QQuick3DParticleTrailEmitter5burstEi@Base 6.2.2
  _ZN28QQuick3DParticleTrailEmitter9setFollowEP16QQuick3DParticle@Base 6.2.2
  _ZN28QQuick3DParticleTrailEmitterC1EP12QQuick3DNode@Base 6.2.2
  _ZN28QQuick3DParticleTrailEmitterC2EP12QQuick3DNode@Base 6.2.2
+ _ZN29QQuick3DParticleAbstractShape10parentNodeEv@Base 6.3.1
  _ZN29QQuick3DParticleAbstractShape11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.2.2
  _ZN29QQuick3DParticleAbstractShape11qt_metacastEPKc@Base 6.2.2
  _ZN29QQuick3DParticleAbstractShape16staticMetaObjectE@Base 6.2.2
@@ -336,6 +414,23 @@ libQt6Quick3DParticles.so.6 libqt6quick3dparticles6 #MINVER#
  _ZN29QQuick3DParticleModelParticle22handleMaxAmountChangedEi@Base 6.2.2
  _ZN29QQuick3DParticleModelParticleC1EP12QQuick3DNode@Base 6.2.2
  _ZN29QQuick3DParticleModelParticleC2EP12QQuick3DNode@Base 6.2.2
+ _ZN29QQuick3DParticleScaleAffector10setMaxSizeEf@Base 6.4.0
+ _ZN29QQuick3DParticleScaleAffector10setMinSizeEf@Base 6.4.0
+ _ZN29QQuick3DParticleScaleAffector11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.4.0
+ _ZN29QQuick3DParticleScaleAffector11qt_metacastEPKc@Base 6.4.0
+ _ZN29QQuick3DParticleScaleAffector11setDurationEi@Base 6.4.0
+ _ZN29QQuick3DParticleScaleAffector11typeChangedEv@Base 6.4.0
+ _ZN29QQuick3DParticleScaleAffector14affectParticleERK20QQuick3DParticleDataP27QQuick3DParticleDataCurrentf@Base 6.4.0
+ _ZN29QQuick3DParticleScaleAffector14maxSizeChangedEv@Base 6.4.0
+ _ZN29QQuick3DParticleScaleAffector14minSizeChangedEv@Base 6.4.0
+ _ZN29QQuick3DParticleScaleAffector14setEasingCurveERK12QEasingCurve@Base 6.4.0
+ _ZN29QQuick3DParticleScaleAffector15durationChangedEv@Base 6.4.0
+ _ZN29QQuick3DParticleScaleAffector15prepareToAffectEv@Base 6.4.0
+ _ZN29QQuick3DParticleScaleAffector16staticMetaObjectE@Base 6.4.0
+ _ZN29QQuick3DParticleScaleAffector18easingCurveChangedEv@Base 6.4.0
+ _ZN29QQuick3DParticleScaleAffector7setTypeENS_11ScalingTypeE@Base 6.4.0
+ _ZN29QQuick3DParticleScaleAffectorC1EP12QQuick3DNode@Base 6.4.0
+ _ZN29QQuick3DParticleScaleAffectorC2EP12QQuick3DNode@Base 6.4.0
  _ZN29QQuick3DParticleSystemLogging11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.2.2
  _ZN29QQuick3DParticleSystemLogging11qt_metacastEPKc@Base 6.2.2
  _ZN29QQuick3DParticleSystemLogging11timeChangedEv@Base 6.2.2
@@ -346,43 +441,65 @@ libQt6Quick3DParticles.so.6 libqt6quick3dparticles6 #MINVER#
  _ZN29QQuick3DParticleSystemLogging18timeAverageChangedEv@Base 6.2.2
  _ZN29QQuick3DParticleSystemLogging19particlesMaxChangedEv@Base 6.2.2
  _ZN29QQuick3DParticleSystemLogging20particlesUsedChangedEv@Base 6.2.2
+ _ZN29QQuick3DParticleSystemLogging20timeDeviationChangedEv@Base 6.3.0
  _ZN29QQuick3DParticleSystemLogging22loggingIntervalChangedEv@Base 6.2.2
  _ZN29QQuick3DParticleSystemLogging9resetDataEv@Base 6.2.2
  _ZN29QQuick3DParticleSystemLoggingC1EP7QObject@Base 6.2.2
  _ZN29QQuick3DParticleSystemLoggingC2EP7QObject@Base 6.2.2
+ _ZN30QQuick3DParticleShapeDataUtils10readStringER17QCborStreamReader@Base 6.3.0
+ _ZN30QQuick3DParticleShapeDataUtils10writeValueER17QCborStreamWriterRK8QVariant@Base 6.3.0
+ _ZN30QQuick3DParticleShapeDataUtils15readShapeHeaderER17QCborStreamReader@Base 6.3.0
+ _ZN30QQuick3DParticleShapeDataUtils16writeShapeHeaderER17QCborStreamWriteri@Base 6.3.0
+ _ZN30QQuick3DParticleShapeDataUtils8readRealER17QCborStreamReader@Base 6.3.0
+ _ZN30QQuick3DParticleShapeDataUtils9readValueER17QCborStreamReaderN9QMetaType4TypeE@Base 6.3.0
  _ZN30QQuick3DParticleSpriteParticle10itemChangeEN14QQuick3DObject10ItemChangeERKNS0_14ItemChangeDataE@Base 6.2.2
+ (subst)_ZN30QQuick3DParticleSpriteParticle10qmlLightAtEP16QQmlListPropertyI21QQuick3DAbstractLightE{qptrdiff}@Base 6.3.0
+ _ZN30QQuick3DParticleSpriteParticle10setOffsetXEf@Base 6.3.0
+ _ZN30QQuick3DParticleSpriteParticle10setOffsetYEf@Base 6.3.0
  _ZN30QQuick3DParticleSpriteParticle11deleteNodesEv@Base 6.2.2
  _ZN30QQuick3DParticleSpriteParticle11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.2.2
  _ZN30QQuick3DParticleSpriteParticle11qt_metacastEPKc@Base 6.2.2
  _ZN30QQuick3DParticleSpriteParticle11updateNodesEv@Base 6.2.2
  _ZN30QQuick3DParticleSpriteParticle12setBillboardEb@Base 6.2.2
  _ZN30QQuick3DParticleSpriteParticle12setBlendModeENS_9BlendModeE@Base 6.2.2
+ _ZN30QQuick3DParticleSpriteParticle13lightsChangedEv@Base 6.3.0
  _ZN30QQuick3DParticleSpriteParticle13setColorTableEP15QQuick3DTexture@Base 6.2.2
  _ZN30QQuick3DParticleSpriteParticle13spriteChangedEv@Base 6.2.2
  _ZN30QQuick3DParticleSpriteParticle14markNodesDirtyEv@Base 6.2.2
- _ZN30QQuick3DParticleSpriteParticle14perEmitterDataEPKNS_18ParticleUpdateNodeE@Base 6.2.2
+ _ZN30QQuick3DParticleSpriteParticle14offsetXChangedEv@Base 6.3.0
+ _ZN30QQuick3DParticleSpriteParticle14offsetYChangedEv@Base 6.3.0
+ _ZN30QQuick3DParticleSpriteParticle14perEmitterDataEPK12QQuick3DNode@Base 6.4.0
  _ZN30QQuick3DParticleSpriteParticle14perEmitterDataEi@Base 6.2.2
- _ZN30QQuick3DParticleSpriteParticle15commitParticlesEv@Base 6.2.2
+ _ZN30QQuick3DParticleSpriteParticle14qmlAppendLightEP16QQmlListPropertyI21QQuick3DAbstractLightEPS1_@Base 6.3.0
+ _ZN30QQuick3DParticleSpriteParticle14qmlClearLightsEP16QQmlListPropertyI21QQuick3DAbstractLightE@Base 6.3.0
+ _ZN30QQuick3DParticleSpriteParticle14qmlLightsCountEP16QQmlListPropertyI21QQuick3DAbstractLightE@Base 6.3.0
+ _ZN30QQuick3DParticleSpriteParticle15commitParticlesEf@Base 6.4.0
+ _ZN30QQuick3DParticleSpriteParticle15mapFeatureLevelENS_12FeatureLevelE@Base 6.3.0
  _ZN30QQuick3DParticleSpriteParticle15setParticleDataEiRK9QVector3DS2_RK9QVector4Dfff@Base 6.2.2
  _ZN30QQuick3DParticleSpriteParticle16billboardChangedEv@Base 6.2.2
  _ZN30QQuick3DParticleSpriteParticle16blendModeChangedEv@Base 6.2.2
  _ZN30QQuick3DParticleSpriteParticle16nextCurrentIndexEPK23QQuick3DParticleEmitter@Base 6.2.2
+ _ZN30QQuick3DParticleSpriteParticle16onLightDestroyedEP7QObject@Base 6.3.0
  _ZN30QQuick3DParticleSpriteParticle16setParticleScaleEf@Base 6.2.2
  _ZN30QQuick3DParticleSpriteParticle16staticMetaObjectE@Base 6.2.2
  _ZN30QQuick3DParticleSpriteParticle17colorTableChangedEv@Base 6.2.2
  _ZN30QQuick3DParticleSpriteParticle17componentCompleteEv@Base 6.2.2
+ _ZN30QQuick3DParticleSpriteParticle17resetParticleDataEi@Base 6.4.0
  _ZN30QQuick3DParticleSpriteParticle17setSpriteSequenceEP30QQuick3DParticleSpriteSequence@Base 6.2.2
  _ZN30QQuick3DParticleSpriteParticle18ParticleUpdateNode17updateSpatialNodeEP21QSSGRenderGraphObject@Base 6.2.2
  _ZN30QQuick3DParticleSpriteParticle18updateFeatureLevelEv@Base 6.2.2
  _ZN30QQuick3DParticleSpriteParticle18updateParticleNodeEPKNS_18ParticleUpdateNodeEP21QSSGRenderGraphObject@Base 6.2.2
  _ZN30QQuick3DParticleSpriteParticle18updateSceneManagerEP20QQuick3DSceneManager@Base 6.2.2
  _ZN30QQuick3DParticleSpriteParticle19handleSystemChangedEP22QQuick3DParticleSystem@Base 6.2.2
+ _ZN30QQuick3DParticleSpriteParticle19setCastsReflectionsEb@Base 6.4.0
  _ZN30QQuick3DParticleSpriteParticle20particleScaleChangedEv@Base 6.2.2
- _ZN30QQuick3DParticleSpriteParticle20updateParticleBufferERKNS_14PerEmitterDataEP21QSSGRenderGraphObject@Base 6.2.2
+ _ZN30QQuick3DParticleSpriteParticle20updateParticleBufferEPNS_18ParticleUpdateNodeEP21QSSGRenderGraphObject@Base 6.4.0
  _ZN30QQuick3DParticleSpriteParticle21spriteSequenceChangedEv@Base 6.2.2
  _ZN30QQuick3DParticleSpriteParticle22handleMaxAmountChangedEi@Base 6.2.2
- _ZN30QQuick3DParticleSpriteParticle28updateAnimatedParticleBufferERKNS_14PerEmitterDataEP21QSSGRenderGraphObject@Base 6.2.2
+ _ZN30QQuick3DParticleSpriteParticle23castsReflectionsChangedEv@Base 6.4.0
+ _ZN30QQuick3DParticleSpriteParticle28updateAnimatedParticleBufferEPNS_18ParticleUpdateNodeEP21QSSGRenderGraphObject@Base 6.4.0
  _ZN30QQuick3DParticleSpriteParticle5resetEv@Base 6.2.2
+ _ZN30QQuick3DParticleSpriteParticle6lightsEv@Base 6.3.0
  _ZN30QQuick3DParticleSpriteParticle9setSpriteEP15QQuick3DTexture@Base 6.2.2
  _ZN30QQuick3DParticleSpriteParticleC1EP12QQuick3DNode@Base 6.2.2
  _ZN30QQuick3DParticleSpriteParticleC2EP12QQuick3DNode@Base 6.2.2
@@ -450,12 +567,13 @@ libQt6Quick3DParticles.so.6 libqt6quick3dparticles6 #MINVER#
  _ZN34QQuick3DParticleModelBlendParticle11qt_metacastEPKc@Base 6.2.2
  _ZN34QQuick3DParticleModelBlendParticle11randomIndexEi@Base 6.2.2
  _ZN34QQuick3DParticleModelBlendParticle11setDelegateEP13QQmlComponent@Base 6.2.2
- _ZN34QQuick3DParticleModelBlendParticle13randomChangedEv@Base 6.2.2
+ _ZN34QQuick3DParticleModelBlendParticle11setEmitModeENS_18ModelBlendEmitModeE@Base 6.3.0
  _ZN34QQuick3DParticleModelBlendParticle14doSetMaxAmountEi@Base 6.2.2
  _ZN34QQuick3DParticleModelBlendParticle14endNodeChangedEv@Base 6.2.2
  _ZN34QQuick3DParticleModelBlendParticle14endTimeChangedEv@Base 6.2.2
  _ZN34QQuick3DParticleModelBlendParticle14perEmitterDataEi@Base 6.2.2
  _ZN34QQuick3DParticleModelBlendParticle15delegateChangedEv@Base 6.2.2
+ _ZN34QQuick3DParticleModelBlendParticle15emitModeChangedEv@Base 6.3.0
  _ZN34QQuick3DParticleModelBlendParticle15setParticleDataEiRK9QVector3DS2_RK9QVector4Dff@Base 6.2.2
  _ZN34QQuick3DParticleModelBlendParticle15updateParticlesEv@Base 6.2.2
  _ZN34QQuick3DParticleModelBlendParticle16nextCurrentIndexEPK23QQuick3DParticleEmitter@Base 6.2.2
@@ -466,11 +584,10 @@ libQt6Quick3DParticles.so.6 libqt6quick3dparticles6 #MINVER#
  _ZN34QQuick3DParticleModelBlendParticle17updateSpatialNodeEP21QSSGRenderGraphObject@Base 6.2.2
  _ZN34QQuick3DParticleModelBlendParticle18blendFactorChangedEv@Base 6.2.2
  _ZN34QQuick3DParticleModelBlendParticle20handleEndNodeChangedEv@Base 6.2.2
- _ZN34QQuick3DParticleModelBlendParticle20updateParticleBufferEP18QSSGParticleBuffer@Base 6.2.2
+ _ZN34QQuick3DParticleModelBlendParticle20updateParticleBufferEP18QSSGParticleBufferRK10QMatrix4x4@Base 6.3.0
  _ZN34QQuick3DParticleModelBlendParticle21activationNodeChangedEv@Base 6.2.2
  _ZN34QQuick3DParticleModelBlendParticle21modelBlendModeChangedEv@Base 6.2.2
  _ZN34QQuick3DParticleModelBlendParticle5resetEv@Base 6.2.2
- _ZN34QQuick3DParticleModelBlendParticle9setRandomEb@Base 6.2.2
  _ZN34QQuick3DParticleModelBlendParticleC1EP12QQuick3DNode@Base 6.2.2
  _ZN34QQuick3DParticleModelBlendParticleC2EP12QQuick3DNode@Base 6.2.2
  _ZN34QQuick3DParticleModelBlendParticleD0Ev@Base 6.2.2
@@ -548,6 +665,10 @@ libQt6Quick3DParticles.so.6 libqt6quick3dparticles6 #MINVER#
  _ZNK24QQuick3DParticleAffector6systemEv@Base 6.2.2
  _ZNK24QQuick3DParticleAffector7enabledEv@Base 6.2.2
  (subst)_ZNK24QQuick3DParticleAffector8particleE{qptrdiff}@Base 6.2.2
+ _ZNK24QQuick3DParticleRepeller10metaObjectEv@Base 6.4.0
+ _ZNK24QQuick3DParticleRepeller11outerRadiusEv@Base 6.4.0
+ _ZNK24QQuick3DParticleRepeller6radiusEv@Base 6.4.0
+ _ZNK24QQuick3DParticleRepeller8strengthEv@Base 6.4.0
  _ZNK25QQuick3DParticleAttractor10metaObjectEv@Base 6.2.2
  _ZNK25QQuick3DParticleAttractor15positionsAmountEv@Base 6.2.2
  _ZNK25QQuick3DParticleAttractor17durationVariationEv@Base 6.2.2
@@ -564,6 +685,23 @@ libQt6Quick3DParticles.so.6 libqt6quick3dparticles6 #MINVER#
  _ZNK26QQuick3DParticleModelShape10metaObjectEv@Base 6.2.2
  _ZNK26QQuick3DParticleModelShape4fillEv@Base 6.2.2
  _ZNK26QQuick3DParticleModelShape8delegateEv@Base 6.2.2
+ _ZNK27QQuick3DParticleCustomShape10metaObjectEv@Base 6.3.0
+ _ZNK27QQuick3DParticleCustomShape13randomizeDataEv@Base 6.3.0
+ _ZNK27QQuick3DParticleCustomShape6sourceEv@Base 6.3.0
+ _ZNK28QQuick3DParticleDynamicBurst10metaObjectEv@Base 6.3.0
+ _ZNK28QQuick3DParticleDynamicBurst11triggerModeEv@Base 6.3.0
+ _ZNK28QQuick3DParticleDynamicBurst15amountVariationEv@Base 6.3.0
+ _ZNK28QQuick3DParticleDynamicBurst7enabledEv@Base 6.3.0
+ _ZNK28QQuick3DParticleLineParticle10metaObjectEv@Base 6.4.0
+ _ZNK28QQuick3DParticleLineParticle12segmentCountEv@Base 6.4.0
+ _ZNK28QQuick3DParticleLineParticle12texcoordModeEv@Base 6.4.0
+ _ZNK28QQuick3DParticleLineParticle14lengthDeltaMinEv@Base 6.4.0
+ _ZNK28QQuick3DParticleLineParticle15lengthVariationEv@Base 6.4.0
+ _ZNK28QQuick3DParticleLineParticle15scaleMultiplierEv@Base 6.4.0
+ _ZNK28QQuick3DParticleLineParticle18eolFadeOutDurationEv@Base 6.4.0
+ _ZNK28QQuick3DParticleLineParticle18texcoordMultiplierEv@Base 6.4.0
+ _ZNK28QQuick3DParticleLineParticle6lengthEv@Base 6.4.0
+ _ZNK28QQuick3DParticleLineParticle9alphaFadeEv@Base 6.4.0
  _ZNK28QQuick3DParticlePointRotator10metaObjectEv@Base 6.2.2
  _ZNK28QQuick3DParticlePointRotator10pivotPointEv@Base 6.2.2
  _ZNK28QQuick3DParticlePointRotator9directionEv@Base 6.2.2
@@ -575,10 +713,17 @@ libQt6Quick3DParticles.so.6 libqt6quick3dparticles6 #MINVER#
  _ZNK29QQuick3DParticleModelParticle10metaObjectEv@Base 6.2.2
  _ZNK29QQuick3DParticleModelParticle13instanceTableEv@Base 6.2.2
  _ZNK29QQuick3DParticleModelParticle8delegateEv@Base 6.2.2
+ _ZNK29QQuick3DParticleScaleAffector10metaObjectEv@Base 6.4.0
+ _ZNK29QQuick3DParticleScaleAffector11easingCurveEv@Base 6.4.0
+ _ZNK29QQuick3DParticleScaleAffector4typeEv@Base 6.4.0
+ _ZNK29QQuick3DParticleScaleAffector7maxSizeEv@Base 6.4.0
+ _ZNK29QQuick3DParticleScaleAffector7minSizeEv@Base 6.4.0
+ _ZNK29QQuick3DParticleScaleAffector8durationEv@Base 6.4.0
  _ZNK29QQuick3DParticleSystemLogging10metaObjectEv@Base 6.2.2
  _ZNK29QQuick3DParticleSystemLogging11timeAverageEv@Base 6.2.2
  _ZNK29QQuick3DParticleSystemLogging12particlesMaxEv@Base 6.2.2
  _ZNK29QQuick3DParticleSystemLogging13particlesUsedEv@Base 6.2.2
+ _ZNK29QQuick3DParticleSystemLogging13timeDeviationEv@Base 6.3.0
  _ZNK29QQuick3DParticleSystemLogging15loggingIntervalEv@Base 6.2.2
  _ZNK29QQuick3DParticleSystemLogging4timeEv@Base 6.2.2
  _ZNK29QQuick3DParticleSystemLogging7updatesEv@Base 6.2.2
@@ -586,7 +731,10 @@ libQt6Quick3DParticles.so.6 libqt6quick3dparticles6 #MINVER#
  _ZNK30QQuick3DParticleSpriteParticle10metaObjectEv@Base 6.2.2
  _ZNK30QQuick3DParticleSpriteParticle13particleScaleEv@Base 6.2.2
  _ZNK30QQuick3DParticleSpriteParticle14spriteSequenceEv@Base 6.2.2
+ _ZNK30QQuick3DParticleSpriteParticle16castsReflectionsEv@Base 6.4.0
  _ZNK30QQuick3DParticleSpriteParticle6spriteEv@Base 6.2.2
+ _ZNK30QQuick3DParticleSpriteParticle7offsetXEv@Base 6.3.0
+ _ZNK30QQuick3DParticleSpriteParticle7offsetYEv@Base 6.3.0
  _ZNK30QQuick3DParticleSpriteParticle9billboardEv@Base 6.2.2
  _ZNK30QQuick3DParticleSpriteParticle9blendModeEv@Base 6.2.2
  _ZNK30QQuick3DParticleSpriteSequence10frameCountEv@Base 6.2.2
@@ -614,13 +762,11 @@ libQt6Quick3DParticles.so.6 libqt6quick3dparticles6 #MINVER#
  _ZNK34QQuick3DParticleModelBlendParticle14particleCenterEi@Base 6.2.2
  _ZNK34QQuick3DParticleModelBlendParticle19particleEndPositionEi@Base 6.2.2
  _ZNK34QQuick3DParticleModelBlendParticle19particleEndRotationEi@Base 6.2.2
- _ZNK34QQuick3DParticleModelBlendParticle6randomEv@Base 6.2.2
  _ZNK34QQuick3DParticleModelBlendParticle7endNodeEv@Base 6.2.2
  _ZNK34QQuick3DParticleModelBlendParticle7endTimeEv@Base 6.2.2
  _ZNK34QQuick3DParticleModelBlendParticle8delegateEv@Base 6.2.2
- (optional=templinst)_ZNSt8_Rb_treeIP16QQuick3DParticleSt4pairIKS1_N11QMetaObject10ConnectionEESt10_Select1stIS6_ESt4lessIS1_ESaIS6_EE16_M_insert_uniqueIS6_EES2_ISt17_Rb_tree_iteratorIS6_EbEOT_@Base 6.2.2
- (optional=templinst)_ZNSt8_Rb_treeIP16QQuick3DParticleSt4pairIKS1_N11QMetaObject10ConnectionEESt10_Select1stIS6_ESt4lessIS1_ESaIS6_EE24_M_get_insert_unique_posERS3_@Base 6.2.2
- (optional=templinst)_ZNSt8_Rb_treeIP16QQuick3DParticleSt4pairIKS1_N11QMetaObject10ConnectionEESt10_Select1stIS6_ESt4lessIS1_ESaIS6_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS6_ERS3_@Base 6.2.2
+ _ZNK34QQuick3DParticleModelBlendParticle8emitModeEv@Base 6.3.0
+ _ZSt19piecewise_construct@Base 6.4.1
  _ZTI16QQuick3DParticle@Base 6.2.2
  _ZTI21QQuick3DParticleShape@Base 6.2.2
  _ZTI22QQuick3DParticleSystem@Base 6.2.2
@@ -628,20 +774,26 @@ libQt6Quick3DParticles.so.6 libqt6quick3dparticles6 #MINVER#
  _ZTI23QQuick3DParticleEmitter@Base 6.2.2
  _ZTI23QQuick3DParticleGravity@Base 6.2.2
  _ZTI24QQuick3DParticleAffector@Base 6.2.2
+ _ZTI24QQuick3DParticleRepeller@Base 6.4.0
  _ZTI25QQuick3DParticleAttractor@Base 6.2.2
  _ZTI25QQuick3DParticleDirection@Base 6.2.2
  _ZTI25QQuick3DParticleEmitBurst@Base 6.2.2
  _ZTI26QQuick3DParticleModelShape@Base 6.2.2
+ _ZTI27QQuick3DParticleCustomShape@Base 6.3.0
+ _ZTI28QQuick3DParticleDynamicBurst@Base 6.3.0
+ _ZTI28QQuick3DParticleLineParticle@Base 6.4.0
  _ZTI28QQuick3DParticlePointRotator@Base 6.2.2
  _ZTI28QQuick3DParticleTrailEmitter@Base 6.2.2
  _ZTI29QQuick3DParticleAbstractShape@Base 6.2.2
  _ZTI29QQuick3DParticleModelParticle@Base 6.2.2
+ _ZTI29QQuick3DParticleScaleAffector@Base 6.4.0
  _ZTI29QQuick3DParticleSystemLogging@Base 6.2.2
  _ZTI30QQuick3DParticleSpriteParticle@Base 6.2.2
  _ZTI30QQuick3DParticleSpriteSequence@Base 6.2.2
  _ZTI31QQuick3DParticleTargetDirection@Base 6.2.2
  _ZTI31QQuick3DParticleVectorDirection@Base 6.2.2
  _ZTI34QQuick3DParticleModelBlendParticle@Base 6.2.2
+ _ZTIN28QQuick3DParticleLineParticle22LineParticleUpdateNodeE@Base 6.4.0
  _ZTIN30QQuick3DParticleSpriteParticle18ParticleUpdateNodeE@Base 6.2.2
  _ZTS16QQuick3DParticle@Base 6.2.2
  _ZTS21QQuick3DParticleShape@Base 6.2.2
@@ -650,20 +802,26 @@ libQt6Quick3DParticles.so.6 libqt6quick3dparticles6 #MINVER#
  _ZTS23QQuick3DParticleEmitter@Base 6.2.2
  _ZTS23QQuick3DParticleGravity@Base 6.2.2
  _ZTS24QQuick3DParticleAffector@Base 6.2.2
+ _ZTS24QQuick3DParticleRepeller@Base 6.4.0
  _ZTS25QQuick3DParticleAttractor@Base 6.2.2
  _ZTS25QQuick3DParticleDirection@Base 6.2.2
  _ZTS25QQuick3DParticleEmitBurst@Base 6.2.2
  _ZTS26QQuick3DParticleModelShape@Base 6.2.2
+ _ZTS27QQuick3DParticleCustomShape@Base 6.3.0
+ _ZTS28QQuick3DParticleDynamicBurst@Base 6.3.0
+ _ZTS28QQuick3DParticleLineParticle@Base 6.4.0
  _ZTS28QQuick3DParticlePointRotator@Base 6.2.2
  _ZTS28QQuick3DParticleTrailEmitter@Base 6.2.2
  _ZTS29QQuick3DParticleAbstractShape@Base 6.2.2
  _ZTS29QQuick3DParticleModelParticle@Base 6.2.2
+ _ZTS29QQuick3DParticleScaleAffector@Base 6.4.0
  _ZTS29QQuick3DParticleSystemLogging@Base 6.2.2
  _ZTS30QQuick3DParticleSpriteParticle@Base 6.2.2
  _ZTS30QQuick3DParticleSpriteSequence@Base 6.2.2
  _ZTS31QQuick3DParticleTargetDirection@Base 6.2.2
  _ZTS31QQuick3DParticleVectorDirection@Base 6.2.2
  _ZTS34QQuick3DParticleModelBlendParticle@Base 6.2.2
+ _ZTSN28QQuick3DParticleLineParticle22LineParticleUpdateNodeE@Base 6.4.0
  _ZTSN30QQuick3DParticleSpriteParticle18ParticleUpdateNodeE@Base 6.2.2
  _ZTV16QQuick3DParticle@Base 6.2.2
  _ZTV21QQuick3DParticleShape@Base 6.2.2
@@ -672,30 +830,27 @@ libQt6Quick3DParticles.so.6 libqt6quick3dparticles6 #MINVER#
  _ZTV23QQuick3DParticleEmitter@Base 6.2.2
  _ZTV23QQuick3DParticleGravity@Base 6.2.2
  _ZTV24QQuick3DParticleAffector@Base 6.2.2
+ _ZTV24QQuick3DParticleRepeller@Base 6.4.0
  _ZTV25QQuick3DParticleAttractor@Base 6.2.2
  _ZTV25QQuick3DParticleDirection@Base 6.2.2
  _ZTV25QQuick3DParticleEmitBurst@Base 6.2.2
  _ZTV26QQuick3DParticleModelShape@Base 6.2.2
+ _ZTV27QQuick3DParticleCustomShape@Base 6.3.0
+ _ZTV28QQuick3DParticleDynamicBurst@Base 6.3.0
+ _ZTV28QQuick3DParticleLineParticle@Base 6.4.0
  _ZTV28QQuick3DParticlePointRotator@Base 6.2.2
  _ZTV28QQuick3DParticleTrailEmitter@Base 6.2.2
  _ZTV29QQuick3DParticleAbstractShape@Base 6.2.2
  _ZTV29QQuick3DParticleModelParticle@Base 6.2.2
+ _ZTV29QQuick3DParticleScaleAffector@Base 6.4.0
  _ZTV29QQuick3DParticleSystemLogging@Base 6.2.2
  _ZTV30QQuick3DParticleSpriteParticle@Base 6.2.2
  _ZTV30QQuick3DParticleSpriteSequence@Base 6.2.2
  _ZTV31QQuick3DParticleTargetDirection@Base 6.2.2
  _ZTV31QQuick3DParticleVectorDirection@Base 6.2.2
  _ZTV34QQuick3DParticleModelBlendParticle@Base 6.2.2
+ _ZTVN28QQuick3DParticleLineParticle22LineParticleUpdateNodeE@Base 6.4.0
  _ZTVN30QQuick3DParticleSpriteParticle18ParticleUpdateNodeE@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIbE10getCopyCtrEvENUlPKNS_18QMetaTypeInterfaceEPvPKvE_4_FUNES4_S5_S7_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIbE10getMoveCtrEvENUlPKNS_18QMetaTypeInterfaceEPvS5_E_4_FUNES4_S5_S5_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIbE13getDefaultCtrEvENUlPKNS_18QMetaTypeInterfaceEPvE_4_FUNES4_S5_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIfE10getCopyCtrEvENUlPKNS_18QMetaTypeInterfaceEPvPKvE_4_FUNES4_S5_S7_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIfE10getMoveCtrEvENUlPKNS_18QMetaTypeInterfaceEPvS5_E_4_FUNES4_S5_S5_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIfE13getDefaultCtrEvENUlPKNS_18QMetaTypeInterfaceEPvE_4_FUNES4_S5_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIiE10getCopyCtrEvENUlPKNS_18QMetaTypeInterfaceEPvPKvE_4_FUNES4_S5_S7_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIiE10getMoveCtrEvENUlPKNS_18QMetaTypeInterfaceEPvS5_E_4_FUNES4_S5_S5_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIiE13getDefaultCtrEvENUlPKNS_18QMetaTypeInterfaceEPvE_4_FUNES4_S5_@Base 6.2.2
  (c++)"non-virtual thunk to QQuick3DParticle::componentComplete()@Base" 6.2.2
  (c++)"non-virtual thunk to QQuick3DParticle::~QQuick3DParticle()@Base" 6.2.2
  (c++)"non-virtual thunk to QQuick3DParticleAbstractShape::componentComplete()@Base" 6.2.2
@@ -705,6 +860,7 @@ libQt6Quick3DParticles.so.6 libqt6quick3dparticles6 #MINVER#
  (c++)"non-virtual thunk to QQuick3DParticleEmitBurst::~QQuick3DParticleEmitBurst()@Base" 6.2.2
  (c++)"non-virtual thunk to QQuick3DParticleEmitter::componentComplete()@Base" 6.2.2
  (c++)"non-virtual thunk to QQuick3DParticleEmitter::~QQuick3DParticleEmitter()@Base" 6.2.2
+ (c++)"non-virtual thunk to QQuick3DParticleLineParticle::~QQuick3DParticleLineParticle()@Base" 6.4.0
  (c++)"non-virtual thunk to QQuick3DParticleModelBlendParticle::componentComplete()@Base" 6.2.2
  (c++)"non-virtual thunk to QQuick3DParticleModelBlendParticle::~QQuick3DParticleModelBlendParticle()@Base" 6.2.2
  (c++)"non-virtual thunk to QQuick3DParticleModelParticle::componentComplete()@Base" 6.2.2

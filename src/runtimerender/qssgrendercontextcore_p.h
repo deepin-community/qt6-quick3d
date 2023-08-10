@@ -1,32 +1,6 @@
-/****************************************************************************
-**
-** Copyright (C) 2008-2012 NVIDIA Corporation.
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2008-2012 NVIDIA Corporation.
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #ifndef QSSG_RENDER_CONTEXT_CORE_H
 #define QSSG_RENDER_CONTEXT_CORE_H
@@ -47,7 +21,6 @@
 #include <QtQuick3DRuntimeRender/private/qtquick3druntimerenderglobal_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgperframeallocator_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendershadercache_p.h>
-#include <QtQuick3DRuntimeRender/private/qssgrenderresourcemanager_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderdefaultmaterialshadergenerator_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderbuffermanager_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderer_p.h>
@@ -59,45 +32,23 @@ QT_BEGIN_NAMESPACE
 
 class QSSGCustomMaterialSystem;
 class QSSGRendererInterface;
+class QQuickWindow;
 
 class Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderContextInterface
 {
     Q_DISABLE_COPY(QSSGRenderContextInterface)
 public:
     QAtomicInt ref;
-private:
-    const QSSGRef<QSSGRhiContext> m_rhiContext;
 
-    const QSSGRef<QSSGShaderCache> m_shaderCache;
-    const QSSGRef<QSSGBufferManager> m_bufferManager;
-    const QSSGRef<QSSGResourceManager> m_resourceManager;
-    const QSSGRef<QSSGRenderer> m_renderer;
-    const QSSGRef<QSSGShaderLibraryManager> m_shaderLibraryManager;
-    const QSSGRef<QSSGCustomMaterialSystem> m_customMaterialSystem;
-    const QSSGRef<QSSGProgramGenerator> m_shaderProgramGenerator;
-    QSSGPerFrameAllocator m_perFrameAllocator;
-    quint32 m_activeFrameRef = 0;
-    quint32 m_frameCount = 0;
-    // Viewport that this render context should use
-    QRect m_viewport;
-    float m_dpr = 1.0;
-    QRect m_scissorRect;
-    QSize m_windowDimensions {800, 480};
-    QColor m_sceneColor;
-
-    void init();
-
-public:
-    static QSSGRenderContextInterface *renderContextForWindow(const QWindow &window);
+    static QSSGRenderContextInterface *renderContextForWindow(const QQuickWindow &window);
 
     // The commonly used version (from QQuick3DSceneRenderer). There is one
     // rendercontext per QQuickWindow (and so scenegraph render thread).
-    QSSGRenderContextInterface(QWindow *window, const QSSGRef<QSSGRhiContext> &ctx);
+    QSSGRenderContextInterface(QQuickWindow *window, const QSSGRef<QSSGRhiContext> &ctx);
 
     // This overload must only be used in special cases, e.g. by the genshaders tool.
     QSSGRenderContextInterface(const QSSGRef<QSSGRhiContext> &ctx,
                                const QSSGRef<QSSGBufferManager> &bufferManager,
-                               const QSSGRef<QSSGResourceManager> &resourceManager,
                                const QSSGRef<QSSGRenderer> &renderer,
                                const QSSGRef<QSSGShaderLibraryManager> &shaderLibraryManager,
                                const QSSGRef<QSSGShaderCache> &shaderCache,
@@ -105,14 +56,15 @@ public:
                                const QSSGRef<QSSGProgramGenerator> &shaderProgramGenerator);
 
     ~QSSGRenderContextInterface();
+
     const QSSGRef<QSSGRenderer> &renderer() const;
     const QSSGRef<QSSGBufferManager> &bufferManager() const;
-    const QSSGRef<QSSGResourceManager> &resourceManager() const;
     const QSSGRef<QSSGRhiContext> &rhiContext() const;
     const QSSGRef<QSSGShaderCache> &shaderCache() const;
     const QSSGRef<QSSGShaderLibraryManager> &shaderLibraryManager() const;
     const QSSGRef<QSSGCustomMaterialSystem> &customMaterialSystem() const;
     const QSSGRef<QSSGProgramGenerator> &shaderProgramGenerator() const;
+
     // The memory used for the per frame allocator is released as the first step in BeginFrame.
     // This is useful for short lived objects and datastructures.
     QSSGPerFrameAllocator &perFrameAllocator() { return m_perFrameAllocator; }
@@ -122,16 +74,6 @@ public:
 
     void setSceneColor(const QColor &inSceneColor) { m_sceneColor = inSceneColor; }
 
-    // The reason you can set both window dimensions and an overall viewport is that the mouse
-    // needs to be inverted
-    // which requires the window height, and then the rest of the system really requires the
-    // viewport.
-    void setWindowDimensions(const QSize &inWindowDimensions) { m_windowDimensions = inWindowDimensions; }
-    QSize windowDimensions() { return m_windowDimensions; }
-
-    // In addition to the window dimensions which really have to be set, you can optionally
-    // set the viewport which will force the entire viewer to render specifically to this
-    // viewport.
     void setViewport(QRect inViewport) { m_viewport = inViewport; }
     QRect viewport() const { return m_viewport; }
 
@@ -141,44 +83,55 @@ public:
     void setScissorRect(QRect inScissorRect) { m_scissorRect = inScissorRect; }
     QRect scissorRect() const { return m_scissorRect; }
 
-    QVector2D mousePickViewport() const;
-    QVector2D mousePickMouseCoords(const QVector2D &inMouseCoords) const;
-
     void cleanupResources(QList<QSSGRenderGraphObject*> &resources);
+    void cleanupUnreferencedBuffers(QSSGRenderLayer *inLayer);
+    void resetResourceCounters(QSSGRenderLayer *inLayer);
 
     // Steps needed to render:
-    // 1.  BeginFrame - sets up new target in render graph
-    // 2.  Add everything you need to the render graph
-    // 3.  RunRenderGraph - runs the graph, rendering things to main render target
-    // 4.  Render any additional stuff to main render target on top of previously rendered
-    // information
-    // 5.  EndFrame
+    // 1.  beginFrame - Reset the per-frame allocator
+    // 2.  Make sure state is set (viewport, windowDimensions, dpr, sceneColor, scissorRect)
+    // 3.  prepareLayerForRenderer - process the layer scene (prepare the scene for rendering)
+    // 4.  rhiPrepare - start rendering necessary sub-scenes and prepare resources
+    // 5.  rhiRender - render the layer scene
+    // 6.  endFrame
 
     // Clients need to call this every frame in order for various subsystems to release
     // temporary per-frame allocated objects.
-    // Also sets up the viewport according to SetViewportInfo
-    // and the topmost presentation dimensions.  Expects there to be exactly one presentation
-    // dimension pushed at this point.
-    // This also starts a render target in the render graph.
-    //
-    // Note: has nothing to do with QRhi::beginFrame()
-    //
-    void beginFrame(bool allowRecursion = true);
+    void beginFrame(QSSGRenderLayer *layer, bool allowRecursion = true);
 
     bool prepareLayerForRender(QSSGRenderLayer &inLayer);
 
-    void rhiPrepare(QSSGRenderLayer &inLayer); // RHI-only
-    void rhiRender(QSSGRenderLayer &inLayer); // RHI-only
+    void rhiPrepare(QSSGRenderLayer &inLayer);
+    void rhiRender(QSSGRenderLayer &inLayer);
 
-    // Now you can render to the main render target if you want to render over the top
-    // of everything.
-    // Next call end frame.
-    //
     // When allowRecursion is true, the cleanup is only done when all
     // beginFrames got their corresponding endFrame. This is indicated by the
     // return value (false if nothing's been done due to pending "frames")
-    bool endFrame(bool allowRecursion = true);
+    bool endFrame(QSSGRenderLayer *layer, bool allowRecursion = true);
 
+private:
+    void init();
+
+    const QSSGRef<QSSGRhiContext> m_rhiContext;
+    const QSSGRef<QSSGShaderCache> m_shaderCache;
+    const QSSGRef<QSSGBufferManager> m_bufferManager;
+    const QSSGRef<QSSGRenderer> m_renderer;
+    const QSSGRef<QSSGShaderLibraryManager> m_shaderLibraryManager;
+    const QSSGRef<QSSGCustomMaterialSystem> m_customMaterialSystem;
+    const QSSGRef<QSSGProgramGenerator> m_shaderProgramGenerator;
+
+    QSSGPerFrameAllocator m_perFrameAllocator;
+    quint32 m_activeFrameRef = 0;
+    quint32 m_frameCount = 0;
+
+    // Viewport that this render context should use
+    QRect m_viewport;
+    float m_dpr = 1.0;
+    QRect m_scissorRect;
+    QColor m_sceneColor;
+
+    QMetaObject::Connection m_beforeFrameConnection;
+    QMetaObject::Connection m_afterFrameConnection;
 };
 QT_END_NAMESPACE
 

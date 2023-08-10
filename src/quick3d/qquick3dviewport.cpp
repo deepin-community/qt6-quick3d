@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qquick3dviewport_p.h"
 #include "qquick3dsceneenvironment_p.h"
@@ -41,6 +15,7 @@
 #include "qquick3ddefaultmaterial_p.h"
 #include "qquick3dprincipledmaterial_p.h"
 #include "qquick3dcustommaterial_p.h"
+#include "qquick3dspecularglossymaterial_p.h"
 #include <QtQuick3DRuntimeRender/private/qssgrenderlayer_p.h>
 
 #include <qsgtextureprovider.h>
@@ -53,6 +28,8 @@
 #include <QtQml>
 
 #include <QtGui/private/qeventpoint_p.h>
+
+#include <QtCore/private/qnumeric_p.h>
 
 QT_BEGIN_NAMESPACE
 
@@ -174,7 +151,7 @@ QQuick3DViewport::QQuick3DViewport(QQuickItem *parent)
     m_sceneRoot = new QQuick3DSceneRootNode(this);
     m_environment = new QQuick3DSceneEnvironment(m_sceneRoot);
     m_renderStats = new QQuick3DRenderStats();
-    QQuick3DSceneManager *sceneManager = new QQuick3DSceneManager(m_sceneRoot);
+    QQuick3DSceneManager *sceneManager = new QQuick3DSceneManager();
     QQuick3DObjectPrivate::get(m_sceneRoot)->refSceneManager(*sceneManager);
     Q_ASSERT(sceneManager == QQuick3DObjectPrivate::get(m_sceneRoot)->sceneManager);
     connect(sceneManager, &QQuick3DSceneManager::needsUpdate,
@@ -189,7 +166,12 @@ QQuick3DViewport::QQuick3DViewport(QQuickItem *parent)
 
 QQuick3DViewport::~QQuick3DViewport()
 {
-    for (const auto &connection : qAsConst(m_connections))
+    // If the quick window still exists, make sure to disconnect any of the direct
+    // connections to this View3D
+    if (auto qw = window())
+        disconnect(qw, nullptr, this, nullptr);
+
+    for (const auto &connection : std::as_const(m_connections))
         disconnect(connection);
     auto sceneManager = QQuick3DObjectPrivate::get(m_sceneRoot)->sceneManager;
     if (sceneManager)
@@ -363,6 +345,32 @@ QQuick3DViewport::RenderMode QQuick3DViewport::renderMode() const
 }
 
 /*!
+    \qmlproperty enumeration QtQuick3D::View3D::renderFormat
+    \since 6.4
+
+    This property determines the backing texture's format. Applicable only when
+    the View3D is rendering to a texture, for example because the \l renderMode
+    is \c{View3D.Offscreen}.
+
+    The default is \c{ShaderEffectSource.RGBA8}.
+
+    If the format is not supported by the underlying graphics driver at run
+    time, RGBA8 is used.
+
+    \list
+    \li ShaderEffectSource.RGBA8
+    \li ShaderEffectSource.RGBA16F
+    \li ShaderEffectSource.RGBA32F
+    \endlist
+
+    \sa QtQuick::ShaderEffectSource::format, QtQuick::Item::layer.format
+ */
+QQuickShaderEffectSource::Format QQuick3DViewport::renderFormat() const
+{
+    return m_renderFormat;
+}
+
+/*!
     \qmlproperty QtQuick3D::RenderStats QtQuick3D::View3D::renderStats
     \readonly
 
@@ -408,7 +416,7 @@ QQuick3DSceneRenderer *QQuick3DViewport::createRenderer() const
                 renderer = new QQuick3DSceneRenderer(rci);
             }
 
-            QObject::connect(qw, &QQuickWindow::afterFrameEnd, this, &QQuick3DViewport::cleanupResources);
+            QObject::connect(qw, &QQuickWindow::afterFrameEnd, this, &QQuick3DViewport::cleanupResources, Qt::DirectConnection);
         }
     }
 
@@ -567,7 +575,7 @@ QSGNode *QQuick3DViewport::updatePaintNode(QSGNode *node, QQuickItem::UpdatePain
         // { visible: false; layer.enabled: true } item still needs
         // to function normally.
         if (checkIsVisible() && isComponentComplete()) {
-            n->renderer->synchronize(this, targetSize, window()->effectiveDevicePixelRatio(), false);
+            n->renderer->synchronize(this, targetSize, window()->effectiveDevicePixelRatio());
             updateDynamicTextures();
             n->markDirty(QSGNode::DirtyMaterial);
         }
@@ -589,6 +597,8 @@ void QQuick3DViewport::itemChange(QQuickItem::ItemChange change, const QQuickIte
             if (m_importScene)
                 QQuick3DObjectPrivate::get(m_importScene)->sceneManager->setWindow(value.window);
         }
+    } else if (change == ItemVisibleHasChanged && isVisible()) {
+        update();
     }
 }
 
@@ -692,6 +702,17 @@ void QQuick3DViewport::setRenderMode(QQuick3DViewport::RenderMode renderMode)
     m_renderMode = renderMode;
     m_renderModeDirty = true;
     emit renderModeChanged();
+    update();
+}
+
+void QQuick3DViewport::setRenderFormat(QQuickShaderEffectSource::Format format)
+{
+    if (m_renderFormat == format)
+        return;
+
+    m_renderFormat = format;
+    m_renderModeDirty = true;
+    emit renderFormatChanged();
     update();
 }
 
@@ -932,14 +953,14 @@ void QQuick3DViewport::updateDynamicTextures()
     // Must be called on the render thread.
 
     const auto &sceneManager = QQuick3DObjectPrivate::get(m_sceneRoot)->sceneManager;
-    for (auto *texture : qAsConst(sceneManager->qsgDynamicTextures))
+    for (auto *texture : std::as_const(sceneManager->qsgDynamicTextures))
         texture->updateTexture();
 
     QQuick3DNode *scene = m_importScene;
     while (scene) {
         const auto &importSm = QQuick3DObjectPrivate::get(scene)->sceneManager;
         if (importSm != sceneManager) {
-            for (auto *texture : qAsConst(importSm->qsgDynamicTextures))
+            for (auto *texture : std::as_const(importSm->qsgDynamicTextures))
                 texture->updateTexture();
         }
 
@@ -962,7 +983,7 @@ void QQuick3DViewport::setupDirectRenderer(RenderMode mode)
     m_directRenderer->setViewport(QRectF(window()->effectiveDevicePixelRatio() * mapToScene(QPointF(0, 0)), targetSize));
     m_directRenderer->setVisibility(isVisible());
     if (isVisible()) {
-        m_directRenderer->renderer()->synchronize(this, targetSize.toSize(), window()->effectiveDevicePixelRatio(), false);
+        m_directRenderer->renderer()->synchronize(this, targetSize.toSize(), window()->effectiveDevicePixelRatio());
         updateDynamicTextures();
         m_directRenderer->requestRender();
     }
@@ -1010,7 +1031,7 @@ bool QQuick3DViewport::internalPick(QPointerEvent *event, const QVector3D &origi
                 pickResults = renderer->syncPickAll(rayResult.getValue());
         }
         if (!isHover)
-            qCDebug(lcPick) << pickResults.count() << "pick results for" << event->point(pointIndex);
+            qCDebug(lcPick) << pickResults.size() << "pick results for" << event->point(pointIndex);
         if (pickResults.isEmpty()) {
             eventPoint.setAccepted(false); // let it fall through the viewport to Items underneath
             continue; // next eventPoint
@@ -1054,8 +1075,8 @@ bool QQuick3DViewport::internalPick(QPointerEvent *event, const QVector3D &origi
                 int materialSubset = pickResult.m_subset;
                 const auto backendModel = static_cast<const QSSGRenderModel *>(backendObject);
                 // Get material
-                if (backendModel->materials.count() < (pickResult.m_subset + 1))
-                    materialSubset = backendModel->materials.count() - 1;
+                if (backendModel->materials.size() < (pickResult.m_subset + 1))
+                    materialSubset = backendModel->materials.size() - 1;
                 if (materialSubset < 0)
                     continue;
                 const auto backendMaterial = backendModel->materials.at(materialSubset);
@@ -1081,15 +1102,26 @@ bool QQuick3DViewport::internalPick(QPointerEvent *event, const QVector3D &origi
                         if (principledMaterial->baseColorMap() && principledMaterial->baseColorMap()->sourceItem())
                             subsceneRootItem = principledMaterial->baseColorMap()->sourceItem();
                     }
+                } else if (frontendMaterialPrivate->type == QQuick3DObjectPrivate::Type::SpecularGlossyMaterial) {
+                    // SpecularGlossy Material
+                    const auto specularGlossyMaterial = qobject_cast<QQuick3DSpecularGlossyMaterial *>(frontendMaterial);
+                    if (specularGlossyMaterial) {
+                        // Just check for a albedoMap for now
+                        if (specularGlossyMaterial->albedoMap() && specularGlossyMaterial->albedoMap()->sourceItem())
+                            subsceneRootItem = specularGlossyMaterial->albedoMap()->sourceItem();
+                    }
                 } else if (frontendMaterialPrivate->type == QQuick3DObjectPrivate::Type::CustomMaterial) {
                     // Custom Material
                     const auto customMaterial = qobject_cast<QQuick3DCustomMaterial *>(frontendMaterial);
                     if (customMaterial) {
                         // This case is a bit harder because we can not know how the textures will be used
-                        for (const auto texture : customMaterial->dynamicTextureMaps()) {
-                            if (texture->sourceItem()) {
-                                subsceneRootItem = texture->sourceItem();
-                                break;
+                        const auto &texturesInputs = customMaterial->m_dynamicTextureMaps;
+                        for (const auto &textureInput : texturesInputs) {
+                            if (auto texture = textureInput->texture()) {
+                                if (texture->sourceItem()) {
+                                    subsceneRootItem = texture->sourceItem();
+                                    break;
+                                }
                             }
                         }
                     }
@@ -1109,10 +1141,8 @@ bool QQuick3DViewport::internalPick(QPointerEvent *event, const QVector3D &origi
                 subscene.obj = frontendObject;
                 if (subscene.eventPointScenePositions.size() != event->pointCount()) {
                     // ensure capacity, and use an out-of-scene position rather than 0,0 by default
-                    // (if only QVarLengthArray.resize() would take an optional prototype argument...)
-                    subscene.eventPointScenePositions.resize(event->pointCount());
-                    for (auto &pt : subscene.eventPointScenePositions)
-                        pt = QPointF(-qInf(), -qInf());
+                    constexpr QPointF inf(-qt_inf(), -qt_inf());
+                    subscene.eventPointScenePositions.resize(event->pointCount(), inf);
                 }
                 subscene.eventPointScenePositions[pointIndex] = subscenePosition;
             }
@@ -1140,7 +1170,7 @@ bool QQuick3DViewport::internalPick(QPointerEvent *event, const QVector3D &origi
     for (auto subscene : visitedSubscenes) {
         QQuickItem *subsceneRoot = subscene.first;
         auto &subsceneInfo = subscene.second;
-        Q_ASSERT(subsceneInfo.eventPointScenePositions.count() == event->pointCount());
+        Q_ASSERT(subsceneInfo.eventPointScenePositions.size() == event->pointCount());
         auto da = QQuickItemPrivate::get(subsceneRoot)->deliveryAgent();
         if (!isHover)
             qCDebug(lcPick) << "delivering to" << subsceneRoot << "via" << da << event;
@@ -1151,9 +1181,9 @@ bool QQuick3DViewport::internalPick(QPointerEvent *event, const QVector3D &origi
             // and Qt Quick expects it to arrive that way: then QQuickDeliveryAgentPrivate::translateTouchEvent()
             // copies it into the scene position before localizing.
             // That might be silly, we might change it eventually, but gotta stay consistent for now.
-            QMutableEventPoint &mut = QMutableEventPoint::from(event->point(pointIndex));
-            mut.setPosition(pt);
-            mut.setScenePosition(pt);
+            QEventPoint &ep = event->point(pointIndex);
+            QMutableEventPoint::setPosition(ep, pt);
+            QMutableEventPoint::setScenePosition(ep, pt);
         }
 
         if (event->isBeginEvent())
@@ -1185,7 +1215,7 @@ bool QQuick3DViewport::internalPick(QPointerEvent *event, const QVector3D &origi
         event->setAccepted(false);
     } else {
         for (int pointIndex = 0; pointIndex < event->pointCount(); ++pointIndex)
-            QMutableEventPoint::from(event->point(pointIndex)).setScenePosition(originalScenePositions.at(pointIndex));
+            QMutableEventPoint::setScenePosition(event->point(pointIndex), originalScenePositions.at(pointIndex));
     }
     return ret;
 }

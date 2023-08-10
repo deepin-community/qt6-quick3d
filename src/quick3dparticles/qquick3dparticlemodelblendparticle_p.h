@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2021 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2021 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #ifndef QQUICK3DMODELBLENDPARTICLE_H
 #define QQUICK3DMODELBLENDPARTICLE_H
@@ -62,7 +36,7 @@ class Q_QUICK3DPARTICLES_EXPORT QQuick3DParticleModelBlendParticle : public QQui
     Q_PROPERTY(ModelBlendMode modelBlendMode READ modelBlendMode WRITE setModelBlendMode NOTIFY modelBlendModeChanged)
     Q_PROPERTY(int endTime READ endTime WRITE setEndTime NOTIFY endTimeChanged)
     Q_PROPERTY(QQuick3DNode *activationNode READ activationNode WRITE setActivationNode NOTIFY activationNodeChanged)
-    Q_PROPERTY(bool random READ random WRITE setRandom NOTIFY randomChanged)
+    Q_PROPERTY(ModelBlendEmitMode emitMode READ emitMode WRITE setEmitMode NOTIFY emitModeChanged)
     QML_NAMED_ELEMENT(ModelBlendParticle3D)
     QML_ADDED_IN_VERSION(6, 2)
 
@@ -78,12 +52,20 @@ public:
     };
     Q_ENUM(ModelBlendMode)
 
+    enum ModelBlendEmitMode
+    {
+        Sequential,
+        Random,
+        Activation
+    };
+    Q_ENUM(ModelBlendEmitMode)
+
     QQmlComponent *delegate() const;
     QQuick3DNode *endNode() const;
     ModelBlendMode modelBlendMode() const;
     int endTime() const;
     QQuick3DNode *activationNode() const;
-    bool random() const;
+    ModelBlendEmitMode emitMode() const;
 
 public Q_SLOTS:
     void setDelegate(QQmlComponent *setDelegate);
@@ -91,7 +73,7 @@ public Q_SLOTS:
     void setEndTime(int endTime);
     void setModelBlendMode(ModelBlendMode mode);
     void setActivationNode(QQuick3DNode *activationNode);
-    void setRandom(bool random);
+    void setEmitMode(ModelBlendEmitMode emitMode);
 
 Q_SIGNALS:
     void delegateChanged();
@@ -100,7 +82,7 @@ Q_SIGNALS:
     void modelBlendModeChanged();
     void endTimeChanged();
     void activationNodeChanged();
-    void randomChanged();
+    void emitModeChanged();
 
 protected:
     void itemChange(ItemChange, const ItemChangeData &) override;
@@ -147,7 +129,7 @@ private:
     };
 
     QSSGRenderGraphObject *updateSpatialNode(QSSGRenderGraphObject *node) override;
-    void updateParticleBuffer(QSSGParticleBuffer *buffer);
+    void updateParticleBuffer(QSSGParticleBuffer *buffer, const QMatrix4x4 &sceneTransform);
     void regenerate();
     void updateParticles();
     void handleEndNodeChanged();
@@ -173,8 +155,9 @@ private:
     ModelBlendMode m_modelBlendMode = Explode;
     int m_endTime = 0;
     bool m_dataChanged = true;
-    bool m_random = false;
+    ModelBlendEmitMode m_emitMode = Sequential;
     QQuick3DNode *m_activationNode = nullptr;
+    float m_maxTriangleRadius = 0.f;
 };
 
 QT_END_NAMESPACE
