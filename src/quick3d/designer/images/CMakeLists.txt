@@ -10,6 +10,9 @@ qt_copy_or_install(
         cube.png
         cube16.png
         cube@2x.png
+        cubemaptexture.png
+        cubemaptexture16.png
+        cubemaptexture@2x.png
         custommaterial.png
         custommaterial16.png
         custommaterial@2x.png
@@ -59,6 +62,9 @@ qt_copy_or_install(
         plane.png
         plane16.png
         plane@2x.png
+        reflectionProbe.png
+        reflectionProbe16.png
+        reflectionProbe@2x.png
         repeater3d.png
         repeater3d16.png
         repeater3d@2x.png

@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2021 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2021 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qquick3dparticlespriteparticle_p.h"
 #include "qquick3dparticleemitter_p.h"
@@ -33,7 +7,6 @@
 #include <QtQuick3D/private/qquick3dobject_p.h>
 
 #include <QtQuick3DUtils/private/qssgutils_p.h>
-#include <QtQuick3DRuntimeRender/private/qssgrenderparticles_p.h>
 
 QT_BEGIN_NAMESPACE
 
@@ -66,17 +39,21 @@ QQuick3DParticleSpriteParticle::~QQuick3DParticleSpriteParticle()
 {
     if (m_spriteSequence)
         m_spriteSequence->m_parentParticle = nullptr;
-    for (const auto &connection : qAsConst(m_connections))
+    for (const auto &connection : std::as_const(m_connections))
         QObject::disconnect(connection);
     deleteNodes();
+
+    auto lightList = lights();
+    qmlClearLights(&lightList);
 }
 
 void QQuick3DParticleSpriteParticle::deleteNodes()
 {
-    for (PerEmitterData &value : m_perEmitterData) {
-        value.particleUpdateNode->m_spriteParticle = nullptr;
+    for (const PerEmitterData &value : std::as_const(m_perEmitterData)) {
+        value.particleUpdateNode->m_particle = nullptr;
         delete value.particleUpdateNode;
     }
+    m_perEmitterData.clear();
 }
 
 /*!
@@ -187,6 +164,60 @@ QQuick3DTexture *QQuick3DParticleSpriteParticle::colorTable() const
     return m_colorTable;
 }
 
+/*!
+    \qmlproperty list<Light> SpriteParticle3D::lights
+    \since 6.3
+
+    This property contains a list of \l [QtQuick3D QML] {Light}{lights} used
+    for rendering the particles.
+    \note For optimal performance, define lights only if they are needed and keep
+    the amount of lights at minimum.
+*/
+
+QQmlListProperty<QQuick3DAbstractLight> QQuick3DParticleSpriteParticle::lights()
+{
+    return QQmlListProperty<QQuick3DAbstractLight>(this,
+                                            nullptr,
+                                            QQuick3DParticleSpriteParticle::qmlAppendLight,
+                                            QQuick3DParticleSpriteParticle::qmlLightsCount,
+                                            QQuick3DParticleSpriteParticle::qmlLightAt,
+                                            QQuick3DParticleSpriteParticle::qmlClearLights);
+}
+
+/*!
+    \qmlproperty float SpriteParticle3D::offsetX
+    \since 6.3
+
+    This property defines the particles offset in the X axis
+*/
+float QQuick3DParticleSpriteParticle::offsetX() const
+{
+    return m_offset.x();
+}
+
+/*!
+    \qmlproperty float SpriteParticle3D::offsetY
+    \since 6.3
+
+    This property defines the particles offset in the Y axis
+*/
+float QQuick3DParticleSpriteParticle::offsetY() const
+{
+    return m_offset.y();
+}
+
+/*!
+    \qmlproperty bool SpriteParticle3D::castsReflections
+    \since 6.4
+
+    When this property is set to \c true, the sprite is rendered by reflection probes and can be
+    seen in the reflections.
+*/
+bool QQuick3DParticleSpriteParticle::castsReflections() const
+{
+    return m_castsReflections;
+}
+
 void QQuick3DParticleSpriteParticle::setBlendMode(BlendMode blendMode)
 {
     if (m_blendMode == blendMode)
@@ -260,6 +291,32 @@ void QQuick3DParticleSpriteParticle::setColorTable(QQuick3DTexture *colorTable)
     Q_EMIT colorTableChanged();
 }
 
+void QQuick3DParticleSpriteParticle::setOffsetX(float value)
+{
+    if (qFuzzyCompare(value, m_offset.x()))
+        return;
+
+    m_offset.setX(value);
+    emit offsetXChanged();
+}
+
+void QQuick3DParticleSpriteParticle::setOffsetY(float value)
+{
+    if (qFuzzyCompare(value, m_offset.y()))
+        return;
+
+    m_offset.setY(value);
+    emit offsetYChanged();
+}
+
+void QQuick3DParticleSpriteParticle::setCastsReflections(bool castsReflections)
+{
+    if (m_castsReflections == castsReflections)
+        return;
+    m_castsReflections = castsReflections;
+    emit castsReflectionsChanged();
+}
+
 void QQuick3DParticleSpriteParticle::itemChange(QQuick3DObject::ItemChange change,
                                           const QQuick3DObject::ItemChangeData &value)
 {
@@ -282,7 +339,7 @@ static QSSGRenderParticles::BlendMode mapBlendMode(QQuick3DParticleSpriteParticl
     }
 }
 
-static QSSGRenderParticles::FeatureLevel mapFeatureLevel(QQuick3DParticleSpriteParticle::FeatureLevel level)
+QSSGRenderParticles::FeatureLevel QQuick3DParticleSpriteParticle::mapFeatureLevel(QQuick3DParticleSpriteParticle::FeatureLevel level)
 {
     switch (level) {
     case QQuick3DParticleSpriteParticle::Simple:
@@ -291,6 +348,12 @@ static QSSGRenderParticles::FeatureLevel mapFeatureLevel(QQuick3DParticleSpriteP
         return QSSGRenderParticles::FeatureLevel::Mapped;
     case QQuick3DParticleSpriteParticle::Animated:
         return QSSGRenderParticles::FeatureLevel::Animated;
+    case QQuick3DParticleSpriteParticle::SimpleVLight:
+        return QSSGRenderParticles::FeatureLevel::SimpleVLight;
+    case QQuick3DParticleSpriteParticle::MappedVLight:
+        return QSSGRenderParticles::FeatureLevel::MappedVLight;
+    case QQuick3DParticleSpriteParticle::AnimatedVLight:
+        return QSSGRenderParticles::FeatureLevel::AnimatedVLight;
     default:
         Q_ASSERT(false);
         return QSSGRenderParticles::FeatureLevel::Simple;
@@ -299,15 +362,23 @@ static QSSGRenderParticles::FeatureLevel mapFeatureLevel(QQuick3DParticleSpriteP
 
 QSSGRenderGraphObject *QQuick3DParticleSpriteParticle::ParticleUpdateNode::updateSpatialNode(QSSGRenderGraphObject *node)
 {
-    if (m_spriteParticle) {
-        node = m_spriteParticle->updateParticleNode(this, node);
+    if (m_particle) {
+        node = m_particle->updateParticleNode(this, node);
         QQuick3DNode::updateSpatialNode(node);
+
+        auto particles = static_cast<QSSGRenderParticles *>(node);
+
+        if (m_particle->m_featureLevel == QQuick3DParticleSpriteParticle::Animated || m_particle->m_featureLevel == QQuick3DParticleSpriteParticle::AnimatedVLight)
+            m_particle->updateAnimatedParticleBuffer(this, particles);
+        else
+            m_particle->updateParticleBuffer(this, particles);
+
         m_nodeDirty = false;
     }
     return node;
 }
 
-QQuick3DParticleSpriteParticle::PerEmitterData &QQuick3DParticleSpriteParticle::perEmitterData(const ParticleUpdateNode *updateNode)
+QQuick3DParticleSpriteParticle::PerEmitterData &QQuick3DParticleSpriteParticle::perEmitterData(const QQuick3DNode *updateNode)
 {
     for (auto &perEmitter : m_perEmitterData) {
         if (perEmitter.particleUpdateNode == updateNode)
@@ -334,12 +405,7 @@ QSSGRenderGraphObject *QQuick3DParticleSpriteParticle::updateParticleNode(const 
     }
 
     auto particles = static_cast<QSSGRenderParticles *>(node);
-
     const auto &perEmitter = perEmitterData(updateNode);
-    if (m_featureLevel == QQuick3DParticleSpriteParticle::Animated)
-        updateAnimatedParticleBuffer(perEmitter, particles);
-    else
-        updateParticleBuffer(perEmitter, particles);
 
     if (!updateNode->m_nodeDirty)
         return particles;
@@ -367,12 +433,23 @@ QSSGRenderGraphObject *QQuick3DParticleSpriteParticle::updateParticleNode(const 
     else
         particles->m_colorTable = nullptr;
 
+    if (!m_lights.isEmpty()) {
+        // Matches to QSSGRenderParticles lights
+        QVarLengthArray<QSSGRenderLight *, 4> lightNodes;
+        for (auto light : std::as_const(m_lights)) {
+            auto lightPrivate = QQuick3DObjectPrivate::get(light);
+            auto lightNode  = static_cast<QSSGRenderLight *>(lightPrivate->spatialNode);
+            lightNodes.append(lightNode);
+        }
+        particles->m_lights = lightNodes;
+    }
+
     particles->m_blendMode = mapBlendMode(m_blendMode);
-    particles->m_diffuseColor = color::sRGBToLinear(color());
     particles->m_billboard = m_billboard;
     particles->m_depthBias = perEmitter.emitter->depthBias();
     particles->m_featureLevel = mapFeatureLevel(m_featureLevel);
     particles->m_depthSorting = sortMode() == QQuick3DParticle::SortDistance;
+    particles->m_castsReflections = m_castsReflections;
 
     return particles;
 }
@@ -382,9 +459,9 @@ void QQuick3DParticleSpriteParticle::handleMaxAmountChanged(int amount)
     if (m_particleData.size() == amount)
         return;
 
-    reset();
     m_particleData.resize(amount);
     m_spriteParticleData.resize(amount);
+    reset();
 }
 
 void QQuick3DParticleSpriteParticle::handleSystemChanged(QQuick3DParticleSystem *system)
@@ -392,30 +469,37 @@ void QQuick3DParticleSpriteParticle::handleSystemChanged(QQuick3DParticleSystem 
     for (PerEmitterData &value : m_perEmitterData) {
         delete value.particleUpdateNode;
         value.particleUpdateNode = new ParticleUpdateNode(system);
-        value.particleUpdateNode->m_spriteParticle = this;
+        value.particleUpdateNode->m_particle = this;
     }
 }
 
 void QQuick3DParticleSpriteParticle::updateNodes()
 {
-    for (const PerEmitterData &value : qAsConst(m_perEmitterData))
+    for (const PerEmitterData &value : std::as_const(m_perEmitterData))
         value.particleUpdateNode->update();
 }
 
 void QQuick3DParticleSpriteParticle::markNodesDirty()
 {
-    for (const PerEmitterData &value : qAsConst(m_perEmitterData))
+    for (const PerEmitterData &value : std::as_const(m_perEmitterData))
         value.particleUpdateNode->m_nodeDirty = true;
 }
 
 void QQuick3DParticleSpriteParticle::updateFeatureLevel()
 {
     FeatureLevel featureLevel = FeatureLevel::Simple;
-    if (m_colorTable)
-        featureLevel = FeatureLevel::Mapped;
-    if (m_spriteSequence)
-        featureLevel = FeatureLevel::Animated;
-
+    if (m_lights.isEmpty()) {
+        if (m_colorTable)
+            featureLevel = FeatureLevel::Mapped;
+        if (m_spriteSequence)
+            featureLevel = FeatureLevel::Animated;
+    } else {
+        featureLevel = FeatureLevel::SimpleVLight;
+        if (m_colorTable)
+            featureLevel = FeatureLevel::MappedVLight;
+        if (m_spriteSequence)
+            featureLevel = FeatureLevel::AnimatedVLight;
+    }
     if (featureLevel != m_featureLevel)
         m_featureLevel = featureLevel;
 }
@@ -433,11 +517,10 @@ void QQuick3DParticleSpriteParticle::reset()
     QQuick3DParticle::reset();
     deleteNodes();
     m_nextEmitterIndex = 0;
-    m_perEmitterData.clear();
     m_spriteParticleData.fill({});
 }
 
-void QQuick3DParticleSpriteParticle::commitParticles()
+void QQuick3DParticleSpriteParticle::commitParticles(float)
 {
     markAllDirty();
     update();
@@ -451,7 +534,7 @@ int QQuick3DParticleSpriteParticle::nextCurrentIndex(const QQuick3DParticleEmitt
         auto &perEmitter = m_perEmitterData[emitter];
         perEmitter.particleUpdateNode = new ParticleUpdateNode(system());
         perEmitter.emitter = emitter;
-        perEmitter.particleUpdateNode->m_spriteParticle = this;
+        perEmitter.particleUpdateNode->m_particle = this;
         perEmitter.emitterIndex = m_nextEmitterIndex++;
     }
     auto &perEmitter = m_perEmitterData[emitter];
@@ -476,8 +559,16 @@ void QQuick3DParticleSpriteParticle::setParticleData(int particleIndex,
     dst = {position, rotation, color, size, age, animationFrame, dst.emitterIndex};
 }
 
-void QQuick3DParticleSpriteParticle::updateParticleBuffer(const PerEmitterData &perEmitter, QSSGRenderGraphObject *spatialNode)
+void QQuick3DParticleSpriteParticle::resetParticleData(int particleIndex)
 {
+    auto &dst = m_spriteParticleData[particleIndex];
+    if (dst.size > 0.0f)
+        dst = {{}, {}, {}, 0.0f, 0.0f, -1.0f, dst.emitterIndex};
+}
+
+void QQuick3DParticleSpriteParticle::updateParticleBuffer(ParticleUpdateNode *updateNode, QSSGRenderGraphObject *spatialNode)
+{
+    const auto &perEmitter = perEmitterData(updateNode);
     const auto &particles = m_spriteParticleData;
     QSSGRenderParticles *node = static_cast<QSSGRenderParticles *>(spatialNode);
     if (!node)
@@ -547,8 +638,9 @@ void QQuick3DParticleSpriteParticle::updateParticleBuffer(const PerEmitterData &
     node->m_particleBuffer.setBounds(bounds);
 }
 
-void QQuick3DParticleSpriteParticle::updateAnimatedParticleBuffer(const PerEmitterData &perEmitter, QSSGRenderGraphObject *spatialNode)
+void QQuick3DParticleSpriteParticle::updateAnimatedParticleBuffer(ParticleUpdateNode *updateNode, QSSGRenderGraphObject *spatialNode)
 {
+    const auto &perEmitter = perEmitterData(updateNode);
     const auto &particles = m_spriteParticleData;
     QSSGRenderParticles *node = static_cast<QSSGRenderParticles *>(spatialNode);
     if (!node)
@@ -630,6 +722,67 @@ void QQuick3DParticleSpriteParticle::updateSceneManager(QQuick3DSceneManager *sc
         QQuick3DObjectPrivate::derefSceneManager(m_sprite);
         QQuick3DObjectPrivate::derefSceneManager(m_colorTable);
     }
+}
+
+// Lights
+void QQuick3DParticleSpriteParticle::onLightDestroyed(QObject *object)
+{
+    bool found = false;
+    for (int i = 0; i < m_lights.size(); ++i) {
+        if (m_lights[i] == object) {
+            m_lights.removeAt(i--);
+            found = true;
+        }
+    }
+    if (found) {
+        updateFeatureLevel();
+        markNodesDirty();
+    }
+}
+
+void QQuick3DParticleSpriteParticle::qmlAppendLight(QQmlListProperty<QQuick3DAbstractLight> *list, QQuick3DAbstractLight *light)
+{
+    if (!light)
+        return;
+
+    // Light must be id of an existing View3D light and not inline light element
+    if (light->parentItem()) {
+        QQuick3DParticleSpriteParticle *self = static_cast<QQuick3DParticleSpriteParticle *>(list->object);
+        self->m_lights.push_back(light);
+        self->updateFeatureLevel();
+        self->markNodesDirty();
+        // Make sure ligths are removed when destroyed
+        connect(light, &QQuick3DParticleSpriteParticle::destroyed, self, &QQuick3DParticleSpriteParticle::onLightDestroyed);
+    }
+}
+
+QQuick3DAbstractLight *QQuick3DParticleSpriteParticle::qmlLightAt(QQmlListProperty<QQuick3DAbstractLight> *list, qsizetype index)
+{
+    QQuick3DParticleSpriteParticle *self = static_cast<QQuick3DParticleSpriteParticle *>(list->object);
+    if (index >= self->m_lights.size()) {
+        qWarning("The index exceeds the range of valid light targets.");
+        return nullptr;
+    }
+    return self->m_lights.at(index);
+}
+
+qsizetype QQuick3DParticleSpriteParticle::qmlLightsCount(QQmlListProperty<QQuick3DAbstractLight> *list)
+{
+    QQuick3DParticleSpriteParticle *self = static_cast<QQuick3DParticleSpriteParticle *>(list->object);
+    return self->m_lights.size();
+}
+
+void QQuick3DParticleSpriteParticle::qmlClearLights(QQmlListProperty<QQuick3DAbstractLight> *list)
+{
+    QQuick3DParticleSpriteParticle *self = static_cast<QQuick3DParticleSpriteParticle *>(list->object);
+    for (const auto &light : std::as_const(self->m_lights)) {
+        if (light->parentItem() == nullptr)
+            QQuick3DObjectPrivate::get(light)->derefSceneManager();
+        light->disconnect(self, SLOT(onLightDestroyed(QObject*)));
+    }
+    self->m_lights.clear();
+    self->updateFeatureLevel();
+    self->markNodesDirty();
 }
 
 QT_END_NAMESPACE

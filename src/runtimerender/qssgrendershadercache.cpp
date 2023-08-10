@@ -1,36 +1,11 @@
-/****************************************************************************
-**
-** Copyright (C) 2008-2012 NVIDIA Corporation.
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2008-2012 NVIDIA Corporation.
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qssgrendershadercache_p.h"
 
 #include <QtQuick3DUtils/private/qssgutils_p.h>
+#include <QtQuick3DUtils/private/qquick3dprofiler_p.h>
 
 #include <QtQuick3DRuntimeRender/private/qssgruntimerenderlogging_p.h>
 
@@ -41,13 +16,21 @@
 #include <QtGui/qsurfaceformat.h>
 #if QT_CONFIG(opengl)
 # include <QtGui/qopenglcontext.h>
+# include <QtGui/private/qrhigles2_p.h>
 #endif
 
 #ifdef QT_QUICK3D_HAS_RUNTIME_SHADERS
 #include <QtShaderTools/private/qshaderbaker_p.h>
 #endif
 
+#include <QtCore/qmutex.h>
+
 QT_BEGIN_NAMESPACE
+
+static QtQuick3DEditorHelpers::ShaderBaker::StatusCallback s_statusCallback = nullptr;
+Q_GLOBAL_STATIC(QMutex, s_statusMutex);
+
+size_t qHash(QSSGShaderFeatures features) noexcept { return (features.flags & (~QSSGShaderFeatures::IndexMask)); }
 
 static QString dumpFilename(QShader::Stage stage)
 {
@@ -63,48 +46,54 @@ static QString dumpFilename(QShader::Stage stage)
     }
 }
 
-static const char *defineTable[QSSGShaderDefines::Count] {
-    "QSSG_ENABLE_LIGHT_PROBE",
-    "QSSG_ENABLE_IBL_ORIENTATION",
-    "QSSG_ENABLE_SSM",
-    "QSSG_ENABLE_SSAO",
-    "QSSG_ENABLE_DEPTH_PASS",
-    "QSSG_ENABLE_ORTHO_SHADOW_PASS",
-    "QSSG_ENABLE_CUBE_SHADOW_PASS",
-    "QSSG_ENABLE_LINEAR_TONEMAPPING",
-    "QSSG_ENABLE_ACES_TONEMAPPING",
-    "QSSG_ENABLE_HEJLDAWSON_TONEMAPPING",
-    "QSSG_ENABLE_FILMIC_TONEMAPPING",
-    "QSSG_ENABLE_RGBE_LIGHT_PROBE",
-    "QSSG_ENABLE_OPAQUE_DEPTH_PRE_PASS",
-    "QSSG_REDUCE_MAX_NUM_LIGHTS"
+struct DefineEntry
+{
+    const char *name = nullptr;
+    QSSGShaderFeatures::Feature feature {};
 };
 
-const char *QSSGShaderDefines::asString(QSSGShaderDefines::Define def) { return defineTable[def]; }
+static constexpr DefineEntry DefineTable[] {
+    { "QSSG_ENABLE_LIGHT_PROBE", QSSGShaderFeatures::Feature::LightProbe },
+    { "QSSG_ENABLE_IBL_ORIENTATION", QSSGShaderFeatures::Feature::IblOrientation },
+    { "QSSG_ENABLE_SSM", QSSGShaderFeatures::Feature::Ssm },
+    { "QSSG_ENABLE_SSAO", QSSGShaderFeatures::Feature::Ssao },
+    { "QSSG_ENABLE_DEPTH_PASS", QSSGShaderFeatures::Feature::DepthPass },
+    { "QSSG_ENABLE_ORTHO_SHADOW_PASS", QSSGShaderFeatures::Feature::OrthoShadowPass },
+    { "QSSG_ENABLE_CUBE_SHADOW_PASS", QSSGShaderFeatures::Feature::CubeShadowPass },
+    { "QSSG_ENABLE_LINEAR_TONEMAPPING", QSSGShaderFeatures::Feature::LinearTonemapping },
+    { "QSSG_ENABLE_ACES_TONEMAPPING", QSSGShaderFeatures::Feature::AcesTonemapping },
+    { "QSSG_ENABLE_HEJLDAWSON_TONEMAPPING", QSSGShaderFeatures::Feature::HejlDawsonTonemapping },
+    { "QSSG_ENABLE_FILMIC_TONEMAPPING", QSSGShaderFeatures::Feature::FilmicTonemapping },
+    { "QSSG_ENABLE_RGBE_LIGHT_PROBE", QSSGShaderFeatures::Feature::RGBELightProbe },
+    { "QSSG_ENABLE_OPAQUE_DEPTH_PRE_PASS", QSSGShaderFeatures::Feature::OpaqueDepthPrePass },
+    { "QSSG_ENABLE_REFLECTION_PROBE", QSSGShaderFeatures::Feature::ReflectionProbe },
+    { "QSSG_REDUCE_MAX_NUM_LIGHTS", QSSGShaderFeatures::Feature::ReduceMaxNumLights },
+    { "QSSG_ENABLE_LIGHTMAP", QSSGShaderFeatures::Feature::Lightmap }
+};
+
+static_assert(std::size(DefineTable) == QSSGShaderFeatures::Count, "Missing feature define?");
+
+const char *QSSGShaderFeatures::asDefineString(QSSGShaderFeatures::Feature feature) { return DefineTable[static_cast<FlagType>(feature) & QSSGShaderFeatures::IndexMask].name; }
+QSSGShaderFeatures::Feature QSSGShaderFeatures::fromIndex(quint32 idx) { return DefineTable[idx].feature; }
+
+void QSSGShaderFeatures::set(QSSGShaderFeatures::Feature feature, bool val)
+{
+    if (val)
+        flags |= (static_cast<FlagType>(feature) & ~IndexMask);
+    else
+        flags &= ~(static_cast<FlagType>(feature) & ~IndexMask);
+}
 
 size_t qHash(const QSSGShaderCacheKey &key)
 {
     return key.m_hashCode;
 }
 
-size_t hashShaderFeatureSet(const ShaderFeatureSetList &inFeatureSet)
-{
-    size_t retval(0);
-    for (int idx = 0, end = inFeatureSet.size(); idx < end; ++idx) {
-        // From previous implementation, it seems we need to ignore the order of the features.
-        // But we need to bind the feature flag together with its name, so that the flags will
-        // influence
-        // the final hash not only by the true-value count.
-        retval ^= (qHash(int(inFeatureSet.at(idx).feature)) ^ size_t(inFeatureSet.at(idx).enabled));
-    }
-    return retval;
-}
-
 #ifdef QT_QUICK3D_HAS_RUNTIME_SHADERS
-static void initBaker(QShaderBaker *baker, QRhi::Implementation target)
+static void initBaker(QShaderBaker *baker, QRhi *rhi)
 {
     QVector<QShaderBaker::GeneratedShader> outputs;
-    switch (target) {
+    switch (rhi->backend()) {
     case QRhi::D3D11:
         outputs.append({ QShader::HlslShader, QShaderVersion(50) }); // Shader Model 5.0
         break;
@@ -113,7 +102,12 @@ static void initBaker(QShaderBaker *baker, QRhi::Implementation target)
         break;
     case QRhi::OpenGLES2:
     {
-        const QSurfaceFormat format = QSurfaceFormat::defaultFormat();
+        QSurfaceFormat format = QSurfaceFormat::defaultFormat();
+#if QT_CONFIG(opengl)
+        auto h = static_cast<const QRhiGles2NativeHandles *>(rhi->nativeHandles());
+        if (h && h->context)
+            format = h->context->format();
+#endif
         if (format.profile() == QSurfaceFormat::CoreProfile && format.version() >= qMakePair(3, 3)) {
             outputs.append({ QShader::GlslShader, QShaderVersion(330) }); // OpenGL 3.3+
         } else {
@@ -127,12 +121,24 @@ static void initBaker(QShaderBaker *baker, QRhi::Implementation target)
                 else
                     outputs.append({ QShader::GlslShader, QShaderVersion(100, QShaderVersion::GlslEs) }); // GLES 2.0
             } else {
-                // Default to GLSL 130 (OpenGL 3.0), not 120. The difference is
-                // actually relevant when it comes to certain GLSL features
-                // (textureSize, unsigned integers, and with SPIRV-Cross even
-                // bool), and we do not have to care about pure OpenGL (non-ES)
-                // 2.x implementations in practice.
-                outputs.append({ QShader::GlslShader, QShaderVersion(130) }); // OpenGL 3.0
+                // Need to default to at least GLSL 130 (OpenGL 3.0), not 120.
+                // The difference is actually relevant when it comes to certain
+                // GLSL features (textureSize, unsigned integers, and with
+                // SPIRV-Cross even bool), and we do not have to care about
+                // pure OpenGL (non-ES) 2.x implementations in practice.
+
+                // For full feature set we need GLSL 140 (OpenGL 3.1), e.g.
+                // because of inverse() used for instancing.
+
+                // GLSL 130 should still be attempted, to support old Mesa
+                // llvmpipe that only gives us OpenGL 3.0. At the time of
+                // writing the opengl32sw.dll shipped with pre-built Qt is one
+                // of these still.
+
+                if (format.version() >= qMakePair(3, 1))
+                    outputs.append({ QShader::GlslShader, QShaderVersion(140) }); // OpenGL 3.1+
+                else
+                    outputs.append({ QShader::GlslShader, QShaderVersion(130) }); // OpenGL 3.0+
             }
         }
     }
@@ -146,7 +152,7 @@ static void initBaker(QShaderBaker *baker, QRhi::Implementation target)
     baker->setGeneratedShaderVariants({ QShader::StandardShader });
 }
 #else
-static void initBaker(QShaderBaker *, QRhi::Implementation)
+static void initBaker(QShaderBaker *, QRhi *)
 {
 }
 #endif // QT_QUICK3D_HAS_RUNTIME_SHADERS
@@ -161,7 +167,7 @@ QSSGShaderCache::QSSGShaderCache(const QSSGRef<QSSGRhiContext> &ctx,
 }
 
 QSSGRef<QSSGRhiShaderPipeline> QSSGShaderCache::getRhiShaderPipeline(const QByteArray &inKey,
-                                                                     const ShaderFeatureSetList &inFeatures)
+                                                                     const QSSGShaderFeatures &inFeatures)
 {
     m_tempKey.m_key = inKey;
     m_tempKey.m_features = inFeatures;
@@ -176,7 +182,7 @@ QSSGRef<QSSGRhiShaderPipeline> QSSGShaderCache::getRhiShaderPipeline(const QByte
 void QSSGShaderCache::addShaderPreprocessor(QByteArray &str,
                                             const QByteArray &inKey,
                                             ShaderType shaderType,
-                                            const ShaderFeatureSetList &inFeatures)
+                                            const QSSGShaderFeatures &inFeatures)
 {
     m_insertStr.clear();
 
@@ -193,22 +199,18 @@ void QSSGShaderCache::addShaderPreprocessor(QByteArray &str,
     str.insert(0, m_insertStr);
     QString::size_type insertPos = int(m_insertStr.size());
 
-    bool fragOutputEnabled = shaderType == ShaderType::Fragment;
-    if (inFeatures.size()) {
-        m_insertStr.clear();
-        for (int idx = 0, end = inFeatures.size(); idx < end; ++idx) {
-            QSSGShaderPreprocessorFeature feature(inFeatures[idx]);
-            m_insertStr.append("#define ");
-            m_insertStr.append(inFeatures[idx].name);
-            m_insertStr.append(" ");
-            m_insertStr.append(feature.enabled ? "1" : "0");
-            m_insertStr.append("\n");
-            if (feature.enabled && inFeatures[idx].name == QSSGShaderDefines::asString(QSSGShaderDefines::DepthPass))
-                fragOutputEnabled = false;
-        }
-        str.insert(insertPos, m_insertStr);
-        insertPos += int(m_insertStr.size());
+    m_insertStr.clear();
+    const bool fragOutputEnabled = (!inFeatures.isSet(QSSGShaderFeatures::Feature::DepthPass)) && shaderType == ShaderType::Fragment;
+    for (const auto &def : DefineTable) {
+        m_insertStr.append("#define ");
+        m_insertStr.append(def.name);
+        m_insertStr.append(" ");
+        m_insertStr.append(inFeatures.isSet(def.feature) ? "1" : "0");
+        m_insertStr.append("\n");
     }
+
+    str.insert(insertPos, m_insertStr);
+    insertPos += int(m_insertStr.size());
 
     m_insertStr.clear();
     if (fragOutputEnabled)
@@ -228,7 +230,7 @@ QByteArray QSSGShaderCache::shaderCollectionFile()
 }
 
 QSSGRef<QSSGRhiShaderPipeline> QSSGShaderCache::compileForRhi(const QByteArray &inKey, const QByteArray &inVert, const QByteArray &inFrag,
-                                                              const ShaderFeatureSetList &inFeatures, QSSGRhiShaderPipeline::StageFlags stageFlags)
+                                                              const QSSGShaderFeatures &inFeatures, QSSGRhiShaderPipeline::StageFlags stageFlags)
 {
 #ifdef QT_QUICK3D_HAS_RUNTIME_SHADERS
     const QSSGRef<QSSGRhiShaderPipeline> &rhiShaders = getRhiShaderPipeline(inKey, inFeatures);
@@ -251,12 +253,14 @@ QSSGRef<QSSGRhiShaderPipeline> QSSGShaderCache::compileForRhi(const QByteArray &
     // lo and behold the final shader strings are ready
 
     QSSGRef<QSSGRhiShaderPipeline> shaders;
-    QString err;
+    QString vertErr, fragErr;
 
     QShaderBaker baker;
-    m_initBaker(&baker, m_rhiContext->rhi()->backend());
+    m_initBaker(&baker, m_rhiContext->rhi());
 
-   const bool shaderDebug = QSSGRhiContext::shaderDebuggingEnabled();
+    const bool editorMode = QSSGRhiContext::editorMode();
+    // Shader debug is disabled in editor mode
+    const bool shaderDebug = !editorMode && QSSGRhiContext::shaderDebuggingEnabled();
 
    static auto dumpShader = [](QShader::Stage stage, const QByteArray &code) {
        switch (stage) {
@@ -287,10 +291,12 @@ QSSGRef<QSSGRhiShaderPipeline> QSSGShaderCache::compileForRhi(const QByteArray &
     QShader vertexShader = baker.bake();
     const auto vertShaderValid = vertexShader.isValid();
     if (!vertShaderValid) {
-        err = baker.errorMessage();
-        qWarning("Failed to compile vertex shader:\n");
-        if (!shaderDebug)
-            qWarning() << inKey << '\n' << err;
+        vertErr = baker.errorMessage();
+        if (!editorMode) {
+            qWarning("Failed to compile vertex shader:\n");
+            if (!shaderDebug)
+                qWarning() << inKey << '\n' << vertErr;
+        }
     }
 
     if (shaderDebug) {
@@ -303,10 +309,12 @@ QSSGRef<QSSGRhiShaderPipeline> QSSGShaderCache::compileForRhi(const QByteArray &
     QShader fragmentShader = baker.bake();
     const bool fragShaderValid = fragmentShader.isValid();
     if (!fragShaderValid) {
-        const QString err = baker.errorMessage();
-        qWarning("Failed to compile fragment shader \n");
-        if (!shaderDebug)
-            qWarning() << inKey << '\n' << err;
+        fragErr = baker.errorMessage();
+        if (!editorMode) {
+            qWarning("Failed to compile fragment shader \n");
+            if (!shaderDebug)
+                qWarning() << inKey << '\n' << fragErr;
+        }
     }
 
     if (shaderDebug) {
@@ -321,6 +329,15 @@ QSSGRef<QSSGRhiShaderPipeline> QSSGShaderCache::compileForRhi(const QByteArray &
         shaders->addStage(QRhiShaderStage(QRhiShaderStage::Fragment, fragmentShader), stageFlags);
         if (shaderDebug)
             qDebug("Compilation for vertex and fragment stages succeeded");
+    }
+
+    if (editorMode && s_statusCallback) {
+        using namespace QtQuick3DEditorHelpers::ShaderBaker;
+        const auto vertStatus = vertShaderValid ? Status::Success : Status::Error;
+        const auto fragStatus = fragShaderValid ? Status::Success : Status::Error;
+        QMutexLocker locker(&*s_statusMutex);
+        s_statusCallback(inKey, vertStatus, vertErr, QShader::VertexStage);
+        s_statusCallback(inKey, fragStatus, fragErr, QShader::FragmentStage);
     }
 
     const auto inserted = m_rhiShaders.insert(tempKey, shaders);
@@ -340,13 +357,15 @@ QSSGRef<QSSGRhiShaderPipeline> QSSGShaderCache::compileForRhi(const QByteArray &
 
 QSSGRef<QSSGRhiShaderPipeline> QSSGShaderCache::loadGeneratedShader(const QByteArray &inKey, QQsbCollection::Entry entry)
 {
-    const QSSGRef<QSSGRhiShaderPipeline> &rhiShaders = getRhiShaderPipeline(inKey, ShaderFeatureSetList());
+    const QSSGRef<QSSGRhiShaderPipeline> &rhiShaders = getRhiShaderPipeline(inKey, QSSGShaderFeatures());
     if (rhiShaders)
         return rhiShaders;
 
     const bool shaderDebug = QSSGRhiContext::shaderDebuggingEnabled();
     if (shaderDebug)
         qDebug("Loading pregenerated rhi shader(s)");
+
+    Q_QUICK3D_PROFILE_START(QQuick3DProfiler::Quick3DLoadShader);
 
     // Note that we are required to return a non-null (but empty) shader set even if loading fails.
     QSSGRef<QSSGRhiShaderPipeline> shaders(new QSSGRhiShaderPipeline(*m_rhiContext.data()));
@@ -370,8 +389,10 @@ QSSGRef<QSSGRhiShaderPipeline> QSSGShaderCache::loadGeneratedShader(const QByteA
             qDebug("Loading of vertex and fragment stages succeeded");
     }
 
+    Q_QUICK3D_PROFILE_END(QQuick3DProfiler::Quick3DLoadShader);
+
     QSSGShaderCacheKey cacheKey(inKey);
-    cacheKey.m_features = ShaderFeatureSetList();
+    cacheKey.m_features = QSSGShaderFeatures();
     cacheKey.updateHashCode();
 
     const auto inserted = m_rhiShaders.insert(cacheKey, shaders);
@@ -381,13 +402,15 @@ QSSGRef<QSSGRhiShaderPipeline> QSSGShaderCache::loadGeneratedShader(const QByteA
 
 QSSGRef<QSSGRhiShaderPipeline> QSSGShaderCache::loadBuiltinForRhi(const QByteArray &inKey)
 {
-    const QSSGRef<QSSGRhiShaderPipeline> &rhiShaders = getRhiShaderPipeline(inKey, ShaderFeatureSetList());
+    const QSSGRef<QSSGRhiShaderPipeline> &rhiShaders = getRhiShaderPipeline(inKey, QSSGShaderFeatures());
     if (rhiShaders)
         return rhiShaders;
 
     const bool shaderDebug = QSSGRhiContext::shaderDebuggingEnabled();
     if (shaderDebug)
         qDebug("Loading builtin rhi shader: %s", inKey.constData());
+
+    Q_QUICK3D_PROFILE_START(QQuick3DProfiler::Quick3DLoadShader);
 
     // Note that we are required to return a non-null (but empty) shader set even if loading fails.
     QSSGRef<QSSGRhiShaderPipeline> shaders(new QSSGRhiShaderPipeline(*m_rhiContext.data()));
@@ -427,12 +450,22 @@ QSSGRef<QSSGRhiShaderPipeline> QSSGShaderCache::loadBuiltinForRhi(const QByteArr
             qDebug("Loading of vertex and fragment stages succeeded");
     }
 
+    Q_QUICK3D_PROFILE_END(QQuick3DProfiler::Quick3DLoadShader);
+
     QSSGShaderCacheKey cacheKey(inKey);
-    cacheKey.m_features = ShaderFeatureSetList();
+    cacheKey.m_features = QSSGShaderFeatures();
     cacheKey.updateHashCode();
 
     const auto inserted = m_rhiShaders.insert(cacheKey, shaders);
     return inserted.value();
+}
+
+namespace QtQuick3DEditorHelpers {
+void ShaderBaker::setStatusCallback(StatusCallback cb)
+{
+    QMutexLocker locker(&*s_statusMutex);
+    s_statusCallback = cb;
+}
 }
 
 QT_END_NAMESPACE

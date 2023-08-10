@@ -1,42 +1,26 @@
-/****************************************************************************
-**
-** Copyright (C) 2008-2012 NVIDIA Corporation.
-** Copyright (C) 2020 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2008-2012 NVIDIA Corporation.
+// Copyright (C) 2020 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include <QtQuick3DRuntimeRender/private/qssgrhiquadrenderer_p.h>
 
 QT_BEGIN_NAMESPACE
 
-static const QVector3D g_fullScreenRectFace[] = {
+static const QVector3D g_fullScreenRectFaces[] = {
     QVector3D(-1, -1, 0),
     QVector3D(-1, 1, 0),
     QVector3D(1, 1, 0),
     QVector3D(1, -1, 0),
+
+    QVector3D(-1, -1, 1),
+    QVector3D(-1, 1, 1),
+    QVector3D(1, 1, 1),
+    QVector3D(1, -1, 1),
+
+    QVector3D(-1, -1, -1),
+    QVector3D(-1, 1, -1),
+    QVector3D(1, 1, -1),
+    QVector3D(1, -1, -1),
 };
 
 static const QVector2D g_fullScreenRectUVs[] = {
@@ -46,23 +30,33 @@ static const QVector2D g_fullScreenRectUVs[] = {
     QVector2D(1, 0)
 };
 
+static const quint16 g_rectIndex[] = {
+    0, 1, 2, 0, 2, 3, // front face - 0, 1, 2, 3
+    0, 4, 5, 0, 5, 1, // left face - 0, 4, 5, 1
+    1, 5, 6, 1, 6, 2, // top face - 1, 5, 6, 2
+    3, 2, 6, 3, 6, 7, // right face - 3, 2, 6, 7
+    0, 3, 7, 0, 7, 4, // bottom face - 0, 3, 7, 4
+    7, 6, 5, 7, 5, 4  // back face - 7, 6, 5, 4
+};
+
 void QSSGRhiQuadRenderer::ensureBuffers(QSSGRhiContext *rhiCtx, QRhiResourceUpdateBatch *rub)
 {
     if (!m_vbuf) {
+        constexpr int vertexCount = 8;
         m_vbuf = new QSSGRhiBuffer(*rhiCtx,
                                    QRhiBuffer::Immutable,
                                    QRhiBuffer::VertexBuffer,
                                    5 * sizeof(float),
-                                   5 * 4 * sizeof(float));
+                                   5 * vertexCount * sizeof(float));
         m_vbuf->buffer()->setName(QByteArrayLiteral("quad vertex buffer"));
-        float buf[20];
+        float buf[5 * vertexCount];
         float *p = buf;
-        for (int i = 0; i < 4; ++i) {
-            *p++ = g_fullScreenRectFace[i].x();
-            *p++ = g_fullScreenRectFace[i].y();
-            *p++ = g_fullScreenRectFace[i].z();
-            *p++ = g_fullScreenRectUVs[i].x();
-            *p++ = g_fullScreenRectUVs[i].y();
+        for (int i = 0; i < vertexCount; ++i) {
+            *p++ = g_fullScreenRectFaces[i].x();
+            *p++ = g_fullScreenRectFaces[i].y();
+            *p++ = g_fullScreenRectFaces[i].z();
+            *p++ = g_fullScreenRectUVs[i % 4].x();
+            *p++ = g_fullScreenRectUVs[i % 4].y();
         }
         rub->uploadStaticBuffer(m_vbuf->buffer(), buf);
     }
@@ -119,7 +113,11 @@ void QSSGRhiQuadRenderer::recordRenderQuad(QSSGRhiContext *rhiCtx,
     cb->setGraphicsPipeline(rhiCtx->pipeline(QSSGGraphicsPipelineStateKey::create(*ps, rpDesc, srb), rpDesc, srb));
     cb->setShaderResources(srb);
     cb->setViewport(ps->viewport);
-    QRhiCommandBuffer::VertexInput vb(m_vbuf->buffer(), 0);
+
+    quint32 vertexOffset = flags.testAnyFlags(RenderBehind) ? 5 * 4 * sizeof(float) : 0;
+
+    QRhiCommandBuffer::VertexInput vb(m_vbuf->buffer(), vertexOffset);
+
     cb->setVertexInput(0, 1, &vb, m_ibuf->buffer(), m_ibuf->indexFormat());
     cb->drawIndexed(6);
     QSSGRHICTX_STAT(rhiCtx, drawIndexed(6, 1));
@@ -135,6 +133,77 @@ void QSSGRhiQuadRenderer::recordRenderQuadPass(QSSGRhiContext *rhiCtx,
     recordRenderQuad(rhiCtx, ps, srb, rt->renderPassDescriptor(), flags);
     cb->endPass();
     QSSGRHICTX_STAT(rhiCtx, endRenderPass());
+}
+
+void QSSGRhiCubeRenderer::prepareCube(QSSGRhiContext *rhiCtx, QRhiResourceUpdateBatch *maybeRub)
+{
+    QRhiResourceUpdateBatch *rub = maybeRub ? maybeRub : rhiCtx->rhi()->nextResourceUpdateBatch();
+    ensureBuffers(rhiCtx, rub);
+    rhiCtx->commandBuffer()->resourceUpdate(rub);
+}
+
+//### The flags UvCoords and RenderBehind are ignored
+void QSSGRhiCubeRenderer::recordRenderCube(QSSGRhiContext *rhiCtx, QSSGRhiGraphicsPipelineState *ps, QRhiShaderResourceBindings *srb, QRhiRenderPassDescriptor *rpDesc, QSSGRhiQuadRenderer::Flags flags)
+{
+    // ps must have viewport and shaderPipeline set already
+    ps->ia.inputLayout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
+    ps->ia.inputs << QSSGRhiInputAssemblerState::PositionSemantic;
+    ps->ia.inputLayout.setBindings({ 3 * sizeof(float) });
+    ps->ia.topology = QRhiGraphicsPipeline::Triangles;
+
+    ps->depthTestEnable = flags.testFlag(QSSGRhiQuadRenderer::DepthTest);
+    ps->depthWriteEnable = flags.testFlag(QSSGRhiQuadRenderer::DepthWrite);
+    ps->cullMode = QRhiGraphicsPipeline::None;
+    if (flags.testFlag(QSSGRhiQuadRenderer::PremulBlend)) {
+        ps->blendEnable = true;
+        ps->targetBlend.srcColor = QRhiGraphicsPipeline::One;
+        ps->targetBlend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+        ps->targetBlend.srcAlpha = QRhiGraphicsPipeline::One;
+        ps->targetBlend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+    }
+
+    QRhiCommandBuffer *cb = rhiCtx->commandBuffer();
+    cb->setGraphicsPipeline(rhiCtx->pipeline(QSSGGraphicsPipelineStateKey::create(*ps, rpDesc, srb), rpDesc, srb));
+    cb->setShaderResources(srb);
+    cb->setViewport(ps->viewport);
+
+    QRhiCommandBuffer::VertexInput vb(m_vbuf->buffer(), 0);
+
+    cb->setVertexInput(0, 1, &vb, m_ibuf->buffer(), m_ibuf->indexFormat());
+    cb->drawIndexed(36);
+    QSSGRHICTX_STAT(rhiCtx, drawIndexed(36, 1));
+}
+
+void QSSGRhiCubeRenderer::ensureBuffers(QSSGRhiContext *rhiCtx, QRhiResourceUpdateBatch *rub)
+{
+    if (!m_vbuf) {
+        constexpr int vertexCount = 8;
+        m_vbuf = new QSSGRhiBuffer(*rhiCtx,
+                                   QRhiBuffer::Immutable,
+                                   QRhiBuffer::VertexBuffer,
+                                   3 * sizeof(float),
+                                   3 * vertexCount * sizeof(float));
+        m_vbuf->buffer()->setName(QByteArrayLiteral("cube vertex buffer"));
+
+        float buf[3 * vertexCount];
+        float *p = buf;
+        for (int i = 0; i < vertexCount; ++i) {
+            *p++ = g_fullScreenRectFaces[4 + i].x();
+            *p++ = g_fullScreenRectFaces[4 + i].y();
+            *p++ = g_fullScreenRectFaces[4 + i].z();
+        }
+        rub->uploadStaticBuffer(m_vbuf->buffer(), buf);
+    }
+    if (!m_ibuf) {
+        m_ibuf = new QSSGRhiBuffer(*rhiCtx,
+                                   QRhiBuffer::Immutable,
+                                   QRhiBuffer::IndexBuffer,
+                                   0,
+                                   sizeof(g_rectIndex),
+                                   QRhiCommandBuffer::IndexUInt16);
+        m_ibuf->buffer()->setName(QByteArrayLiteral("cube index buffer"));
+        rub->uploadStaticBuffer(m_ibuf->buffer(), g_rectIndex);
+    }
 }
 
 QT_END_NAMESPACE

@@ -4,6 +4,13 @@
 ## Quick3DRuntimeRender Module:
 #####################################################################
 
+# Handle the conditional finding of either system zlib or qt zlib.
+if(NOT QT_FEATURE_system_zlib)
+    find_package(Qt6 COMPONENTS ZlibPrivate)
+elseif(NOT TARGET WrapZLIB::WrapZLIB)
+    qt_find_package(WrapZLIB PROVIDED_TARGETS WrapZLIB::WrapZLIB)
+endif()
+
 qt_internal_add_module(Quick3DRuntimeRender
     SOURCES
         graphobjects/qssgrendercamera.cpp graphobjects/qssgrendercamera_p.h
@@ -17,12 +24,14 @@ qt_internal_add_module(Quick3DRuntimeRender
         graphobjects/qssgrenderjoint.cpp graphobjects/qssgrenderjoint_p.h
         graphobjects/qssgrenderlayer.cpp graphobjects/qssgrenderlayer_p.h
         graphobjects/qssgrenderlight.cpp graphobjects/qssgrenderlight_p.h
-        graphobjects/qssgrendermaterialdirty_p.h
         graphobjects/qssgrendermodel.cpp graphobjects/qssgrendermodel_p.h
         graphobjects/qssgrendernode.cpp graphobjects/qssgrendernode_p.h
         graphobjects/qssgrenderskeleton.cpp graphobjects/qssgrenderskeleton_p.h
+        graphobjects/qssgrenderskin.cpp graphobjects/qssgrenderskin_p.h
         graphobjects/qssgrendertexturedata.cpp graphobjects/qssgrendertexturedata_p.h
         graphobjects/qssgrendermorphtarget.cpp graphobjects/qssgrendermorphtarget_p.h
+        graphobjects/qssgrenderresourceloader.cpp graphobjects/qssgrenderresourceloader_p.h
+        graphobjects/qssgrenderreflectionprobe.cpp graphobjects/qssgrenderreflectionprobe_p.h
         qssgperframeallocator_p.h
         qssgrenderableimage_p.h
         qssgrenderclippingfrustum.cpp qssgrenderclippingfrustum_p.h
@@ -40,6 +49,8 @@ qt_internal_add_module(Quick3DRuntimeRender
         qssgrendershaderkeys_p.h
         qssgrendershadermetadata.cpp qssgrendershadermetadata_p.h
         qssgrendershadowmap.cpp qssgrendershadowmap_p.h
+        qssgrenderreflectionmap.cpp qssgrenderreflectionmap_p.h
+        qssgrenderpickresult_p.h
         qssgrhiparticles.cpp qssgrhiparticles_p.h
         qssgrhicontext.cpp qssgrhicontext_p.h
         qssgrhicustommaterialsystem.cpp qssgrhicustommaterialsystem_p.h
@@ -52,15 +63,13 @@ qt_internal_add_module(Quick3DRuntimeRender
         qtquick3druntimerenderglobal_p.h
         rendererimpl/qssgrenderableobjects.cpp rendererimpl/qssgrenderableobjects_p.h
         rendererimpl/qssgrenderer.cpp rendererimpl/qssgrenderer_p.h
-        rendererimpl/qssgrendererimpllayerrenderdata_p.h
-        rendererimpl/qssgrendererimpllayerrenderdata_rhi.cpp
-        rendererimpl/qssgrendererimpllayerrenderhelper.cpp rendererimpl/qssgrendererimpllayerrenderhelper_p.h
-        rendererimpl/qssgrendererimpllayerrenderpreparationdata.cpp rendererimpl/qssgrendererimpllayerrenderpreparationdata_p.h
+        rendererimpl/qssglayerrenderdata_p.h
+        rendererimpl/qssglayerrenderdata.cpp
+        rendererimpl/qssglightmapper.cpp rendererimpl/qssglightmapper_p.h
         rendererimpl/qssgrendererimplshaders_rhi.cpp
         rendererimpl/qssgvertexpipelineimpl.cpp rendererimpl/qssgvertexpipelineimpl_p.h
         resourcemanager/qssgrenderbuffermanager.cpp resourcemanager/qssgrenderbuffermanager_p.h
         resourcemanager/qssgrenderloadedtexture.cpp resourcemanager/qssgrenderloadedtexture_p.h
-        resourcemanager/qssgrenderresourcemanager.cpp resourcemanager/qssgrenderresourcemanager_p.h
         resourcemanager/qssgrendershaderlibrarymanager.cpp resourcemanager/qssgrendershaderlibrarymanager_p.h
     DEFINES
         QT_BUILD_QUICK3DRUNTIMERENDER_LIB
@@ -75,6 +84,8 @@ qt_internal_add_module(Quick3DRuntimeRender
     PRIVATE_MODULE_INTERFACE
         Qt::Quick3DUtilsPrivate
         Qt::QuickPrivate
+    GENERATE_CPP_EXPORTS
+    GENERATE_PRIVATE_CPP_EXPORTS
 )
 
 qt_internal_extend_target(Quick3DRuntimeRender CONDITION TARGET Qt::ShaderTools
@@ -88,8 +99,18 @@ qt_internal_extend_target(Quick3DRuntimeRender CONDITION TARGET Qt::ShaderTools
         QT_QUICK3D_HAS_RUNTIME_SHADERS
 )
 
+qt_internal_extend_target(Quick3DRuntimeRender CONDITION QT_QUICK3D_HAS_EMBREE
+    PUBLIC_LIBRARIES
+        Qt::Concurrent
+    LIBRARIES
+        Qt::BundledEmbree
+    DEFINES
+        QT_QUICK3D_HAS_LIGHTMAPPER
+)
+
 # Resources:
 set(res_resource_files
+    "res/effectlib/bsdf.glsllib"
     "res/effectlib/defaultMaterialBumpNoLod.glsllib"
     "res/effectlib/defaultMaterialFresnel.glsllib"
     "res/effectlib/depthpass.glsllib"
@@ -98,6 +119,7 @@ set(res_resource_files
     "res/effectlib/funcdiffuseReflectionBSDF.glsllib"
     "res/effectlib/funcdiffuseReflectionWrapBSDF.glsllib"
     "res/effectlib/funcgetTransformedUVCoords.glsllib"
+    "res/effectlib/funclightmap.glsllib"
     "res/effectlib/funcsampleLightVars.glsllib"
     "res/effectlib/funcsampleNormalTexture.glsllib"
     "res/effectlib/funcspecularBSDF.glsllib"
@@ -105,10 +127,12 @@ set(res_resource_files
     "res/effectlib/physGlossyBSDF.glsllib"
     "res/effectlib/principledMaterialFresnel.glsllib"
     "res/effectlib/sampleProbe.glsllib"
+    "res/effectlib/sampleReflectionProbe.glsllib"
     "res/effectlib/shadowMapping.glsllib"
     "res/effectlib/skinanim.glsllib"
     "res/effectlib/ssao.glsllib"
     "res/effectlib/tonemapping.glsllib"
+    "res/effectlib/transmission.glsllib"
     "res/effectlib/viewProperties.glsllib"
     "res/effectlib/morphanim.glsllib"
     "res/effectlib/parallaxMapping.glsllib"
@@ -129,6 +153,22 @@ qt_internal_add_resource(Quick3DRuntimeRender "res"
 
 # special case begin
 
+qt_internal_extend_target(Quick3DRuntimeRender
+    INCLUDE_DIRECTORIES
+        ../3rdparty/tinyexr
+        ../3rdparty/embree/include
+)
+
+qt_internal_extend_target(Quick3DRuntimeRender CONDITION QT_FEATURE_system_zlib
+    LIBRARIES
+        WrapZLIB::WrapZLIB
+)
+
+qt_internal_extend_target(Quick3DRuntimeRender CONDITION NOT QT_FEATURE_system_zlib
+    LIBRARIES
+        Qt6::ZlibPrivate
+)
+
 # default settings are GLSL "100es,120,150" HLSL "50" MSL "12"
 qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders"
     SILENT
@@ -145,6 +185,8 @@ qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders"
         res/rhishaders/texturedquad.frag
         res/rhishaders/environmentmap.vert
         res/rhishaders/environmentmap.frag
+        res/rhishaders/lightmapuvraster.vert
+        res/rhishaders/lightmapuvraster.frag
 )
 qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_pertarget"
     SILENT
@@ -158,6 +200,8 @@ qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_pertarget"
         res/rhishaders/ssaaresolve.frag
         res/rhishaders/progressiveaa.vert
         res/rhishaders/progressiveaa.frag
+        res/rhishaders/simplequad.vert
+        res/rhishaders/simplequad.frag
 )
 qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_es3"
     SILENT
@@ -171,6 +215,18 @@ qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_es3"
         res/rhishaders/cubeshadowblurx.frag
         res/rhishaders/cubeshadowblury.vert
         res/rhishaders/cubeshadowblury.frag
+)
+qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_es3_pertarget"
+    SILENT
+    PRECOMPILE
+    OPTIMIZED
+    PERTARGETCOMPILE
+    GLSL "300es,120,150"
+    PREFIX
+        "/"
+    FILES
+        res/rhishaders/lightmapdilate.vert
+        res/rhishaders/lightmapdilate.frag
 )
 qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_es3_gl3"
     SILENT
@@ -186,8 +242,10 @@ qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_es3_gl3"
         res/rhishaders/skybox.frag
         res/rhishaders/environmentmapprefilter.vert
         res/rhishaders/environmentmapprefilter.frag
-        res/rhishaders/environmentmapirradiance.vert
-        res/rhishaders/environmentmapirradiance.frag
+        res/rhishaders/reflectionprobeprefilter.vert
+        res/rhishaders/reflectionprobeprefilter.frag
+        res/rhishaders/skyboxcube.vert
+        res/rhishaders/skyboxcube.frag
 )
 qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_lightprobe_rgbe"
     SILENT
@@ -199,15 +257,11 @@ qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_lightprobe_rgbe"
     FILES
         res/rhishaders/environmentmapprefilter.vert
         res/rhishaders/environmentmapprefilter.frag
-        res/rhishaders/environmentmapirradiance.vert
-        res/rhishaders/environmentmapirradiance.frag
     OUTPUTS
         res/rhishaders/environmentmapprefilter_rgbe.vert.qsb
         res/rhishaders/environmentmapprefilter_rgbe.frag.qsb
-        res/rhishaders/environmentmapirradiance_rgbe.vert.qsb
-        res/rhishaders/environmentmapirradiance_rgbe.frag.qsb
     DEFINES
-        QSSG_ENABLE_RGBE_LIGHT_PROBE
+        QSSG_ENABLE_RGBE_LIGHT_PROBE=1
 )
 qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_skybox_hdr_none"
     SILENT
@@ -237,7 +291,7 @@ qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_skybox_rgbe_none"
         res/rhishaders/skybox_rgbe_none.vert.qsb
         res/rhishaders/skybox_rgbe_none.frag.qsb
     DEFINES
-        QSSG_ENABLE_RGBE_LIGHT_PROBE
+        QSSG_ENABLE_RGBE_LIGHT_PROBE=1
 )
 qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_skybox_hdr_linear"
     SILENT
@@ -253,7 +307,7 @@ qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_skybox_hdr_linear"
         res/rhishaders/skybox_hdr_linear.vert.qsb
         res/rhishaders/skybox_hdr_linear.frag.qsb
     DEFINES
-        QSSG_ENABLE_LINEAR_TONEMAPPING
+        QSSG_ENABLE_LINEAR_TONEMAPPING=1
 )
 qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_skybox_rgbe_linear"
     SILENT
@@ -269,8 +323,8 @@ qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_skybox_rgbe_linear"
         res/rhishaders/skybox_rgbe_linear.vert.qsb
         res/rhishaders/skybox_rgbe_linear.frag.qsb
     DEFINES
-        QSSG_ENABLE_LINEAR_TONEMAPPING
-        QSSG_ENABLE_RGBE_LIGHT_PROBE
+        QSSG_ENABLE_LINEAR_TONEMAPPING=1
+        QSSG_ENABLE_RGBE_LIGHT_PROBE=1
 )
 qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_skybox_hdr_aces"
     SILENT
@@ -286,7 +340,7 @@ qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_skybox_hdr_aces"
         res/rhishaders/skybox_hdr_aces.vert.qsb
         res/rhishaders/skybox_hdr_aces.frag.qsb
     DEFINES
-        QSSG_ENABLE_ACES_TONEMAPPING
+        QSSG_ENABLE_ACES_TONEMAPPING=1
 )
 qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_skybox_rgbe_aces"
     SILENT
@@ -302,8 +356,8 @@ qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_skybox_rgbe_aces"
         res/rhishaders/skybox_rgbe_aces.vert.qsb
         res/rhishaders/skybox_rgbe_aces.frag.qsb
     DEFINES
-        QSSG_ENABLE_ACES_TONEMAPPING
-        QSSG_ENABLE_RGBE_LIGHT_PROBE
+        QSSG_ENABLE_ACES_TONEMAPPING=1
+        QSSG_ENABLE_RGBE_LIGHT_PROBE=1
 )
 qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_skybox_hdr_hejldawson"
     SILENT
@@ -319,7 +373,7 @@ qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_skybox_hdr_hejldawson"
         res/rhishaders/skybox_hdr_hejldawson.vert.qsb
         res/rhishaders/skybox_hdr_hejldawson.frag.qsb
     DEFINES
-        QSSG_ENABLE_HEJLDAWSON_TONEMAPPING
+        QSSG_ENABLE_HEJLDAWSON_TONEMAPPING=1
 )
 qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_skybox_rgbe_hejldawson"
     SILENT
@@ -335,8 +389,8 @@ qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_skybox_rgbe_hejldawson
         res/rhishaders/skybox_rgbe_hejldawson.vert.qsb
         res/rhishaders/skybox_rgbe_hejldawson.frag.qsb
     DEFINES
-        QSSG_ENABLE_HEJLDAWSON_TONEMAPPING
-        QSSG_ENABLE_RGBE_LIGHT_PROBE
+        QSSG_ENABLE_HEJLDAWSON_TONEMAPPING=1
+        QSSG_ENABLE_RGBE_LIGHT_PROBE=1
 )
 qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_skybox_hdr_filmic"
     SILENT
@@ -352,7 +406,7 @@ qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_skybox_hdr_filmic"
         res/rhishaders/skybox_hdr_filmic.vert.qsb
         res/rhishaders/skybox_hdr_filmic.frag.qsb
     DEFINES
-        QSSG_ENABLE_FILMIC_TONEMAPPING
+        QSSG_ENABLE_FILMIC_TONEMAPPING=1
 )
 qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_skybox_rgbe_filmic"
     SILENT
@@ -368,9 +422,10 @@ qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_skybox_rgbe_filmic"
         res/rhishaders/skybox_rgbe_filmic.vert.qsb
         res/rhishaders/skybox_rgbe_filmic.frag.qsb
     DEFINES
-        QSSG_ENABLE_FILMIC_TONEMAPPING
-        QSSG_ENABLE_RGBE_LIGHT_PROBE
+        QSSG_ENABLE_FILMIC_TONEMAPPING=1
+        QSSG_ENABLE_RGBE_LIGHT_PROBE=1
 )
+# Shaders without lights
 qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_particles_nolight"
     SILENT
     PRECOMPILE
@@ -417,6 +472,215 @@ qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_particles_nolight_anim
     DEFINES
         QSSG_PARTICLES_ENABLE_MAPPED
         QSSG_PARTICLES_ENABLE_ANIMATED
+)
+# Shaders with lights
+qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_particles_vlight"
+    SILENT
+    PRECOMPILE
+    OPTIMIZED
+    GLSL "300es,150"
+    PREFIX
+        "/"
+    FILES
+        res/rhishaders/particles.vert
+        res/rhishaders/particles.frag
+    OUTPUTS
+        res/rhishaders/particlesvlightsimple.vert.qsb
+        res/rhishaders/particlesvlightsimple.frag.qsb
+    DEFINES
+        QSSG_PARTICLES_ENABLE_VERTEX_LIGHTING
+)
+qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_particles_vlight_mapped"
+    SILENT
+    PRECOMPILE
+    OPTIMIZED
+    GLSL "300es,150"
+    PREFIX
+        "/"
+    FILES
+        res/rhishaders/particles.vert
+        res/rhishaders/particles.frag
+    OUTPUTS
+        res/rhishaders/particlesvlightmapped.vert.qsb
+        res/rhishaders/particlesvlightmapped.frag.qsb
+    DEFINES
+        QSSG_PARTICLES_ENABLE_MAPPED
+        QSSG_PARTICLES_ENABLE_VERTEX_LIGHTING
+)
+qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_particles_vlight_animated"
+    SILENT
+    PRECOMPILE
+    OPTIMIZED
+    GLSL "300es,150"
+    PREFIX
+        "/"
+    FILES
+        res/rhishaders/particles.vert
+        res/rhishaders/particles.frag
+    OUTPUTS
+        res/rhishaders/particlesvlightanimated.vert.qsb
+        res/rhishaders/particlesvlightanimated.frag.qsb
+    DEFINES
+        QSSG_PARTICLES_ENABLE_MAPPED
+        QSSG_PARTICLES_ENABLE_ANIMATED
+        QSSG_PARTICLES_ENABLE_VERTEX_LIGHTING
+)
+qt_internal_add_shaders(Quick3DRuntimeRender "res_lightmapuvraster_default"
+    SILENT
+    PRECOMPILE
+    OPTIMIZED
+    PREFIX
+        "/"
+    FILES
+        res/rhishaders/lightmapuvraster.vert
+        res/rhishaders/lightmapuvraster.frag
+    OUTPUTS
+        res/rhishaders/lightmapuvraster.vert.qsb
+        res/rhishaders/lightmapuvraster.frag.qsb
+)
+qt_internal_add_shaders(Quick3DRuntimeRender "res_lightmapuvraster_basecolormap"
+    SILENT
+    PRECOMPILE
+    OPTIMIZED
+    PREFIX
+        "/"
+    FILES
+        res/rhishaders/lightmapuvraster.vert
+        res/rhishaders/lightmapuvraster.frag
+    OUTPUTS
+        res/rhishaders/lightmapuvraster_basecolormap.vert.qsb
+        res/rhishaders/lightmapuvraster_basecolormap.frag.qsb
+    DEFINES
+        QSSG_LIGHTMAPUVRASTER_BASECOLORMAP
+)
+qt_internal_add_shaders(Quick3DRuntimeRender "res_lightmapuvraster_emissivemap"
+    SILENT
+    PRECOMPILE
+    OPTIMIZED
+    PREFIX
+        "/"
+    FILES
+        res/rhishaders/lightmapuvraster.vert
+        res/rhishaders/lightmapuvraster.frag
+    OUTPUTS
+        res/rhishaders/lightmapuvraster_emissivemap.vert.qsb
+        res/rhishaders/lightmapuvraster_emissivemap.frag.qsb
+    DEFINES
+        QSSG_LIGHTMAPUVRASTER_EMISSIVEMAP
+)
+qt_internal_add_shaders(Quick3DRuntimeRender "res_lightmapuvraster_both"
+    SILENT
+    PRECOMPILE
+    OPTIMIZED
+    PREFIX
+        "/"
+    FILES
+        res/rhishaders/lightmapuvraster.vert
+        res/rhishaders/lightmapuvraster.frag
+    OUTPUTS
+        res/rhishaders/lightmapuvraster_both.vert.qsb
+        res/rhishaders/lightmapuvraster_both.frag.qsb
+    DEFINES
+        QSSG_LIGHTMAPUVRASTER_BASECOLORMAP
+        QSSG_LIGHTMAPUVRASTER_EMISSIVEMAP
+)
+qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_line_particles"
+    SILENT
+    PRECOMPILE
+    OPTIMIZED
+    GLSL "300es,150"
+    PREFIX
+        "/"
+    FILES
+        res/rhishaders/lineparticles.vert
+        res/rhishaders/lineparticles.frag
+    OUTPUTS
+        res/rhishaders/lineparticles.vert.qsb
+        res/rhishaders/lineparticles.frag.qsb
+)
+qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_line_particles_mapped"
+    SILENT
+    PRECOMPILE
+    OPTIMIZED
+    GLSL "300es,150"
+    PREFIX
+        "/"
+    FILES
+        res/rhishaders/lineparticles.vert
+        res/rhishaders/lineparticles.frag
+    OUTPUTS
+        res/rhishaders/lineparticlesmapped.vert.qsb
+        res/rhishaders/lineparticlesmapped.frag.qsb
+    DEFINES
+        QSSG_PARTICLES_ENABLE_MAPPED
+)
+qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_line_particles_animated"
+    SILENT
+    PRECOMPILE
+    OPTIMIZED
+    GLSL "300es,150"
+    PREFIX
+        "/"
+    FILES
+        res/rhishaders/lineparticles.vert
+        res/rhishaders/lineparticles.frag
+    OUTPUTS
+        res/rhishaders/lineparticlesanimated.vert.qsb
+        res/rhishaders/lineparticlesanimated.frag.qsb
+    DEFINES
+        QSSG_PARTICLES_ENABLE_MAPPED
+        QSSG_PARTICLES_ENABLE_ANIMATED
+)
+qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_line_particles_vlight"
+    SILENT
+    PRECOMPILE
+    OPTIMIZED
+    GLSL "300es,150"
+    PREFIX
+        "/"
+    FILES
+        res/rhishaders/lineparticles.vert
+        res/rhishaders/lineparticles.frag
+    OUTPUTS
+        res/rhishaders/lineparticlesvlightsimple.vert.qsb
+        res/rhishaders/lineparticlesvlightsimple.frag.qsb
+    DEFINES
+        QSSG_PARTICLES_ENABLE_VERTEX_LIGHTING
+)
+qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_line_particles_vlight_mapped"
+    SILENT
+    PRECOMPILE
+    OPTIMIZED
+    GLSL "300es,150"
+    PREFIX
+        "/"
+    FILES
+        res/rhishaders/lineparticles.vert
+        res/rhishaders/lineparticles.frag
+    OUTPUTS
+        res/rhishaders/lineparticlesvlightmapped.vert.qsb
+        res/rhishaders/lineparticlesvlightmapped.frag.qsb
+    DEFINES
+        QSSG_PARTICLES_ENABLE_MAPPED
+        QSSG_PARTICLES_ENABLE_VERTEX_LIGHTING
+)
+qt_internal_add_shaders(Quick3DRuntimeRender "res_shaders_line_particles_vlight_animated"
+    SILENT
+    PRECOMPILE
+    OPTIMIZED
+    GLSL "300es,150"
+    PREFIX
+        "/"
+    FILES
+        res/rhishaders/lineparticles.vert
+        res/rhishaders/lineparticles.frag
+    OUTPUTS
+        res/rhishaders/lineparticlesvlightanimated.vert.qsb
+        res/rhishaders/lineparticlesvlightanimated.frag.qsb
+    DEFINES
+        QSSG_PARTICLES_ENABLE_MAPPED
+        QSSG_PARTICLES_ENABLE_ANIMATED
+        QSSG_PARTICLES_ENABLE_VERTEX_LIGHTING
 )
 # special case end
 

@@ -1,32 +1,6 @@
-/****************************************************************************
-**
-** Copyright (C) 2008-2012 NVIDIA Corporation.
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2008-2012 NVIDIA Corporation.
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #ifndef QSSG_RENDER_SHADER_KEY_H
 #define QSSG_RENDER_SHADER_KEY_H
@@ -201,7 +175,7 @@ struct QSSGShaderKeyUnsigned : public QSSGShaderKeyPropertyBase
             /* The key is stored as name=val */
             if (ioStr[strOffset + nameLen] != '=')
                 return;
-            const QByteArray s = ioStr.right(ioStr.length() - strOffset - nameLen - 1);
+            const QByteArray s = ioStr.right(ioStr.size() - strOffset - nameLen - 1);
             int i = 0;
             while (QChar(QLatin1Char(s[i])).isDigit())
                 i++;
@@ -440,7 +414,7 @@ struct QSSGShaderKeyAlphaMode : QSSGShaderKeyUnsigned<2>
     }
 };
 
-struct QSSGShaderKeyVertexAttribute : public QSSGShaderKeyUnsigned<8>
+struct QSSGShaderKeyVertexAttribute : public QSSGShaderKeyUnsigned<9>
 {
     enum VertexAttributeBits {
         Position = 1 << 0,
@@ -450,10 +424,11 @@ struct QSSGShaderKeyVertexAttribute : public QSSGShaderKeyUnsigned<8>
         Tangent = 1 << 4,
         Binormal = 1 << 5,
         Color = 1 << 6,
-        JointAndWeight = 1 << 7
+        JointAndWeight = 1 << 7,
+        TexCoordLightmap = 1 << 8
     };
 
-    explicit QSSGShaderKeyVertexAttribute(const char *inName = "") : QSSGShaderKeyUnsigned<8>(inName) {}
+    explicit QSSGShaderKeyVertexAttribute(const char *inName = "") : QSSGShaderKeyUnsigned<9>(inName) {}
 
     bool getBitValue(VertexAttributeBits bit, QSSGDataView<quint32> inKeySet) const
     {
@@ -483,6 +458,8 @@ struct QSSGShaderKeyVertexAttribute : public QSSGShaderKeyUnsigned<8>
         internalToString(ioStr, QByteArrayView("binormal"), getBitValue(Binormal, inKeySet));
         ioStr.append(';');
         internalToString(ioStr, QByteArrayView("color"), getBitValue(Color, inKeySet));
+        ioStr.append(';');
+        internalToString(ioStr, QByteArrayView("texcoordlightmap"), getBitValue(TexCoordLightmap, inKeySet));
         ioStr.append('}');
         internalToString(ioStr, QByteArrayView("joint&weight"), getBitValue(JointAndWeight, inKeySet));
         ioStr.append('}');
@@ -503,7 +480,7 @@ struct QSSGShaderKeyVertexAttribute : public QSSGShaderKeyUnsigned<8>
                 codeOffset++;
             const QByteArray val = ioStr.mid(codeOffsetBegin, codeOffset);
             const QVector<QByteArray> list = val.split(';');
-            if (list.size() != 7)
+            if (list.size() != 8)
                 return;
             setBitValue(Position, inKeySet, getBoolValue(list[0], QByteArrayView("position")));
             setBitValue(Normal, inKeySet, getBoolValue(list[1], QByteArrayView("normal")));
@@ -512,6 +489,7 @@ struct QSSGShaderKeyVertexAttribute : public QSSGShaderKeyUnsigned<8>
             setBitValue(Tangent, inKeySet, getBoolValue(list[4], QByteArrayView("tangent")));
             setBitValue(Binormal, inKeySet, getBoolValue(list[5], QByteArrayView("binormal")));
             setBitValue(Color, inKeySet, getBoolValue(list[6], QByteArrayView("color")));
+            setBitValue(TexCoordLightmap, inKeySet, getBoolValue(list[7], QByteArrayView("texcoordlightmap")));
         }
     }
 };
@@ -522,7 +500,7 @@ struct QSSGShaderDefaultMaterialKeyProperties
         LightCount = QSSG_MAX_NUM_LIGHTS,
     };
     enum {
-        SingleChannelImageCount = 6,
+        SingleChannelImageCount = 10,
     };
     enum ImageMapNames {
         DiffuseMap = 0,
@@ -532,6 +510,7 @@ struct QSSGShaderDefaultMaterialKeyProperties
         BumpMap,
         SpecularAmountMap,
         NormalMap,
+        ClearcoatNormalMap,
         // single channel images
         OpacityMap,
         RoughnessMap,
@@ -539,6 +518,10 @@ struct QSSGShaderDefaultMaterialKeyProperties
         OcclusionMap,
         TranslucencyMap,
         HeightMap,
+        ClearcoatMap,
+        ClearcoatRoughnessMap,
+        TransmissionMap,
+        ThicknessMap,
 
         ImageMapCount,
         SingleChannelImagesFirst = OpacityMap
@@ -549,7 +532,11 @@ struct QSSGShaderDefaultMaterialKeyProperties
         MetalnessChannel,
         OcclusionChannel,
         TranslucencyChannel,
-        HeightChannel
+        HeightChannel,
+        ClearcoatChannel,
+        ClearcoatRoughnessChannel,
+        TransmissionChannel,
+        ThicknessChannel
     };
     enum {
         MorphTargetCount = 8,
@@ -583,6 +570,11 @@ struct QSSGShaderDefaultMaterialKeyProperties
     QSSGShaderKeyUnsigned<4> m_morphTargetCount;
     QSSGShaderKeyVertexAttribute m_morphTargetAttributes[MorphTargetCount];
     QSSGShaderKeyBoolean m_blendParticles;
+    QSSGShaderKeyBoolean m_clearcoatEnabled;
+    QSSGShaderKeyBoolean m_transmissionEnabled;
+    QSSGShaderKeyBoolean m_specularAAEnabled;
+    QSSGShaderKeyBoolean m_lightmapEnabled;
+    QSSGShaderKeyBoolean m_specularGlossyEnabled;
 
     QSSGShaderDefaultMaterialKeyProperties()
         : m_hasLighting("hasLighting")
@@ -605,6 +597,11 @@ struct QSSGShaderDefaultMaterialKeyProperties
         , m_usesInstancing("usesInstancing")
         , m_morphTargetCount("morphTargetCount")
         , m_blendParticles("blendParticles")
+        , m_clearcoatEnabled("clearcoatEnabled")
+        , m_transmissionEnabled("transmissionEnabled")
+        , m_specularAAEnabled("specularAAEnabled")
+        , m_lightmapEnabled("lightmapEnabled")
+        , m_specularGlossyEnabled("specularGlossyEnabled")
     {
         m_lightFlags[0].name = "light0HasPosition";
         m_lightFlags[1].name = "light1HasPosition";
@@ -677,12 +674,17 @@ struct QSSGShaderDefaultMaterialKeyProperties
         m_imageMaps[4].name = "bumpMap";
         m_imageMaps[5].name = "specularAmountMap";
         m_imageMaps[6].name = "normalMap";
-        m_imageMaps[7].name = "opacityMap";
-        m_imageMaps[8].name = "roughnessMap";
-        m_imageMaps[9].name = "metalnessMap";
-        m_imageMaps[10].name = "occlusionMap";
-        m_imageMaps[11].name = "translucencyMap";
-        m_imageMaps[12].name = "heightMap";
+        m_imageMaps[7].name = "clearcoatNormalMap";
+        m_imageMaps[8].name = "opacityMap";
+        m_imageMaps[9].name = "roughnessMap";
+        m_imageMaps[10].name = "metalnessMap";
+        m_imageMaps[11].name = "occlusionMap";
+        m_imageMaps[12].name = "translucencyMap";
+        m_imageMaps[13].name = "heightMap";
+        m_imageMaps[14].name = "clearcoatMap";
+        m_imageMaps[15].name = "clearcoatRoughnessMap";
+        m_imageMaps[16].name = "transmissionMap";
+        m_imageMaps[17].name = "thicknessMap";
 
         m_textureChannels[0].name = "opacityMap_channel";
         m_textureChannels[1].name = "roughnessMap_channel";
@@ -690,6 +692,10 @@ struct QSSGShaderDefaultMaterialKeyProperties
         m_textureChannels[3].name = "occlusionMap_channel";
         m_textureChannels[4].name = "translucencyMap_channel";
         m_textureChannels[5].name = "heightMap_channel";
+        m_textureChannels[6].name = "clearcoatMap_channel";
+        m_textureChannels[7].name = "clearcoatRoughnessMap_channel";
+        m_textureChannels[8].name = "transmissionMap_channel";
+        m_textureChannels[9].name = "thicknessMap_channel";
 
         m_morphTargetAttributes[0].name = "morphTarget0Attributes";
         m_morphTargetAttributes[1].name = "morphTarget1Attributes";
@@ -748,6 +754,11 @@ struct QSSGShaderDefaultMaterialKeyProperties
         for (quint32 idx = 0, end = MorphTargetCount; idx < end; ++idx)
             inVisitor.visit(m_morphTargetAttributes[idx]);
         inVisitor.visit(m_blendParticles);
+        inVisitor.visit(m_clearcoatEnabled);
+        inVisitor.visit(m_transmissionEnabled);
+        inVisitor.visit(m_specularAAEnabled);
+        inVisitor.visit(m_lightmapEnabled);
+        inVisitor.visit(m_specularGlossyEnabled);
     }
 
     struct OffsetVisitor
@@ -800,7 +811,7 @@ struct QSSGShaderDefaultMaterialKeyProperties
         visitProperties(visitor);
 
         // If this assert fires, then the default material key needs more bits.
-        Q_ASSERT(visitor.offsetVisitor.m_offset < 384);
+        Q_ASSERT(visitor.offsetVisitor.m_offset < 416);
         // This is so we can do some guestimate of how big the string buffer needs
         // to be to avoid doing a lot of allocations when concatenating the strings.
         m_stringBufferSizeHint = visitor.stringSizeVisitor.size;
@@ -810,9 +821,9 @@ struct QSSGShaderDefaultMaterialKeyProperties
 struct QSSGShaderDefaultMaterialKey
 {
     enum {
-        DataBufferSize = 12,
+        DataBufferSize = 13,
     };
-    quint32 m_dataBuffer[DataBufferSize];
+    quint32 m_dataBuffer[DataBufferSize]; // 13 * 4 * 8 = 416 bits
     size_t m_featureSetHash;
 
     explicit QSSGShaderDefaultMaterialKey(size_t inFeatureSetHash) : m_featureSetHash(inFeatureSetHash)

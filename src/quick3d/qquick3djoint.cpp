@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2020 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2020 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qquick3djoint_p.h"
 #include "qquick3dskeleton_p.h"
@@ -77,6 +51,7 @@ QQuick3DJoint::QQuick3DJoint(QQuick3DNode *parent)
 
 QQuick3DJoint::~QQuick3DJoint()
 {
+    disconnect(m_skeletonConnection);
 }
 
 /*!
@@ -86,6 +61,7 @@ QQuick3DJoint::~QQuick3DJoint()
     \l {QQuick3DGeometry::addAttribute}{custom geometry attribute}.
 
     \note Index values must be unique within the same \l {Skeleton}.
+    \note Negative values cannot be assigned.
 
     \sa {QQuick3DGeometry::addAttribute}, {Qt Quick 3D - Simple Skinning Example}
 */
@@ -115,6 +91,8 @@ void QQuick3DJoint::setIndex(qint32 index)
 {
     if (m_index == index)
         return;
+    if (index < 0)
+        return;
 
     m_index = index;
     m_indexDirty = true;
@@ -126,9 +104,11 @@ void QQuick3DJoint::setSkeletonRoot(QQuick3DSkeleton *skeleton)
     if (skeleton == m_skeletonRoot)
         return;
 
+    disconnect(m_skeletonConnection);
     m_skeletonRootDirty = true;
     m_skeletonRoot = skeleton;
-
+    m_skeletonConnection = connect(this, &QQuick3DJoint::sceneTransformChanged,
+                                   m_skeletonRoot, &QQuick3DSkeleton::skeletonNodeDirty);
     emit skeletonRootChanged();
 }
 
@@ -138,14 +118,6 @@ void QQuick3DJoint::markAllDirty()
     m_indexDirty = true;
     m_skeletonRootDirty = true;
     QQuick3DNode::markAllDirty();
-}
-
-void QQuick3DJoint::markSkeletonDirty(QSSGRenderSkeleton *skeletonNode)
-{
-    if (!skeletonNode->boneTransformsDirty) {
-        skeletonNode->boneTransformsDirty = true;
-        m_skeletonRoot->skeletonNodeDirty();
-    }
 }
 
 QSSGRenderGraphObject *QQuick3DJoint::updateSpatialNode(QSSGRenderGraphObject *node)
@@ -158,41 +130,15 @@ QSSGRenderGraphObject *QQuick3DJoint::updateSpatialNode(QSSGRenderGraphObject *n
         node = new QSSGRenderJoint();
     }
 
-    auto jointNode = static_cast<QSSGRenderJoint *>(node);
-    auto d = QQuick3DNodePrivate::get(this);
-    bool transformIsDirty = false;
+    QQuick3DNode::updateSpatialNode(node);
 
-    if (jointNode->position != d->m_position) {
-        transformIsDirty = true;
-        jointNode->position = d->m_position;
-    }
-    if (jointNode->rotation != d->m_rotation) {
-        transformIsDirty = true;
-        jointNode->rotation = d->m_rotation;
-    }
-    if (jointNode->scale != d->m_scale) {
-        transformIsDirty = true;
-        jointNode->scale = d->m_scale;
-    }
-    if (jointNode->pivot != d->m_pivot) {
-        transformIsDirty = true;
-        jointNode->pivot = d->m_pivot;
-    }
+    auto jointNode = static_cast<QSSGRenderJoint *>(node);
 
     QQuick3DObjectPrivate *skeletonPriv = QQuick3DObjectPrivate::get(m_skeletonRoot);
 
     if (m_skeletonRootDirty) {
         if (skeletonPriv && skeletonPriv->spatialNode)
             jointNode->skeletonRoot = static_cast<QSSGRenderSkeleton *>(skeletonPriv->spatialNode);
-        m_skeletonRootDirty = false;
-    }
-    if (transformIsDirty) {
-        jointNode->markDirty(QSSGRenderNode::TransformDirtyFlag::TransformIsDirty);
-        jointNode->flags.setFlag(QSSGRenderNode::Flag::Dirty, true);
-        if (jointNode->skeletonRoot)
-            markSkeletonDirty(jointNode->skeletonRoot);
-    } else {
-        jointNode->markDirty(QSSGRenderNode::TransformDirtyFlag::TransformNotDirty);
     }
 
     if (m_indexDirty) {
@@ -200,7 +146,9 @@ QSSGRenderGraphObject *QQuick3DJoint::updateSpatialNode(QSSGRenderGraphObject *n
         m_indexDirty = false;
 
         if (jointNode->skeletonRoot) {
-            markSkeletonDirty(jointNode->skeletonRoot);
+            Q_ASSERT(m_skeletonRoot);
+            m_skeletonRoot->skeletonNodeDirty();
+
             if (jointNode->skeletonRoot->maxIndex < m_index) {
                 jointNode->skeletonRoot->maxIndex = m_index;
             }

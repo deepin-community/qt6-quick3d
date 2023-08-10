@@ -1,32 +1,25 @@
-# Generated from particles3d.pro.
-
 cmake_minimum_required(VERSION 3.16)
 project(particles3d LANGUAGES CXX)
 
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-
 set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-set(CMAKE_AUTOUIC ON)
 
 if(NOT DEFINED INSTALL_EXAMPLESDIR)
-  set(INSTALL_EXAMPLESDIR "examples")
+    set(INSTALL_EXAMPLESDIR "examples")
 endif()
 
 set(INSTALL_EXAMPLEDIR "${INSTALL_EXAMPLESDIR}/quick3d/particles3d")
 
-find_package(Qt6 COMPONENTS Core)
-find_package(Qt6 COMPONENTS Gui)
-find_package(Qt6 COMPONENTS Quick)
-find_package(Qt6 COMPONENTS Quick3D)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick Quick3D)
 
 qt_add_executable(particles3d
     main.cpp
 )
+
 set_target_properties(particles3d PROPERTIES
     WIN32_EXECUTABLE TRUE
     MACOSX_BUNDLE TRUE
 )
+
 target_link_libraries(particles3d PUBLIC
     Qt::Core
     Qt::Gui
@@ -46,11 +39,14 @@ qt_add_qml_module(particles3d
         qml/CustomLabel.qml
         qml/CustomSlider.qml
         qml/CustomSelectionBox.qml
+        qml/DynamicBursts.qml
         qml/EmitAndBurst.qml
+        qml/EmitterCustomShapes.qml
         qml/EmitterShapes.qml
         qml/FadingInOut.qml
         qml/Fire.qml
         qml/HeartTrail.qml
+        qml/Lights.qml
         qml/LoggingView.qml
         qml/ModelBlendParticles.qml
         qml/OceanSpider.qml
@@ -64,12 +60,15 @@ qt_add_qml_module(particles3d
         qml/TrailEmitterBurst.qml
         qml/ModelShape.qml
         qml/main.qml
+        qml/LineParticles.qml
     RESOURCES
         qml/images/arrow_icon.png
         qml/images/bear_black.png
         qml/images/colorTable.png
         qml/images/color_table2.png
         qml/images/color_table3.png
+        qml/images/color_table4.png
+        qml/images/color_table5.png
         qml/images/dot.png
         qml/images/dust.png
         qml/images/explosion_01_strip13.png
@@ -95,6 +94,9 @@ qt_add_qml_module(particles3d
         qml/meshes/meter_edge.mesh
         qml/meshes/oldqtlogo.mesh
         qml/meshes/suzanne.mesh
+        qml/data/qt_logo_in_4096.cbor
+        qml/data/qt_logo_out_4096.cbor
+        qml/data/heart_4096.cbor
     NO_RESOURCE_TARGET_PATH
 )
 

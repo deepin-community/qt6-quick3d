@@ -1,35 +1,11 @@
-/****************************************************************************
-**
-** Copyright (C) 2021 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of the test suite of the Qt Toolkit.
-**
-** $QT_BEGIN_LICENSE:GPL-EXCEPT$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 as published by the Free Software
-** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2021 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only WITH Qt-GPL-exception-1.0
 
 #include <QSignalSpy>
 #include <QTest>
 #include <QtGui/QPointingDevice>
 #include <QtQuick/QQuickView>
+#include <QtQuick/private/qquickdraghandler_p.h>
 #include <QtQuick/private/qquickmousearea_p.h>
 #include <QtQuick/private/qquicktaphandler_p.h>
 #include <QtQuick3D/private/qquick3ditem2d_p.h>
@@ -55,6 +31,8 @@ private slots:
     void dualTouchTap2D();
     void fallthrough_data();
     void fallthrough();
+    void singleDrag2D_data();
+    void singleDrag2D();
 
 private:
     QQuickItem *find2DChildIn3DNode(QQuickView *view, const QString &objectName, const QString &itemOrHandlerName);
@@ -291,5 +269,79 @@ void tst_Input::fallthrough()
     }
 }
 
+void tst_Input::singleDrag2D_data()
+{
+    QTest::addColumn<QString>("qmlSource");
+    QTest::addColumn<QString>("objectName");
+    QTest::addColumn<QString>("dragObjectName");
+    QTest::addColumn<QPointingDevice::DeviceType>("deviceType");
+    QTest::addColumn<QPoint>("overridePos");
+
+    QTest::newRow("item2d left slider: mouse") << "item2d.qml" << "left object" << "left busybox slider draghandler"
+        << QPointingDevice::DeviceType::Mouse << QPoint(400, 270);
+    QTest::newRow("shared left slider: mouse") << "sharedSource.qml" << "left object" << "shared busybox slider draghandler"
+        << QPointingDevice::DeviceType::Mouse << QPoint(250, 270);
+    QTest::newRow("material left slider: mouse") << "defaultMaterial.qml" << "left object" << "left busybox slider draghandler"
+        << QPointingDevice::DeviceType::Mouse << QPoint(250, 270);
+
+    QTest::newRow("item2d left slider: touch") << "item2d.qml" << "left object" << "left busybox slider draghandler"
+        << QPointingDevice::DeviceType::TouchScreen << QPoint(400, 270);
+    QTest::newRow("shared left slider: touch") << "sharedSource.qml" << "left object" << "shared busybox slider draghandler"
+        << QPointingDevice::DeviceType::TouchScreen << QPoint(250, 270);
+    QTest::newRow("material left slider: touch") << "defaultMaterial.qml" << "left object" << "left busybox slider draghandler"
+        << QPointingDevice::DeviceType::TouchScreen << QPoint(250, 270);
+}
+
+void tst_Input::singleDrag2D()
+{
+    QFETCH(QString, qmlSource);
+    QFETCH(QString, objectName);
+    QFETCH(QString, dragObjectName);
+    QFETCH(QPoint, overridePos);
+    QFETCH(QPointingDevice::DeviceType, deviceType);
+
+    QScopedPointer<QQuickView> view(createView(qmlSource, QSize(1024, 480)));
+    QVERIFY(view);
+#ifdef DISABLE_HOVER_IN_IRRELEVANT_TESTS
+    QQuickWindowPrivate::get(view.data())->deliveryAgentPrivate()->frameSynchronousHoverEnabled = false;
+#endif
+    QVERIFY(QTest::qWaitForWindowExposed(view.data()));
+
+    QQuickItem *dragItem = find2DChildIn3DNode(view.data(), objectName, dragObjectName);
+    QVERIFY(dragItem);
+    QQuickDragHandler *dragHandler = dragItem->findChild<QQuickDragHandler *>();
+    QVERIFY(dragHandler);
+    QCOMPARE(dragItem->property("value").toInt(), 50); // initial value
+
+    // dragItem1->mapToItem(view->contentItem(), mouseArea->boundingRect().center()).toPoint()
+    // would generate subscene coordinates; transform to the outer window scene is ambiguous,
+    // because actually the slider can exist on multiple faces of the 3D object.
+    auto dragPos = dragItem->mapToScene(dragItem->boundingRect().center()).toPoint();
+    qCDebug(lcTests) << "found destination for drag begin:" << dragPos << ": center of" << dragItem->boundingRect() << dragItem->position() << "in" << dragItem;
+    if (!overridePos.isNull())
+        dragPos = overridePos; // TODO remove when there's a good mapping technique
+
+    switch (static_cast<QPointingDevice::DeviceType>(deviceType)) {
+    case QPointingDevice::DeviceType::Mouse:
+        QTest::mousePress(view.data(), Qt::LeftButton, Qt::NoModifier, dragPos);
+        dragPos += QPoint(0, 50);
+        QTest::mouseMove(view.data(), dragPos);
+        QTRY_VERIFY(dragHandler->active());
+        qCDebug(lcTests) << "slider dragged from 50 to" << dragItem->property("value").toInt();
+        QTest::mouseRelease(view.data(), Qt::LeftButton, Qt::NoModifier, dragPos);
+        break;
+    case QPointingDevice::DeviceType::TouchScreen:
+        QTest::touchEvent(view.data(), touchscreen.data()).press(0, dragPos, view.data());
+        dragPos += QPoint(0, 50);
+        QTest::touchEvent(view.data(), touchscreen.data()).move(0, dragPos, view.data());
+        QTRY_VERIFY(dragHandler->active());
+        qCDebug(lcTests) << "slider dragged from 50 to" << dragItem->property("value").toInt();
+        QTest::touchEvent(view.data(), touchscreen.data()).release(0, dragPos, view.data());
+        break;
+    default:
+        break;
+    }
+    QCOMPARE_LT(dragItem->property("value").toInt(), 25); // 16 is likely in practice
+}
 QTEST_MAIN(tst_Input)
 #include "tst_input.moc"

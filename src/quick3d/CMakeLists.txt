@@ -41,8 +41,10 @@ qt_internal_add_qml_module(Quick3D
         qquick3dprincipledmaterial.cpp qquick3dprincipledmaterial_p.h
         qquick3dquaternionanimation.cpp qquick3dquaternionanimation_p.h
         qquick3dquaternionutils.cpp qquick3dquaternionutils_p.h
+        qquick3dreflectionprobe.cpp qquick3dreflectionprobe_p.h
         qquick3drenderstats.cpp qquick3drenderstats_p.h
         qquick3drepeater.cpp qquick3drepeater_p.h
+        qquick3dresourceloader.cpp qquick3dresourceloader_p.h
         qquick3dsceneenvironment.cpp qquick3dsceneenvironment_p.h
         qquick3dscenemanager.cpp qquick3dscenemanager_p.h
         qquick3dscenerenderer.cpp qquick3dscenerenderer_p.h
@@ -53,9 +55,14 @@ qt_internal_add_qml_module(Quick3D
         qquick3dmorphtarget.cpp qquick3dmorphtarget_p.h
         qquick3dtexture.cpp qquick3dtexture_p.h
         qquick3dtexturedata.cpp qquick3dtexturedata.h qquick3dtexturedata_p.h
+        qquick3dskin.cpp qquick3dskin_p.h
         qquick3dutils_p.h
         qquick3dviewport.cpp qquick3dviewport_p.h
         qtquick3dglobal.h qtquick3dglobal_p.h
+        qquick3dcubemaptexture.cpp qquick3dcubemaptexture_p.h
+        qquick3dbakedlightmap.cpp qquick3dbakedlightmap_p.h
+        qquick3dlightmapper.cpp qquick3dlightmapper_p.h
+        qquick3dspecularglossymaterial.cpp qquick3dspecularglossymaterial_p.h
     DEFINES
         QT_BUILD_QUICK3D_LIB
     LIBRARIES
@@ -76,6 +83,8 @@ qt_internal_add_qml_module(Quick3D
         Qt::QmlPrivate
         Qt::Quick3DRuntimeRenderPrivate
         Qt::QuickPrivate
+    GENERATE_CPP_EXPORTS
+    GENERATE_PRIVATE_CPP_EXPORTS
 )
 
 qt_internal_extend_target(qquick3dplugin

@@ -1,32 +1,6 @@
-/****************************************************************************
-**
-** Copyright (C) 2008-2012 NVIDIA Corporation.
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2008-2012 NVIDIA Corporation.
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #ifndef QSSG_RENDER_IMPL_RENDERABLE_OBJECTS_H
 #define QSSG_RENDER_IMPL_RENDERABLE_OBJECTS_H
@@ -51,6 +25,7 @@
 #include <QtQuick3DRuntimeRender/private/qssgrendershadercache_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderableimage_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderlight_p.h>
+#include <QtQuick3DRuntimeRender/private/qssgrenderreflectionprobe_p.h>
 
 #include <QtQuick3DUtils/private/qssginvasivelinkedlist_p.h>
 
@@ -79,7 +54,13 @@ enum class QSSGRenderableObjectFlag
     // The number of target models' attributes are too many
     // to store in a renderable flag.
     // They will be recorded in shaderKey.
-    HasAttributeMorphTarget = 1 << 20
+    HasAttributeMorphTarget = 1 << 20,
+    RequiresScreenTexture = 1 << 21,
+    ReceivesReflections = 1 << 22,
+    UsedInBakedLighting = 1 << 23,
+    RendersWithLightmap = 1 << 24,
+    HasAttributeTexCoordLightmap = 1 << 25,
+    CastsReflections = 1 << 26
 };
 
 struct QSSGRenderableObjectFlags : public QFlags<QSSGRenderableObjectFlag>
@@ -108,6 +89,18 @@ struct QSSGRenderableObjectFlags : public QFlags<QSSGRenderableObjectFlag>
     void setReceivesShadows(bool inReceivesShadows) { setFlag(QSSGRenderableObjectFlag::ReceivesShadows, inReceivesShadows); }
     bool receivesShadows() const { return this->operator&(QSSGRenderableObjectFlag::ReceivesShadows); }
 
+    void setReceivesReflections(bool inReceivesReflections) { setFlag(QSSGRenderableObjectFlag::ReceivesReflections, inReceivesReflections); }
+    bool receivesReflections() const { return this->operator&(QSSGRenderableObjectFlag::ReceivesReflections); }
+
+    void setCastsReflections(bool inCastsReflections) { setFlag(QSSGRenderableObjectFlag::CastsReflections, inCastsReflections); }
+    bool castsReflections() const { return this->operator&(QSSGRenderableObjectFlag::CastsReflections); }
+
+    void setUsedInBakedLighting(bool inUsedInBakedLighting) { setFlag(QSSGRenderableObjectFlag::UsedInBakedLighting, inUsedInBakedLighting); }
+    bool usedInBakedLighting() const { return this->operator&(QSSGRenderableObjectFlag::UsedInBakedLighting); }
+
+    void setRendersWithLightmap(bool inRendersWithLightmap) { setFlag(QSSGRenderableObjectFlag::RendersWithLightmap, inRendersWithLightmap); }
+    bool rendersWithLightmap() const { return this->operator&(QSSGRenderableObjectFlag::RendersWithLightmap); }
+
     void setHasAttributePosition(bool b) { setFlag(QSSGRenderableObjectFlag::HasAttributePosition, b); }
     bool hasAttributePosition() const { return this->operator&(QSSGRenderableObjectFlag::HasAttributePosition); }
 
@@ -119,6 +112,9 @@ struct QSSGRenderableObjectFlags : public QFlags<QSSGRenderableObjectFlag>
 
     void setHasAttributeTexCoord1(bool b) { setFlag(QSSGRenderableObjectFlag::HasAttributeTexCoord1, b); }
     bool hasAttributeTexCoord1() const { return this->operator&(QSSGRenderableObjectFlag::HasAttributeTexCoord1); }
+
+    void setHasAttributeTexCoordLightmap(bool b) { setFlag(QSSGRenderableObjectFlag::HasAttributeTexCoordLightmap, b); }
+    bool hasAttributeTexCoordLightmap() const { return this->operator&(QSSGRenderableObjectFlag::HasAttributeTexCoordLightmap); }
 
     void setHasAttributeTangent(bool b) { setFlag(QSSGRenderableObjectFlag::HasAttributeTangent, b); }
     bool hasAttributeTangent() const { return this->operator&(QSSGRenderableObjectFlag::HasAttributeTangent); }
@@ -173,6 +169,13 @@ struct QSSGRenderableObjectFlags : public QFlags<QSSGRenderableObjectFlag>
     {
         return this->operator&(QSSGRenderableObjectFlag::IsPointsTopology);
     }
+    void setRequiresScreenTexture(bool v)
+    {
+        setFlag(QSSGRenderableObjectFlag::RequiresScreenTexture, v);
+    }
+    bool requiresScreenTexture() const {
+        return this->operator&(QSSGRenderableObjectFlag::RequiresScreenTexture);
+    }
 };
 
 struct QSSGShaderLight
@@ -192,6 +195,15 @@ struct QSSGShaderLight
             return true;
         return false;
     }
+};
+
+struct QSSGShaderReflectionProbe
+{
+    QVector3D probeCubeMapCenter;
+    QVector3D probeBoxMax;
+    QVector3D probeBoxMin;
+    bool enabled = false;
+    int parallaxCorrection = 0;
 };
 
 // Having this as a QVLA is beneficial mainly because QVector would need to
@@ -219,19 +231,25 @@ struct QSSGRenderableObject
     // Variables used for picking
     const QMatrix4x4 &globalTransform;
     const QSSGBounds3 &bounds;
+    // Special bounds variable for models with blend particles (in world-space)
+    QSSGBounds3 particleBounds;
+
     QSSGRenderableObjectFlags renderableFlags;
     // For rough sorting for transparency and for depth
     QVector3D worldCenterPoint;
     float depthBias;
     QSSGDepthDrawMode depthWriteMode = QSSGDepthDrawMode::OpaqueOnly;
+
     QSSGRenderableObject(QSSGRenderableObjectFlags inFlags,
                          const QVector3D &inWorldCenterPt,
                          const QMatrix4x4 &inGlobalTransform,
                          const QSSGBounds3 &inBounds,
+                         const QSSGBounds3 &inParticleBounds,
                          float inDepthBias)
 
         : globalTransform(inGlobalTransform)
         , bounds(inBounds)
+        , particleBounds(inParticleBounds)
         , renderableFlags(inFlags)
         , worldCenterPoint(inWorldCenterPt)
         , depthBias(inDepthBias)
@@ -249,26 +267,32 @@ struct QSSGModelContext
     const QSSGRenderModel &model;
     QMatrix4x4 modelViewProjection;
     QMatrix3x3 normalMatrix;
+    QRhiTexture *lightmapTexture = nullptr;
 
     QSSGModelContext(const QSSGRenderModel &inModel, const QMatrix4x4 &inViewProjection) : model(inModel)
     {
         // For skinning, node's global transformation will be ignored and
         // an identity matrix will be used for the normalMatrix
-        if (!model.skeleton)
+        if (model.boneCount == 0) {
             model.calculateMVPAndNormalMatrix(inViewProjection, modelViewProjection, normalMatrix);
-        else
-            model.skeleton->calculateMVPAndNormalMatrix(inViewProjection, modelViewProjection, normalMatrix);
+        } else {
+            modelViewProjection = inViewProjection;
+            normalMatrix = QMatrix3x3();
+        }
     }
 };
 
 Q_STATIC_ASSERT(std::is_trivially_destructible<QSSGModelContext>::value);
 
 class QSSGRenderer;
-struct QSSGLayerRenderData;
+class QSSGLayerRenderData;
 struct QSSGShadowMapEntry;
 
 struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGSubsetRenderable : public QSSGRenderableObject
 {
+    int reflectionProbeIndex = -1;
+    float distanceFromReflectionProbe;
+    QSSGShaderReflectionProbe reflectionProbe;
     const QSSGRef<QSSGRenderer> &generator;
     const QSSGModelContext &modelContext;
     QSSGRenderSubset &subset;
@@ -277,10 +301,7 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGSubsetRenderable : public QSSGRenderabl
     const QSSGRenderGraphObject &material;
     QSSGRenderableImage *firstImage;
     QSSGShaderDefaultMaterialKey shaderDescription;
-    QSSGDataView<QMatrix4x4> boneGlobals;
-    QSSGDataView<QMatrix3x3> boneNormals;
     const QSSGShaderLightList &lights;
-    QSSGDataView<float> morphWeights;
 
     struct {
         // Transient (due to the subsetRenderable being allocated using a
@@ -298,6 +319,10 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGSubsetRenderable : public QSSGRenderabl
             QRhiGraphicsPipeline *pipeline = nullptr;
             QRhiShaderResourceBindings *srb[6] = {};
         } shadowPass;
+        struct {
+            QRhiGraphicsPipeline *pipeline = nullptr;
+            QRhiShaderResourceBindings *srb[6] = {};
+        } reflectionPass;
     } rhiRenderData;
 
     QSSGSubsetRenderable(QSSGRenderableObjectFlags inFlags,
@@ -309,10 +334,7 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGSubsetRenderable : public QSSGRenderabl
                          const QSSGRenderGraphObject &mat,
                          QSSGRenderableImage *inFirstImage,
                          QSSGShaderDefaultMaterialKey inShaderKey,
-                         const QSSGDataView<QMatrix4x4> &inBoneGlobals,
-                         const QSSGDataView<QMatrix3x3> &inBoneNormals,
-                         const QSSGShaderLightList &inLights,
-                         const QSSGDataView<float> &inMorphWeights);
+                         const QSSGShaderLightList &inLights);
 
     const QSSGRenderDefaultMaterial &defaultMaterial() const
     {
@@ -357,6 +379,10 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGParticlesRenderable : public QSSGRender
             QRhiGraphicsPipeline *pipeline = nullptr;
             QRhiShaderResourceBindings *srb[6] = {};
         } shadowPass;
+        struct {
+            QRhiGraphicsPipeline *pipeline = nullptr;
+            QRhiShaderResourceBindings *srb[6] = {};
+        } reflectionPass;
     } rhiRenderData;
 
     QSSGParticlesRenderable(QSSGRenderableObjectFlags inFlags,

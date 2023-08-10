@@ -1,52 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2021 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of the examples of the Qt Toolkit.
-**
-** $QT_BEGIN_LICENSE:BSD$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** BSD License Usage
-** Alternatively, you may use this file under the terms of the BSD license
-** as follows:
-**
-** "Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions are
-** met:
-**   * Redistributions of source code must retain the above copyright
-**     notice, this list of conditions and the following disclaimer.
-**   * Redistributions in binary form must reproduce the above copyright
-**     notice, this list of conditions and the following disclaimer in
-**     the documentation and/or other materials provided with the
-**     distribution.
-**   * Neither the name of The Qt Company Ltd nor the names of its
-**     contributors may be used to endorse or promote products derived
-**     from this software without specific prior written permission.
-**
-**
-** THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-** "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-** LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-** A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-** OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-** SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-** LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-** OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2021 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 
 import QtQuick
 import QtQuick.Window
@@ -73,30 +26,33 @@ Window {
         environment: SceneEnvironment {
             backgroundMode: SceneEnvironment.SkyBox
             lightProbe: Texture {
-                source: "maps/OpenfootageNET_lowerAustria01-1024.hdr"
+                textureData: ProceduralSkyTextureData{}
             }
         }
+
+        camera: helper.orbitControllerEnabled ? orbitCamera : wasdCamera
 
         DirectionalLight {
             eulerRotation: "-30, -20, -40"
             ambientColor: "#333"
         }
 
+        Node {
+            id: orbitCameraNode
+            PerspectiveCamera {
+                id: orbitCamera
+            }
+        }
+
         PerspectiveCamera {
-            id: camera
-            position: "0, 150, 400"
-            Component.onCompleted: view3D.resetView()
+            id: wasdCamera
         }
 
     //! [base scene]
-
-
         function resetView() {
-            camera.position = "0, 150, 400"
-            camera.eulerRotation = "-15, 0, 0"
-            importNode.eulerRotation = "0, 0, 0"
-            helper.resetScale()
-            helper.resetPosition()
+            if (importNode.status === RuntimeLoader.Success) {
+                helper.resetController()
+            }
         }
 
         //! [instancing]
@@ -117,15 +73,7 @@ Window {
             property real boundsDiameter: 0
             property vector3d boundsCenter
             property vector3d boundsSize
-            property alias scaleFactor: wheelHandler.factor
-            property alias position: importNode.position
-
-            function resetScale() {
-                wheelHandler.factor = boundsDiameter ? 300 / boundsDiameter : 1.0
-            }
-            function resetPosition() {
-                position = Qt.vector3d(-boundsCenter.x*scaleFactor, -boundsCenter.y*scaleFactor, -boundsCenter.z*scaleFactor)
-            }
+            property bool orbitControllerEnabled: true
 
             function updateBounds(bounds) {
                 boundsSize = Qt.vector3d(bounds.maximum.x - bounds.minimum.x,
@@ -137,14 +85,47 @@ Window {
                                            (bounds.maximum.z + bounds.minimum.z) / 2 )
                 console.log("Bounds changed: ", bounds.minimum, bounds.maximum,
                             " center:", boundsCenter, "diameter:", boundsDiameter)
+
+                wasdController.speed = boundsDiameter / 1000.0
+                wasdController.shiftSpeed = 3 * wasdController.speed
+                wasdCamera.clipNear = boundsDiameter / 100
+                wasdCamera.clipFar = boundsDiameter * 10
                 view3D.resetView()
+            }
+
+            function resetController() {
+                orbitCameraNode.eulerRotation = Qt.vector3d(0, 0, 0)
+                orbitCameraNode.position = boundsCenter
+                orbitCamera.position = Qt.vector3d(0, 0, 2 * helper.boundsDiameter)
+                orbitCamera.eulerRotation = Qt.vector3d(0, 0, 0)
+                orbitControllerEnabled = true
+            }
+
+            function switchController(useOrbitController) {
+                if (useOrbitController) {
+                    let wasdOffset = wasdCamera.position.minus(boundsCenter)
+                    let wasdDistance = wasdOffset.length()
+                    let wasdDistanceInPlane = Qt.vector3d(wasdOffset.x, 0, wasdOffset.z).length()
+                    let yAngle = Math.atan2(wasdOffset.x, wasdOffset.z) * 180 / Math.PI
+                    let xAngle = -Math.atan2(wasdOffset.y, wasdDistanceInPlane) * 180 / Math.PI
+
+                    orbitCameraNode.position = boundsCenter
+                    orbitCameraNode.eulerRotation = Qt.vector3d(xAngle, yAngle, 0)
+                    orbitCamera.position = Qt.vector3d(0, 0, wasdDistance)
+
+                    orbitCamera.eulerRotation = Qt.vector3d(0, 0, 0)
+                } else {
+                    wasdCamera.position = orbitCamera.scenePosition
+                    wasdCamera.rotation = orbitCamera.sceneRotation
+                    wasdController.focus = true
+                }
+                orbitControllerEnabled = useOrbitController
             }
         }
 
         //! [runtimeloader]
         RuntimeLoader {
             id: importNode
-            scale: Qt.vector3d(helper.scaleFactor, helper.scaleFactor, helper.scaleFactor)
             source: importUrl
             instancing: instancingButton.checked ? instancing : null
             onBoundsChanged: helper.updateBounds(bounds)
@@ -191,30 +172,16 @@ Window {
     }
 
     //! [camera control]
+    OrbitCameraController {
+        id: orbitController
+        origin: orbitCameraNode
+        camera: orbitCamera
+        enabled: helper.orbitControllerEnabled
+    }
     WasdController {
-        controlledObject: camera
-    }
-
-    WheelHandler {
-        id: wheelHandler
-        property real factor: 10.0
-        onWheel: (event)=> {
-            if (event.angleDelta.y > 0)
-                factor *= 1.1
-            else
-                factor /= 1.1
-       }
-    }
-
-    PointHandler {
-        id: rotateHandler
-        acceptedButtons: Qt.MiddleButton
-        onPointChanged: {
-            if (Math.abs(point.velocity.x) >= Math.abs(point.velocity.y))
-                importNode.eulerRotation.y += point.velocity.x / 2000
-            else
-                importNode.eulerRotation.x += point.velocity.y / 2000
-        }
+        id: wasdController
+        controlledObject: wasdCamera
+        enabled: !helper.orbitControllerEnabled
     }
     //! [camera control]
 
@@ -232,12 +199,6 @@ Window {
             focusPolicy: Qt.NoFocus
         }
         RoundButton {
-            id: scaleButton
-            text: "Scale: " + helper.scaleFactor.toPrecision(3)
-            onClicked: helper.resetScale()
-            focusPolicy: Qt.NoFocus
-        }
-        RoundButton {
             id: visualizeButton
             checkable: true
             text: "Visualize bounds"
@@ -247,6 +208,12 @@ Window {
             id: instancingButton
             checkable: true
             text: "Instancing"
+            focusPolicy: Qt.NoFocus
+        }
+        RoundButton {
+            id: controllerButton
+            text: helper.orbitControllerEnabled ? "Orbit controller" : "WASD controller"
+            onClicked: helper.switchController(!helper.orbitControllerEnabled)
             focusPolicy: Qt.NoFocus
         }
     }

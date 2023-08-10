@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qssgassetimportmanager_p.h"
 
@@ -34,6 +8,10 @@
 
 #include <QtCore/QFile>
 #include <QtCore/QDebug>
+#include <QtCore/QHash>
+#include <QtCore/QMap>
+#include <QtCore/QList>
+#include <QtCore/QString>
 
 QT_BEGIN_NAMESPACE
 
@@ -67,12 +45,12 @@ QSSGAssetImportManager::ImportState QSSGAssetImportManager::importFile(const QSt
                                                                        const QDir &outputPath,
                                                                        QString *error)
 {
-    return importFile(filename, outputPath, QVariantMap(), error);
+    return importFile(filename, outputPath, QJsonObject(), error);
 }
 
 QSSGAssetImportManager::ImportState QSSGAssetImportManager::importFile(const QString &filename,
                                                                        const QDir &outputPath,
-                                                                       const QVariantMap &options,
+                                                                       const QJsonObject &options,
                                                                        QString *error)
 {
     QFileInfo fileInfo(filename);
@@ -124,7 +102,7 @@ QSSGAssetImportManager::ImportState QSSGAssetImportManager::importFile(const QUr
 
     if (it != end) {
         const auto &importer = *it;
-        const auto ret = importer->import(url, QVariantMap(), scene);
+        const auto ret = importer->import(url, QJsonObject(), scene);
         if (!ret.isEmpty()) {
             if (error)
                 *error = ret;
@@ -135,11 +113,11 @@ QSSGAssetImportManager::ImportState QSSGAssetImportManager::importFile(const QUr
     return ImportState::Success;
 }
 
-QVariantMap QSSGAssetImportManager::getOptionsForFile(const QString &filename)
+QJsonObject QSSGAssetImportManager::getOptionsForFile(const QString &filename)
 {
     QFileInfo fileInfo(filename);
 
-    QVariantMap options;
+    QJsonObject options;
 
     // Is this a real file?
     if (fileInfo.exists()) {
@@ -153,9 +131,9 @@ QVariantMap QSSGAssetImportManager::getOptionsForFile(const QString &filename)
     return options;
 }
 
-QHash<QString, QVariantMap> QSSGAssetImportManager::getAllOptions() const
+QSSGAssetImportManager::PluginOptionMaps QSSGAssetImportManager::getAllOptions() const
 {
-    QHash<QString, QVariantMap> options;
+    PluginOptionMaps options;
     for (const auto importer : m_assetImporters)
         options.insert(importer->inputExtensions().join(QChar::fromLatin1(':')), importer->importOptions());
     return options;
@@ -164,7 +142,7 @@ QHash<QString, QVariantMap> QSSGAssetImportManager::getAllOptions() const
 QHash<QString, QStringList> QSSGAssetImportManager::getSupportedExtensions() const
 {
     QHash<QString, QStringList> extensionMap;
-    for (const auto importer : qAsConst(m_assetImporters))
+    for (const auto importer : std::as_const(m_assetImporters))
         extensionMap.insert(importer->typeDescription(), importer->inputExtensions());
     return extensionMap;
 }

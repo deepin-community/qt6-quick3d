@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qssgrhicontext_p.h"
 #include <QtQuick3DUtils/private/qssgmesh_p.h>
@@ -228,6 +202,8 @@ void QSSGRhiShaderPipeline::addStage(const QRhiShaderStage &stage, StageFlags fl
                     m_vertexInputs[QSSGRhiInputAssemblerState::TexCoord0Semantic] = var;
                 } else if (var.name == QSSGMesh::MeshInternal::getUV1AttrName()) {
                     m_vertexInputs[QSSGRhiInputAssemblerState::TexCoord1Semantic] = var;
+                } else if (var.name == QSSGMesh::MeshInternal::getLightmapUVAttrName()) {
+                    m_vertexInputs[QSSGRhiInputAssemblerState::TexCoordLightmapSemantic] = var;
                 } else if (var.name == QSSGMesh::MeshInternal::getTexTanAttrName()) {
                     m_vertexInputs[QSSGRhiInputAssemblerState::TangentSemantic] = var;
                 } else if (var.name == QSSGMesh::MeshInternal::getTexBinormalAttrName()) {
@@ -927,13 +903,13 @@ QSSGRhiContext::~QSSGRhiContext()
     qDeleteAll(m_computePipelines);
     qDeleteAll(m_srbCache);
     qDeleteAll(m_textures);
-    for (const auto &samplerInfo : qAsConst(m_samplers))
+    for (const auto &samplerInfo : std::as_const(m_samplers))
         delete samplerInfo.second;
-    for (const auto &instanceData : qAsConst(m_instanceBuffers)) {
+    for (const auto &instanceData : std::as_const(m_instanceBuffers)) {
         if (instanceData.owned)
             delete instanceData.buffer;
     }
-    for (const auto &particleData : qAsConst(m_particleData))
+    for (const auto &particleData : std::as_const(m_particleData))
         delete particleData.texture;
     qDeleteAll(m_dummyTextures);
 }
@@ -1043,9 +1019,12 @@ QRhiSampler *QSSGRhiContext::sampler(const QSSGRhiSamplerDescription &samplerDes
     if (found != m_samplers.cend())
         return found->second;
 
-    QRhiSampler *newSampler = m_rhi->newSampler(samplerDescription.minFilter, samplerDescription.magFilter,
+    QRhiSampler *newSampler = m_rhi->newSampler(samplerDescription.magFilter,
+                                                samplerDescription.minFilter,
                                                 samplerDescription.mipmap,
-                                                samplerDescription.hTiling, samplerDescription.vTiling);
+                                                samplerDescription.hTiling,
+                                                samplerDescription.vTiling,
+                                                samplerDescription.zTiling);
     if (!newSampler->create()) {
         qWarning("Failed to build image sampler");
         delete newSampler;
@@ -1053,6 +1032,41 @@ QRhiSampler *QSSGRhiContext::sampler(const QSSGRhiSamplerDescription &samplerDes
     }
     m_samplers << SamplerInfo{samplerDescription, newSampler};
     return newSampler;
+}
+
+void QSSGRhiContext::checkAndAdjustForNPoT(QRhiTexture *texture, QSSGRhiSamplerDescription *samplerDescription)
+{
+    if (samplerDescription->mipmap != QRhiSampler::None
+            || samplerDescription->hTiling != QRhiSampler::ClampToEdge
+            || samplerDescription->vTiling != QRhiSampler::ClampToEdge
+            || samplerDescription->zTiling != QRhiSampler::ClampToEdge)
+    {
+        if (m_rhi->isFeatureSupported(QRhi::NPOTTextureRepeat))
+            return;
+
+        const QSize pixelSize = texture->pixelSize();
+        const int w = qNextPowerOfTwo(pixelSize.width() - 1);
+        const int h = qNextPowerOfTwo(pixelSize.height() - 1);
+        if (w != pixelSize.width() || h != pixelSize.height()) {
+            static bool warnShown = false;
+            if (!warnShown) {
+                warnShown = true;
+                qWarning("Attempted to use an unsupported filtering or wrap mode, "
+                         "this is likely due to lacking proper support for non-power-of-two textures on this platform.\n"
+                         "If this is with WebGL, try updating the application to use QQuick3D::idealSurfaceFormat() in main() "
+                         "in order to ensure WebGL 2 is used.");
+            }
+            samplerDescription->mipmap = QRhiSampler::None;
+            samplerDescription->hTiling = QRhiSampler::ClampToEdge;
+            samplerDescription->vTiling = QRhiSampler::ClampToEdge;
+            samplerDescription->zTiling = QRhiSampler::ClampToEdge;
+        }
+    }
+}
+
+void QSSGRhiContext::registerTexture(QRhiTexture *texture)
+{
+    m_textures.insert(texture);
 }
 
 void QSSGRhiContext::releaseTexture(QRhiTexture *texture)
@@ -1100,6 +1114,12 @@ QRhiTexture *QSSGRhiContext::dummyTexture(QRhiTexture::Flags flags, QRhiResource
 bool QSSGRhiContext::shaderDebuggingEnabled()
 {
     static const bool isSet = (qEnvironmentVariableIntValue("QT_RHI_SHADER_DEBUG") != 0);
+    return isSet;
+}
+
+bool QSSGRhiContext::editorMode()
+{
+    static const bool isSet = (qEnvironmentVariableIntValue("QT_QUICK3D_EDITORMODE") != 0);
     return isSet;
 }
 

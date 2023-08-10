@@ -1,10 +1,4 @@
-# Generated from loader.pro.
-
-#####################################################################
-## loader Binary:
-#####################################################################
-
-qt_internal_add_manual_test(loader
+qt_internal_add_manual_test(manual_test_loader
     GUI
     SOURCES
         main.cpp
@@ -20,13 +14,9 @@ set(qml_resource_files
     "main.qml"
 )
 
-qt_internal_add_resource(loader "qml"
+qt_internal_add_resource(manual_test_loader "qml"
     PREFIX
         "/"
     FILES
         ${qml_resource_files}
 )
-
-
-#### Keys ignored in scope 1:.:.:loader.pro:<TRUE>:
-# OTHER_FILES = "main.qml" "TestModel.qml"

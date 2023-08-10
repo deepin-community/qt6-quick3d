@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qquick3dabstractlight_p.h"
 #include "qquick3dobject_p.h"
@@ -70,14 +44,25 @@ QT_BEGIN_NAMESPACE
 
 /*!
     \qmlproperty Node Light::scope
-    The property allows the selection of a Node in the scene. Only that node and it's children
-    are affected by this light. By default no scope is selected.
+
+    The property allows the selection of a Node in the scene. Only that node
+    and its children are affected by this light. By default the value is null,
+    which indicates no scope selected.
+
+    \note Scoped lights cannot cast real-time shadows, meaning a Light with a
+    scope set should not set \l castsShadow to true. They can however generate
+    baked shadows when \l bakeMode is set to Light.BakeModeAll.
 */
 
 /*!
     \qmlproperty bool Light::castsShadow
-    When this property is enabled, the light will cast shadows.
-    The default value is false.
+
+    When this property is enabled, the light will cast (real-time) shadows. The
+    default value is false.
+
+    \note When \l bakeMode is set to Light.BakeModeAll, this property has no
+    effect. A fully baked light always has baked shadows, but it will never
+    participate in real-time shadow mapping.
 */
 
 /*!
@@ -121,6 +106,50 @@ QT_BEGIN_NAMESPACE
     \qmlproperty real Light::shadowFilter
     This property sets how much blur is applied to the shadows.
     The default value is 5.
+*/
+
+/*!
+    \qmlproperty enumeration Light::bakeMode
+    The property controls if the light is active in baked lighting, such as
+    when generating lightmaps.
+
+    \value Light.BakeModeDisabled The light is not used in baked lighting.
+
+    \value Light.BakeModeIndirect Indirect lighting contribution (for global
+    illumination) is baked for this light. Direct lighting (diffuse, specular,
+    real-time shadow mapping) is calculated normally for the light at run time.
+    At run time, when not in baking mode, the renderer will attempt to sample
+    the lightmap to get the indirect lighting data and combine that with the
+    results of the real-time calculations.
+
+    \value Light.BakeModeAll Both direct (diffuse, shadow) and indirect
+    lighting is baked for this light. The light will not have a specular
+    contribution and will not generate realtime shadow maps, but it will always
+    have baked shadows. At run time, when not in baking mode, the renderer will
+    attempt to sample the lightmap in place of the standard, real-time
+    calculations for diffuse lighting and shadow mapping.
+
+    The default value is \c Light.BakeModeDisabled
+
+    \note Just as with \l Model::usedInBakedLighting, designers and developers
+    must always evaluate on a per-light basis if the light is suitable to take
+    part in baked lighting.
+
+    \warning Lights with dynamically changing properties, for example, animated
+    position, rotation, or other properties, are not suitable for participating
+    in baked lighting.
+
+    This property is relevant both when baking and when using lightmaps. A
+    consistent state between the baking run and the subsequent runs that use
+    the generated data is essential. Changing to a different value will not
+    change the previously generated and persistently stored data in the
+    lightmaps, the engine's rendering behavior will however follow the
+    property's current value.
+
+    For more information on how to bake lightmaps, see the \l {Lightmaps and
+    Global Illumination}.
+
+    \sa Model::usedInBakedLighting, Model::bakedLightmap, Lightmapper, {Lightmaps and Global Illumination}
 */
 
 QQuick3DAbstractLight::QQuick3DAbstractLight(QQuick3DNodePrivate &dd, QQuick3DNode *parent)
@@ -180,13 +209,19 @@ float QQuick3DAbstractLight::shadowFilter() const
     return m_shadowFilter;
 }
 
+QQuick3DAbstractLight::QSSGBakeMode QQuick3DAbstractLight::bakeMode() const
+{
+    return m_bakeMode;
+}
+
 void QQuick3DAbstractLight::markAllDirty()
 {
     m_dirtyFlags = DirtyFlags(DirtyFlag::ShadowDirty)
             | DirtyFlags(DirtyFlag::ColorDirty)
             | DirtyFlags(DirtyFlag::BrightnessDirty)
             | DirtyFlags(DirtyFlag::FadeDirty)
-            | DirtyFlags(DirtyFlag::AreaDirty);
+            | DirtyFlags(DirtyFlag::AreaDirty)
+            | DirtyFlags(DirtyFlag::BakeModeDirty);
     QQuick3DNode::markAllDirty();
 }
 
@@ -280,6 +315,17 @@ void QQuick3DAbstractLight::setShadowMapQuality(
     update();
 }
 
+void QQuick3DAbstractLight::setBakeMode(QQuick3DAbstractLight::QSSGBakeMode bakeMode)
+{
+    if (m_bakeMode == bakeMode)
+        return;
+
+    m_bakeMode = bakeMode;
+    m_dirtyFlags.setFlag(DirtyFlag::BakeModeDirty);
+    emit bakeModeChanged();
+    update();
+}
+
 void QQuick3DAbstractLight::setShadowMapFar(float shadowMapFar)
 {
     if (qFuzzyCompare(m_shadowMapFar, shadowMapFar))
@@ -325,6 +371,9 @@ QSSGRenderGraphObject *QQuick3DAbstractLight::updateSpatialNode(QSSGRenderGraphO
 
     QSSGRenderLight *light = static_cast<QSSGRenderLight *>(node);
 
+    if (m_dirtyFlags.toInt() != 0) // Some flag was set, so mark the light dirty!
+        light->markDirty(QSSGRenderLight::DirtyFlag::LightDirty);
+
     if (m_dirtyFlags.testFlag(DirtyFlag::ColorDirty)) {
         m_dirtyFlags.setFlag(DirtyFlag::ColorDirty, false);
         light->m_diffuseColor = color::sRGBToLinear(m_color).toVector3D();
@@ -345,6 +394,12 @@ QSSGRenderGraphObject *QQuick3DAbstractLight::updateSpatialNode(QSSGRenderGraphO
         light->m_shadowMapRes = mapToShadowResolution(m_shadowMapQuality);
         light->m_shadowMapFar = m_shadowMapFar;
         light->m_shadowFilter = m_shadowFilter;
+    }
+
+    if (m_dirtyFlags.testFlag(DirtyFlag::BakeModeDirty)) {
+        m_dirtyFlags.setFlag(DirtyFlag::BakeModeDirty, false);
+        light->m_bakingEnabled = m_bakeMode != QSSGBakeMode::BakeModeDisabled;
+        light->m_fullyBaked = m_bakeMode == QSSGBakeMode::BakeModeAll;
     }
 
     if (m_scope) {

@@ -1,9 +1,10 @@
 
 #quick3d version of qrc to resource
-function(_qt_internal_quick3d_generate_resource_from_qrc target qrcfile)
-    set(generatedResourceFile "${CMAKE_CURRENT_BINARY_DIR}/.rcc/generated_${qrcfile}.qrc")
-    set(generatedSourceCode "${CMAKE_CURRENT_BINARY_DIR}/.rcc/qrc_${qrcfile}.cpp")
-    set(rccArgs --name "${qrcfile}" --output "${generatedSourceCode}"  "${generatedResourceFile}")
+function(_qt_internal_quick3d_generate_resource_from_qrc target resource_name)
+    set(generatedResourceFile "${CMAKE_CURRENT_BINARY_DIR}/.rcc/generated_${resource_name}.qrc")
+    set(generatedSourceCode "${CMAKE_CURRENT_BINARY_DIR}/.rcc/qrc_${resource_name}.cpp")
+    set(rccArgs --name "${resource_name}"
+                --output "${generatedSourceCode}" "${generatedResourceFile}")
 
     if(NOT QT_FEATURE_zstd)
         list(APPEND rccArgs "--no-zstd")
@@ -17,11 +18,12 @@ function(_qt_internal_quick3d_generate_resource_from_qrc target qrcfile)
         ARGS
             ${rccArgs}
         DEPENDS
-            "${qrcfile}"
+            "${generatedResourceFile}"
             $<TARGET_FILE:${QT_CMAKE_EXPORT_NAMESPACE}::rcc>
             $<TARGET_FILE:${QT_CMAKE_EXPORT_NAMESPACE}::shadergen>
         COMMENT
-            RCC ${qrcfile} VERBATIM
+            RCC ${resource_name}
+        VERBATIM
     )
 
     get_target_property(type ${target} TYPE)
@@ -39,15 +41,20 @@ function(qt6_add_materials target resource_name)
     set(output_qrc "generated_${resource_name}.qrc")
     set(output_dir "${CMAKE_CURRENT_BINARY_DIR}/.rcc")
 
-    add_custom_command(
-        OUTPUT "${resource_name}"
-        ${QT_TOOL_PATH_SETUP_COMMAND}
+    _qt_internal_get_tool_wrapper_script_path(tool_wrapper)
+    set(shadergen_command
         COMMAND
-            ${QT_CMAKE_EXPORT_NAMESPACE}::shadergen
+            "${tool_wrapper}"
+            "$<TARGET_FILE:${QT_CMAKE_EXPORT_NAMESPACE}::shadergen>"
             -C "${PROJECT_SOURCE_DIR}"
             -o "${output_dir}"
             -r "${output_qrc}"
             \""${arg_FILES}"\"
+    )
+
+    add_custom_command(
+        OUTPUT "${output_dir}/${output_qrc}"
+        ${shadergen_command}
         DEPENDS
             $<TARGET_FILE:${QT_CMAKE_EXPORT_NAMESPACE}::shadergen>
     )
@@ -88,8 +95,9 @@ function(qt6_add_lightprobe_images target resource_name)
     foreach(file IN LISTS arg_FILES)
         get_filename_component(file_name_wo_ext ${file} NAME_WLE)
         get_filename_component(file_ext ${file} EXT)
-        if(NOT file_ext STREQUAL ".hdr")
-            message(FATAL_ERROR "Light probe HDRI maps must have a .hdr extension, whereas ${file} has something else")
+        set(supported_formats ".hdr" ".exr")
+        if(NOT file_ext IN_LIST supported_formats)
+            message(FATAL_ERROR "Light probe HDRI maps must have the extensions .hdr or .exr, whereas ${file} has something else")
         endif()
 
         get_filename_component(file_dir "${file}" DIRECTORY)

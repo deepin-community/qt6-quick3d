@@ -1,3 +1,23 @@
+#ifndef TONEMAPPPING_GLSLIB
+#define TONEMAPPPING_GLSLIB 1
+
+// This file is also included from the static shader skybox.frag, therefore pay
+// attention that it should be suitable both as a generator-included and as a
+// static-shader-included snippet.
+
+#ifndef QSSG_ENABLE_LINEAR_TONEMAPPING
+#define QSSG_ENABLE_LINEAR_TONEMAPPING 0
+#endif
+#ifndef QSSG_ENABLE_ACES_TONEMAPPING
+#define QSSG_ENABLE_ACES_TONEMAPPING 0
+#endif
+#ifndef QSSG_ENABLE_HEJLDAWSON_TONEMAPPING
+#define QSSG_ENABLE_HEJLDAWSON_TONEMAPPING 0
+#endif
+#ifndef QSSG_ENABLE_FILMIC_TONEMAPPING
+#define QSSG_ENABLE_FILMIC_TONEMAPPING 0
+#endif
+
 // The following methods are described in this article:
 // http://chilliant.blogspot.com/2012/08/srgb-approximations-for-hlsl.html
 
@@ -49,20 +69,6 @@ vec4 qt_sRGBToLinearFast(vec4 srgbIn)
 {
     return vec4(pow(srgbIn.rgb, vec3(GAMMA)), srgbIn.a);
 }
-
-
-#ifndef QSSG_ENABLE_LINEAR_TONEMAPPING
-#define QSSG_ENABLE_LINEAR_TONEMAPPING 0
-#endif
-#ifndef QSSG_ENABLE_ACES_TONEMAPPING
-#define QSSG_ENABLE_ACES_TONEMAPPING 0
-#endif
-#ifndef QSSG_ENABLE_HEJLDAWSON_TONEMAPPING
-#define QSSG_ENABLE_HEJLDAWSON_TONEMAPPING 0
-#endif
-#ifndef QSSG_ENABLE_FILMIC_TONEMAPPING
-#define QSSG_ENABLE_FILMIC_TONEMAPPING 0
-#endif
 
 #if QSSG_ENABLE_ACES_TONEMAPPING
 vec3 qt_toneMapACES(vec3 color)
@@ -133,3 +139,13 @@ vec4 qt_tonemap(vec4 color)
 {
     return vec4(qt_tonemap(color.rgb), color.a);
 }
+
+vec3 qt_exposure(vec3 color, float exposure)
+{
+#if QSSG_ENABLE_ACES_TONEMAPPING || QSSG_ENABLE_HEJLDAWSON_TONEMAPPING || QSSG_ENABLE_FILMIC_TONEMAPPING || QSSG_ENABLE_LINEAR_TONEMAPPING
+    return vec3(vec3(1.0) - exp(-color * exposure));
+#endif
+    return color;
+}
+
+#endif // TONEMAPPPING_GLSLIB

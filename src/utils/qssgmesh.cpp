@@ -1,36 +1,11 @@
-/****************************************************************************
-**
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qssgmesh_p.h"
 
 #include <QtCore/QVector>
 #include <QtQuick3DUtils/private/qssgdataref_p.h>
+#include <QtQuick3DUtils/private/qssglightmapuvgenerator_p.h>
 
 QT_BEGIN_NAMESPACE
 
@@ -104,7 +79,7 @@ void MeshInternal::writeFileHeader(QIODevice *device, const MeshInternal::MultiM
         outputStream << offset << id << padding;
     }
 
-    const quint32 meshCount = meshFileInfo.meshEntries.count();
+    const quint32 meshCount = meshFileInfo.meshEntries.size();
     outputStream << meshFileInfo.fileId << meshFileInfo.fileVersion << multiEntriesOffset << meshCount;
 }
 
@@ -183,7 +158,7 @@ quint64 MeshInternal::readMeshData(QIODevice *device, quint64 offset, Mesh *mesh
         inputStream >> nameLength;
         offsetTracker.advance(sizeof(quint32));
         const QByteArray nameWithZeroTerminator = device->read(nameLength);
-        entry.name = QByteArray(nameWithZeroTerminator.constData(), qMax(0, nameWithZeroTerminator.count() - 1));
+        entry.name = QByteArray(nameWithZeroTerminator.constData(), qMax(0, nameWithZeroTerminator.size() - 1));
         alignAmount = offsetTracker.alignedAdvance(nameLength);
         if (alignAmount)
             device->read(alignPadding, alignAmount);
@@ -282,7 +257,7 @@ quint64 MeshInternal::writeMeshData(QIODevice *device, const Mesh &mesh)
     MeshInternal::MeshOffsetTracker offsetTracker(startPos);
     Q_ASSERT(offsetTracker.offset() == device->pos());
 
-    const quint32 vertexBufferEntriesCount = mesh.m_vertexBuffer.entries.count();
+    const quint32 vertexBufferEntriesCount = mesh.m_vertexBuffer.entries.size();
     const quint32 vertexBufferDataSize = mesh.m_vertexBuffer.data.size();
     const quint32 vertexBufferStride = mesh.m_vertexBuffer.stride;
     outputStream << quint32(0) // legacy offset
@@ -297,7 +272,7 @@ quint64 MeshInternal::writeMeshData(QIODevice *device, const Mesh &mesh)
     outputStream << quint32(0) // legacy offset
                  << indexBufferDataSize;
 
-    const quint32 subsetsCount = mesh.m_subsets.count();
+    const quint32 subsetsCount = mesh.m_subsets.size();
     outputStream << quint32(0) // legacy offset
                  << subsetsCount;
 
@@ -329,7 +304,7 @@ quint64 MeshInternal::writeMeshData(QIODevice *device, const Mesh &mesh)
 
     for (quint32 i = 0; i < vertexBufferEntriesCount; ++i) {
         const Mesh::VertexBufferEntry &entry(mesh.m_vertexBuffer.entries[i]);
-        const quint32 nameLength = entry.name.count() + 1;
+        const quint32 nameLength = entry.name.size() + 1;
         outputStream << nameLength;
         device->write(entry.name.constData(), nameLength); // with zero terminator included
         alignAmount = offsetTracker.alignedAdvance(sizeof(quint32) + nameLength);
@@ -358,7 +333,7 @@ quint64 MeshInternal::writeMeshData(QIODevice *device, const Mesh &mesh)
         const float maxX = subset.bounds.max.x();
         const float maxY = subset.bounds.max.y();
         const float maxZ = subset.bounds.max.z();
-        const quint32 nameLength = subset.name.count() + 1;
+        const quint32 nameLength = subset.name.size() + 1;
         const quint32 lightmapSizeHintWidth = qMax(0, subset.lightmapSizeHint.width());
         const quint32 lightmapSizeHintHeight = qMax(0, subset.lightmapSizeHint.height());
         outputStream << subsetCount
@@ -382,7 +357,7 @@ quint64 MeshInternal::writeMeshData(QIODevice *device, const Mesh &mesh)
     for (quint32 i = 0; i < subsetsCount; ++i) {
         const Mesh::Subset &subset(mesh.m_subsets[i]);
         const char *utf16Name = reinterpret_cast<const char *>(subset.name.utf16());
-        const quint32 nameByteSize = (subset.name.count() + 1) * 2;
+        const quint32 nameByteSize = (subset.name.size() + 1) * 2;
         device->write(utf16Name, nameByteSize);
         alignAmount = offsetTracker.alignedAdvance(nameByteSize);
         if (alignAmount)
@@ -653,7 +628,7 @@ quint32 Mesh::save(QIODevice *device, quint32 id) const
                 newId = qMax(newId, it.key() + 1);
             }
         }
-        newMeshStartPosFromEnd = MULTI_HEADER_STRUCT_SIZE + header.meshEntries.count() * MULTI_ENTRY_STRUCT_SIZE;
+        newMeshStartPosFromEnd = MULTI_HEADER_STRUCT_SIZE + header.meshEntries.size() * MULTI_ENTRY_STRUCT_SIZE;
     } else {
         header = MeshInternal::MultiMeshInfo::withDefaults();
     }
@@ -730,6 +705,243 @@ QSSGBounds3 MeshInternal::calculateSubsetBounds(const Mesh::VertexBufferEntry &e
     }
 
     return result;
+}
+
+bool Mesh::hasLightmapUVChannel() const
+{
+    const char *lightmapAttrName = MeshInternal::getLightmapUVAttrName();
+    for (const VertexBufferEntry &vbe : std::as_const(m_vertexBuffer.entries)) {
+        if (vbe.name == lightmapAttrName)
+            return true;
+    }
+    return false;
+}
+
+bool Mesh::createLightmapUVChannel(uint lightmapBaseResolution)
+{
+    const char *posAttrName = MeshInternal::getPositionAttrName();
+    const char *normalAttrName = MeshInternal::getNormalAttrName();
+    const char *uvAttrName = MeshInternal::getUV0AttrName();
+    const char *lightmapAttrName = MeshInternal::getLightmapUVAttrName();
+
+    // this function should do nothing if there is already an attr_lightmapuv
+    if (hasLightmapUVChannel())
+        return true;
+
+    const char *srcVertexData = m_vertexBuffer.data.constData();
+    const quint32 srcVertexStride = m_vertexBuffer.stride;
+    if (!srcVertexStride) {
+        qWarning("Lightmap UV unwrapping encountered a Mesh with 0 vertex stride, this cannot happen");
+        return false;
+    }
+    if (m_indexBuffer.data.isEmpty()) {
+        qWarning("Lightmap UV unwrapping encountered a Mesh without index data, this cannot happen");
+        return false;
+    }
+
+    quint32 positionOffset = UINT32_MAX;
+    quint32 normalOffset = UINT32_MAX;
+    quint32 uvOffset = UINT32_MAX;
+
+    for (const VertexBufferEntry &vbe : std::as_const(m_vertexBuffer.entries)) {
+        if (vbe.name == posAttrName) {
+            if (vbe.componentCount != 3) {
+                qWarning("Lightmap UV unwrapping encountered a Mesh non-float3 position data, this cannot happen");
+                return false;
+            }
+            positionOffset = vbe.offset;
+        } else if (vbe.name == normalAttrName) {
+            if (vbe.componentCount != 3) {
+                qWarning("Lightmap UV unwrapping encountered a Mesh non-float3 normal data, this cannot happen");
+                return false;
+            }
+            normalOffset = vbe.offset;
+        } else if (vbe.name == uvAttrName) {
+            if (vbe.componentCount != 2) {
+                qWarning("Lightmap UV unwrapping encountered a Mesh non-float2 UV0 data, this cannot happen");
+                return false;
+            }
+            uvOffset = vbe.offset;
+        }
+    }
+
+    if (positionOffset == UINT32_MAX) {
+        qWarning("Lightmap UV unwrapping encountered a Mesh without vertex positions, this cannot happen");
+        return false;
+    }
+    // normal and uv0 are optional
+
+    const qsizetype vertexCount = m_vertexBuffer.data.size() / srcVertexStride;
+    QByteArray positionData(vertexCount * 3 * sizeof(float), Qt::Uninitialized);
+    float *posPtr = reinterpret_cast<float *>(positionData.data());
+    for (qsizetype i = 0; i < vertexCount; ++i) {
+        const char *vertexBasePtr = srcVertexData + i * srcVertexStride;
+        const float *srcPos = reinterpret_cast<const float *>(vertexBasePtr + positionOffset);
+        *posPtr++ = *srcPos++;
+        *posPtr++ = *srcPos++;
+        *posPtr++ = *srcPos++;
+    }
+
+    QByteArray normalData;
+    if (normalOffset != UINT32_MAX) {
+        normalData.resize(vertexCount * 3 * sizeof(float));
+        float *normPtr = reinterpret_cast<float *>(normalData.data());
+        for (qsizetype i = 0; i < vertexCount; ++i) {
+            const char *vertexBasePtr = srcVertexData + i * srcVertexStride;
+            const float *srcNormal = reinterpret_cast<const float *>(vertexBasePtr + normalOffset);
+            *normPtr++ = *srcNormal++;
+            *normPtr++ = *srcNormal++;
+            *normPtr++ = *srcNormal++;
+        }
+    }
+
+    QByteArray uvData;
+    if (uvOffset != UINT32_MAX) {
+        uvData.resize(vertexCount * 2 * sizeof(float));
+        float *uvPtr = reinterpret_cast<float *>(uvData.data());
+        for (qsizetype i = 0; i < vertexCount; ++i) {
+            const char *vertexBasePtr = srcVertexData + i * srcVertexStride;
+            const float *srcUv = reinterpret_cast<const float *>(vertexBasePtr + uvOffset);
+            *uvPtr++ = *srcUv++;
+            *uvPtr++ = *srcUv++;
+        }
+    }
+
+    QSSGLightmapUVGenerator uvGen;
+    QSSGLightmapUVGeneratorResult r = uvGen.run(positionData, normalData, uvData,
+                                                m_indexBuffer.data, m_indexBuffer.componentType,
+                                                lightmapBaseResolution);
+    if (!r.isValid())
+        return false;
+
+    // the result can have more (but never less) vertices than the input
+    const int newVertexCount = r.vertexMap.size();
+
+    // r.indexData contains the new index data that has the same number of elements as before
+    const quint32 *newIndex = reinterpret_cast<const quint32 *>(r.indexData.constData());
+    if (m_indexBuffer.componentType == QSSGMesh::Mesh::ComponentType::UnsignedInt32) {
+        if (r.indexData.size() != m_indexBuffer.data.size()) {
+            qWarning("Index buffer size mismatch after lightmap UV unwrapping");
+            return false;
+        }
+        quint32 *indexDst = reinterpret_cast<quint32 *>(m_indexBuffer.data.data());
+        memcpy(indexDst, newIndex, m_indexBuffer.data.size());
+    } else {
+        if (r.indexData.size() != m_indexBuffer.data.size() * 2) {
+            qWarning("Index buffer size mismatch after lightmap UV unwrapping");
+            return false;
+        }
+        quint16 *indexDst = reinterpret_cast<quint16 *>(m_indexBuffer.data.data());
+        for (size_t i = 0, count = m_indexBuffer.data.size() / sizeof(quint16); i != count; ++i)
+            *indexDst++ = *newIndex++;
+    }
+
+    QVarLengthArray<QByteArray, 8> newData;
+    newData.reserve(m_vertexBuffer.entries.size());
+
+    for (const VertexBufferEntry &vbe : std::as_const(m_vertexBuffer.entries)) {
+        const qsizetype byteSize = vbe.componentCount * MeshInternal::byteSizeForComponentType(vbe.componentType);
+        QByteArray data(byteSize * vertexCount, Qt::Uninitialized);
+        char *dst = data.data();
+        for (qsizetype i = 0; i < vertexCount; ++i) {
+            memcpy(dst, srcVertexData + i * srcVertexStride + vbe.offset, byteSize);
+            dst += byteSize;
+        }
+        switch (vbe.componentType) {
+        case ComponentType::UnsignedInt8:
+            newData.append(QSSGLightmapUVGenerator::remap<quint8>(data, r.vertexMap, vbe.componentCount));
+            break;
+        case ComponentType::Int8:
+            newData.append(QSSGLightmapUVGenerator::remap<qint8>(data, r.vertexMap, vbe.componentCount));
+            break;
+        case ComponentType::UnsignedInt16:
+            newData.append(QSSGLightmapUVGenerator::remap<quint16>(data, r.vertexMap, vbe.componentCount));
+            break;
+        case ComponentType::Int16:
+            newData.append(QSSGLightmapUVGenerator::remap<qint16>(data, r.vertexMap, vbe.componentCount));
+            break;
+        case ComponentType::UnsignedInt32:
+            newData.append(QSSGLightmapUVGenerator::remap<quint32>(data, r.vertexMap, vbe.componentCount));
+            break;
+        case ComponentType::Int32:
+            newData.append(QSSGLightmapUVGenerator::remap<qint32>(data, r.vertexMap, vbe.componentCount));
+            break;
+        case ComponentType::UnsignedInt64:
+            newData.append(QSSGLightmapUVGenerator::remap<quint64>(data, r.vertexMap, vbe.componentCount));
+            break;
+        case ComponentType::Int64:
+            newData.append(QSSGLightmapUVGenerator::remap<qint64>(data, r.vertexMap, vbe.componentCount));
+            break;
+        case ComponentType::Float16:
+            newData.append(QSSGLightmapUVGenerator::remap<qfloat16>(data, r.vertexMap, vbe.componentCount));
+            break;
+        case ComponentType::Float32:
+            newData.append(QSSGLightmapUVGenerator::remap<float>(data, r.vertexMap, vbe.componentCount));
+            break;
+        case ComponentType::Float64:
+            newData.append(QSSGLightmapUVGenerator::remap<double>(data, r.vertexMap, vbe.componentCount));
+            break;
+        }
+    }
+
+    VertexBufferEntry lightmapUVEntry;
+    lightmapUVEntry.componentType = ComponentType::Float32;
+    lightmapUVEntry.componentCount = 2;
+    lightmapUVEntry.offset = 0;
+    lightmapUVEntry.name = lightmapAttrName;
+
+    QByteArray newVertexBuffer;
+    newVertexBuffer.reserve(newVertexCount * (srcVertexStride + 8));
+
+    quint32 bufferAlignment = 0;
+    for (int vertexIdx = 0; vertexIdx < newVertexCount; ++vertexIdx) {
+        quint32 dataOffset = 0;
+        for (int vbIdx = 0, end = m_vertexBuffer.entries.size(); vbIdx != end; ++vbIdx) {
+            VertexBufferEntry &vbe(m_vertexBuffer.entries[vbIdx]);
+
+            const quint32 alignment = MeshInternal::byteSizeForComponentType(vbe.componentType);
+            bufferAlignment = qMax(bufferAlignment, alignment);
+            const quint32 byteSize = alignment * vbe.componentCount;
+            const quint32 newOffset = getAlignedOffset(dataOffset, alignment);
+
+            if (newOffset != dataOffset) {
+                QByteArray filler(newOffset - dataOffset, '\0');
+                newVertexBuffer.append(filler);
+            }
+
+            if (vertexIdx == 0)
+                vbe.offset = newVertexBuffer.size();
+
+            newVertexBuffer.append(newData[vbIdx].constData() + byteSize * vertexIdx, byteSize);
+            dataOffset = newOffset + byteSize;
+        }
+
+        const quint32 byteSize = 2 * sizeof(float);
+        const quint32 newOffset = getAlignedOffset(dataOffset, byteSize);
+        if (newOffset != dataOffset) {
+            QByteArray filler(newOffset - dataOffset, '\0');
+            newVertexBuffer.append(filler);
+        }
+
+        if (vertexIdx == 0)
+            lightmapUVEntry.offset = newVertexBuffer.size();
+
+        newVertexBuffer.append(r.lightmapUVChannel.constData() + byteSize * vertexIdx, byteSize);
+        dataOffset = newOffset + byteSize;
+
+        if (vertexIdx == 0)
+            m_vertexBuffer.stride = getAlignedOffset(dataOffset, bufferAlignment);
+    }
+
+    m_vertexBuffer.entries.append(lightmapUVEntry);
+
+    m_vertexBuffer.data = newVertexBuffer;
+
+    const QSize lightmapSizeHint(r.lightmapWidth, r.lightmapHeight);
+    for (Subset &subset : m_subsets)
+        subset.lightmapSizeHint = lightmapSizeHint;
+
+    return true;
 }
 
 } // namespace QSSGMesh

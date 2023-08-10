@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #ifndef QSSGCUSTOMMATERIAL_H
 #define QSSGCUSTOMMATERIAL_H
@@ -103,8 +77,6 @@ public:
     bool alwaysDirty() const;
     float lineWidth() const;
 
-    QVector<QQuick3DTexture *> dynamicTextureMaps() const;
-
 public Q_SLOTS:
     void setShadingMode(QQuick3DCustomMaterial::ShadingMode mode);
     void setVertexShader(const QUrl &url);
@@ -124,9 +96,18 @@ Q_SIGNALS:
     void lineWidthChanged();
 
 protected:
+    enum Dirty : quint32 {
+        TextureDirty = 0x1,
+        PropertyDirty = 0x2,
+        ShaderSettingsDirty = 0x4,
+        DynamicPropertiesDirty = 0x8, // Special case for custom materials created manually
+        AllDirty = std::numeric_limits<quint32>::max() ^ DynamicPropertiesDirty // (DynamicPropertiesDirty is intentionally excluded from AllDirty)
+    };
+
     QSSGRenderGraphObject *updateSpatialNode(QSSGRenderGraphObject *node) override;
     void itemChange(ItemChange, const ItemChangeData &) override;
     void markAllDirty() override;
+    static void markDirty(QQuick3DCustomMaterial &that, QQuick3DCustomMaterial::Dirty type);
 
 private Q_SLOTS:
     void onPropertyDirty();
@@ -134,23 +115,12 @@ private Q_SLOTS:
 
 private:
     friend class QQuick3DShaderUtilsTextureInput;
-    enum Dirty {
-        TextureDirty = 0x1,
-        PropertyDirty = 0x2,
-        ShaderSettingsDirty = 0x4
-    };
+    friend class QQuick3DViewport;
 
-    void markDirty(QQuick3DCustomMaterial::Dirty type)
-    {
-        if (!(m_dirtyAttributes & quint32(type))) {
-            m_dirtyAttributes |= quint32(type);
-            update();
-        }
-    }
-    void setDynamicTextureMap(QQuick3DTexture *textureMap, const QByteArray &name);
+    void setDynamicTextureMap(QQuick3DShaderUtilsTextureInput *textureMap);
 
-    QVector<QQuick3DTexture *> m_dynamicTextureMaps;
-    quint32 m_dirtyAttributes = 0xffffffff;
+    QSet<QQuick3DShaderUtilsTextureInput *> m_dynamicTextureMaps;
+    quint32 m_dirtyAttributes = Dirty::AllDirty;
     BlendMode m_srcBlend = BlendMode::NoBlend;
     BlendMode m_dstBlend = BlendMode::NoBlend;
     ShadingMode m_shadingMode = ShadingMode::Shaded;

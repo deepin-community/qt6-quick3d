@@ -1,37 +1,10 @@
-/****************************************************************************
-**
-** Copyright (C) 2008-2012 NVIDIA Corporation.
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2008-2012 NVIDIA Corporation.
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qssgrendercontextcore_p.h"
 #include <QtQuick3DRuntimeRender/private/qssgrendernode_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderbuffermanager_p.h>
-#include <QtQuick3DRuntimeRender/private/qssgrenderresourcemanager_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendershadercache_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendercamera_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendershaderlibrarymanager_p.h>
@@ -42,13 +15,11 @@
 #include <QtQuick3DRuntimeRender/private/qssgrenderer_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendererutil_p.h>
 
-#include <QtGui/qwindow.h>
-
-#include <QtCore/qthread.h>
+#include <QtQuick/QQuickWindow>
 
 QT_BEGIN_NAMESPACE
 
-using Binding = QPair<const QWindow *, QSSGRenderContextInterface *>;
+using Binding = QPair<const QQuickWindow *, QSSGRenderContextInterface *>;
 using Bindings = QVarLengthArray<Binding, 32>;
 Q_GLOBAL_STATIC(Bindings, g_windowReg)
 
@@ -61,12 +32,14 @@ void QSSGRenderContextInterface::init()
 {
     m_renderer->setRenderContextInterface(this);
 
+    m_bufferManager->setRenderContextInterface(this);
+
     m_customMaterialSystem->setRenderContextInterface(this);
     if (loadPregenratedShaders())
         m_shaderLibraryManager->loadPregeneratedShaderInfo();
 }
 
-QSSGRenderContextInterface *QSSGRenderContextInterface::renderContextForWindow(const QWindow &window)
+QSSGRenderContextInterface *QSSGRenderContextInterface::renderContextForWindow(const QQuickWindow &window)
 {
     auto it = g_windowReg->cbegin();
     const auto end = g_windowReg->cend();
@@ -80,7 +53,6 @@ QSSGRenderContextInterface *QSSGRenderContextInterface::renderContextForWindow(c
 
 QSSGRenderContextInterface::QSSGRenderContextInterface(const QSSGRef<QSSGRhiContext> &ctx,
                                                        const QSSGRef<QSSGBufferManager> &bufferManager,
-                                                       const QSSGRef<QSSGResourceManager> &resourceManager,
                                                        const QSSGRef<QSSGRenderer> &renderer,
                                                        const QSSGRef<QSSGShaderLibraryManager> &shaderLibraryManager,
                                                        const QSSGRef<QSSGShaderCache> &shaderCache,
@@ -89,7 +61,6 @@ QSSGRenderContextInterface::QSSGRenderContextInterface(const QSSGRef<QSSGRhiCont
     : m_rhiContext(ctx)
     , m_shaderCache(shaderCache)
     , m_bufferManager(bufferManager)
-    , m_resourceManager(resourceManager)
     , m_renderer(renderer)
     , m_shaderLibraryManager(shaderLibraryManager)
     , m_customMaterialSystem(customMaterialSystem)
@@ -108,12 +79,11 @@ static const QSSGRef<QSSGShaderLibraryManager> &q3ds_shaderLibraryManager()
     return shaderLibraryManager;
 }
 
-QSSGRenderContextInterface::QSSGRenderContextInterface(QWindow *window,
+QSSGRenderContextInterface::QSSGRenderContextInterface(QQuickWindow *window,
                                                        const QSSGRef<QSSGRhiContext> &ctx)
     : m_rhiContext(ctx)
     , m_shaderCache(new QSSGShaderCache(ctx))
-    , m_bufferManager(new QSSGBufferManager(ctx, m_shaderCache))
-    , m_resourceManager(new QSSGResourceManager(ctx))
+    , m_bufferManager(new QSSGBufferManager)
     , m_renderer(new QSSGRenderer)
     , m_shaderLibraryManager(q3ds_shaderLibraryManager())
     , m_customMaterialSystem(new QSSGCustomMaterialSystem)
@@ -134,33 +104,39 @@ QSSGRenderContextInterface::~QSSGRenderContextInterface()
     g_windowReg->removeIf([this](const Binding &b) { return (b.second == this); });
 }
 
-const QSSGRef<QSSGRenderer> &QSSGRenderContextInterface::renderer() const { return m_renderer; }
+const QSSGRef<QSSGRenderer> &QSSGRenderContextInterface::renderer() const
+{
+    return m_renderer;
+}
 
-const QSSGRef<QSSGBufferManager> &QSSGRenderContextInterface::bufferManager() const { return m_bufferManager; }
+const QSSGRef<QSSGBufferManager> &QSSGRenderContextInterface::bufferManager() const
+{
+    return m_bufferManager;
+}
 
-const QSSGRef<QSSGResourceManager> &QSSGRenderContextInterface::resourceManager() const { return m_resourceManager; }
+const QSSGRef<QSSGRhiContext> &QSSGRenderContextInterface::rhiContext() const
+{
+    return m_rhiContext;
+}
 
-const QSSGRef<QSSGRhiContext> &QSSGRenderContextInterface::rhiContext() const { return m_rhiContext; }
+const QSSGRef<QSSGShaderCache> &QSSGRenderContextInterface::shaderCache() const
+{
+    return m_shaderCache;
+}
 
-const QSSGRef<QSSGShaderCache> &QSSGRenderContextInterface::shaderCache() const { return m_shaderCache; }
+const QSSGRef<QSSGShaderLibraryManager> &QSSGRenderContextInterface::shaderLibraryManager() const
+{
+    return m_shaderLibraryManager;
+}
 
-const QSSGRef<QSSGShaderLibraryManager> &QSSGRenderContextInterface::shaderLibraryManager() const { return m_shaderLibraryManager; }
-
-const QSSGRef<QSSGCustomMaterialSystem> &QSSGRenderContextInterface::customMaterialSystem() const { return m_customMaterialSystem; }
+const QSSGRef<QSSGCustomMaterialSystem> &QSSGRenderContextInterface::customMaterialSystem() const
+{
+    return m_customMaterialSystem;
+}
 
 const QSSGRef<QSSGProgramGenerator> &QSSGRenderContextInterface::shaderProgramGenerator() const
 {
     return m_shaderProgramGenerator;
-}
-
-QVector2D QSSGRenderContextInterface::mousePickViewport() const
-{
-    return QVector2D((float)m_windowDimensions.width(), (float)m_windowDimensions.height());
-}
-
-QVector2D QSSGRenderContextInterface::mousePickMouseCoords(const QVector2D &inMouseCoords) const
-{
-    return inMouseCoords;
 }
 
 void QSSGRenderContextInterface::cleanupResources(QList<QSSGRenderGraphObject *> &resources)
@@ -168,7 +144,19 @@ void QSSGRenderContextInterface::cleanupResources(QList<QSSGRenderGraphObject *>
     m_renderer->cleanupResources(resources);
 }
 
-void QSSGRenderContextInterface::beginFrame(bool allowRecursion)
+void QSSGRenderContextInterface::cleanupUnreferencedBuffers(QSSGRenderLayer *inLayer)
+{
+    // Now check for unreferenced buffers and release them if necessary
+    m_bufferManager->cleanupUnreferencedBuffers(m_frameCount, inLayer);
+}
+
+
+void QSSGRenderContextInterface::resetResourceCounters(QSSGRenderLayer *inLayer)
+{
+    m_bufferManager->resetUsageCounters(m_frameCount, inLayer);
+}
+
+void QSSGRenderContextInterface::beginFrame(QSSGRenderLayer *layer, bool allowRecursion)
 {
     if (allowRecursion) {
         if (m_activeFrameRef++ != 0)
@@ -177,11 +165,12 @@ void QSSGRenderContextInterface::beginFrame(bool allowRecursion)
 
     m_perFrameAllocator.reset();
     m_renderer->beginFrame();
+    resetResourceCounters(layer);
 }
 
 bool QSSGRenderContextInterface::prepareLayerForRender(QSSGRenderLayer &inLayer)
 {
-    return m_renderer->prepareLayerForRender(inLayer, m_windowDimensions);
+    return m_renderer->prepareLayerForRender(inLayer);
 }
 
 void QSSGRenderContextInterface::rhiPrepare(QSSGRenderLayer &inLayer)
@@ -194,12 +183,14 @@ void QSSGRenderContextInterface::rhiRender(QSSGRenderLayer &inLayer)
     m_renderer->rhiRender(inLayer);
 }
 
-bool QSSGRenderContextInterface::endFrame(bool allowRecursion)
+bool QSSGRenderContextInterface::endFrame(QSSGRenderLayer *layer, bool allowRecursion)
 {
     if (allowRecursion) {
         if (--m_activeFrameRef != 0)
             return false;
     }
+
+    cleanupUnreferencedBuffers(layer);
 
     m_renderer->endFrame();
     ++m_frameCount;

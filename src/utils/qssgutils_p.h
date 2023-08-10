@@ -1,32 +1,6 @@
-/****************************************************************************
-**
-** Copyright (C) 2008-2012 NVIDIA Corporation.
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2008-2012 NVIDIA Corporation.
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #ifndef QSSGUTILS_H
 #define QSSGUTILS_H
@@ -58,6 +32,8 @@
 #include <QtCore/QIODevice>
 #include <QtCore/qmath.h>
 
+class tst_RotationDataClass;
+
 QT_BEGIN_NAMESPACE
 
 namespace aux {
@@ -83,7 +59,6 @@ float Q_QUICK3DUTILS_EXPORT normalize(QVector3D &v);
 
 namespace mat33 {
 QVector3D Q_QUICK3DUTILS_EXPORT transform(const QMatrix3x3 &m, const QVector3D &v);
-QMatrix3x3 Q_QUICK3DUTILS_EXPORT getInverse(const QMatrix3x3 &m);
 }
 
 namespace mat44 {
@@ -145,6 +120,108 @@ inline QVector3D degToRad(const QVector3D &v) {
 inline QVector3D radToDeg(const QVector3D &v) {
     return QVector3D(qRadiansToDegrees(v.x()), qRadiansToDegrees(v.y()), qRadiansToDegrees(v.z()));
 }
+
+class RotationData
+{
+public:
+    RotationData() = default;
+    explicit RotationData(const QVector3D &r)
+        : m_quatRot()
+        , m_eulerRot(r)
+        , m_dirty(Dirty::Quaternion)
+    {}
+    explicit RotationData(const QQuaternion &r)
+        : m_quatRot(r.normalized())
+        , m_eulerRot()
+        , m_dirty(Dirty::Euler)
+    {}
+
+    RotationData &operator=(const QVector3D &r) noexcept
+    {
+        m_eulerRot = r;
+        m_dirty = Dirty::Quaternion;
+        return *this;
+    }
+    RotationData &operator=(const QQuaternion &r) noexcept
+    {
+        m_quatRot = r.normalized();
+        m_dirty = Dirty::Euler;
+        return *this;
+    }
+
+    friend inline bool operator ==(const RotationData &a, const RotationData &b) {
+        if (a.m_dirty == Dirty::None && b.m_dirty == Dirty::None)
+            return fuzzyQuaternionCompare(a.m_quatRot, b.m_quatRot);
+
+        return fuzzyQuaternionCompare(QQuaternion(a), QQuaternion(b));
+    }
+
+    friend inline bool operator !=(const RotationData &a, const RotationData &b) { return !(a == b); }
+
+    friend inline bool operator ==(const RotationData &a, const QVector3D &eulerRotation)
+    {
+        if (a.m_dirty == Dirty::None)
+            return qFuzzyCompare(a.m_eulerRot, eulerRotation);
+
+        return qFuzzyCompare(QVector3D(a), eulerRotation);
+    }
+    friend inline bool operator !=(const RotationData &a, const QVector3D &eulerRotation) { return !(a == eulerRotation); }
+
+    friend inline bool operator ==(const RotationData &a, const QQuaternion &rotation)
+    {
+        if (a.m_dirty == Dirty::None)
+            return fuzzyQuaternionCompare(a.m_quatRot, rotation);
+
+        return fuzzyQuaternionCompare(QQuaternion(a), rotation);
+    }
+    friend inline bool operator !=(const RotationData &a, const QQuaternion &rotation) { return !(a == rotation); }
+
+    [[nodiscard]] inline QVector3D getEulerRotation() const
+    {
+        if (m_dirty == Dirty::Euler) {
+            m_eulerRot = m_quatRot.toEulerAngles();
+            m_dirty = Dirty::None;
+        }
+
+        return m_eulerRot;
+    }
+
+    [[nodiscard]] inline QQuaternion getQuaternionRotation() const
+    {
+        if (m_dirty == Dirty::Quaternion) {
+            m_quatRot = QQuaternion::fromEulerAngles(m_eulerRot).normalized();
+            m_dirty = Dirty::None;
+        }
+
+        return m_quatRot;
+    }
+
+    [[nodiscard]] inline QMatrix3x3 toRotationMatrix() const { return getQuaternionRotation().toRotationMatrix(); }
+
+    [[nodiscard]] inline operator QQuaternion() const { return getQuaternionRotation(); }
+    [[nodiscard]] inline operator QVector3D() const { return getEulerRotation(); }
+
+private:
+    friend class ::tst_RotationDataClass;
+
+    [[nodiscard]] constexpr static inline bool fuzzyQuaternionCompare(const QQuaternion &a, const QQuaternion &b)
+    {
+        // This 'e' will give better precision than qtbase's qFuzzyCompare for QQuaternion
+        constexpr float e = 0.0000001f;
+        return (qAbs(1.0f - qAbs(QQuaternion::dotProduct(a, b))) <= e);
+    }
+
+    enum class Dirty
+    {
+        None,
+        Quaternion = 0x1,
+        Euler = 0x2
+    };
+
+    mutable QQuaternion m_quatRot; // Should always be normalized
+    mutable QVector3D m_eulerRot;
+    mutable Dirty m_dirty { Dirty::None };
+};
 
 QT_END_NAMESPACE
 

@@ -6,6 +6,9 @@ qt_copy_or_install(
         BufferInputSpecifics.qml
         BufferSection.qml
         BufferSpecifics.qml
+        CameraSection.qml
+        CubeMapTextureSpecifics.qml
+        CustomCameraSpecifics.qml
         CustomMaterialSection.qml
         CustomMaterialSpecifics.qml
         DefaultMaterialSection.qml
@@ -54,6 +57,8 @@ qt_copy_or_install(
         ShaderSection.qml
         ShaderSpecifics.qml
         ShadowSection.qml
+        SpecularGlossyMaterialSection.qml
+        SpecularGlossyMaterialSpecifics.qml
         SpotLightSection.qml
         SpotLightSpecifics.qml
         TextureInputSection.qml
@@ -62,7 +67,10 @@ qt_copy_or_install(
         TextureSpecifics.qml
         View3DSection.qml
         View3DSpecifics.qml
+        ReflectionProbeSection.qml
+        ReflectionProbeSpecifics.qml
         quick3d.metainfo
+        propertyGroups.json
     DESTINATION "${destination}"
 )
 

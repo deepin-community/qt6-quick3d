@@ -1,9 +1,11 @@
-# SymbolsHelper-Confirmed: 6.2.2 amd64
+# SymbolsHelper-Confirmed: 6.4.0 amd64
 libQt6Quick3DAssetUtils.so.6 libqt6quick3dassetutils6 #MINVER#
 * Build-Depends-Package: qt6-quick3d-dev
  _Z39qml_register_types_QtQuick3D_AssetUtilsv@Base 6.2.2
- _ZN13QSSGSceneDesc12PropertyCall3setER14QQuick3DObjectPKv@Base 6.2.2
+ _ZN13QSSGSceneDesc12PropertyCall3setER14QQuick3DObjectPKcPKv@Base 6.3.0
+ _ZN13QSSGSceneDesc12flagMetaTypeEv@Base 6.4.0
  _ZN13QSSGSceneDesc16listViewMetaTypeEv@Base 6.2.2
+ _ZN13QSSGSceneDesc5Scene5resetEv@Base 6.3.0
  _ZN13QSSGSceneDesc7addNodeERNS_4NodeES1_@Base 6.2.2
  _ZN13QSSGSceneDesc7addNodeERNS_5SceneERNS_4NodeE@Base 6.2.2
  _ZN16QSSGQmlUtilities10colorToQmlERK6QColor@Base 6.2.2
@@ -12,12 +14,14 @@ libQt6Quick3DAssetUtils.so.6 libqt6quick3dassetutils6 #MINVER#
  _ZN16QSSGQmlUtilities13sanitizeQmlIdERK7QString@Base 6.2.2
  _ZN16QSSGQmlUtilities16qmlComponentNameERK7QString@Base 6.2.2
  _ZN16QSSGQmlUtilities17getMeshSourceNameERK14QByteArrayView@Base 6.2.2
+ _ZN16QSSGQmlUtilities17writeQmlComponentERKN13QSSGSceneDesc4NodeER11QTextStreamRK4QDir@Base 6.3.0
  _ZN16QSSGQmlUtilities20stripParentDirectoryERK7QString@Base 6.2.2
  _ZN16QSSGQmlUtilities21sanitizeQmlSourcePathERK7QStringb@Base 6.2.2
  _ZN16QSSGQmlUtilities22writeQmlPropertyHelperER11QTextStreamiNS_11PropertyMap4TypeERK7QStringRK8QVariant@Base 6.2.2
  _ZN16QSSGQmlUtilities23createTimelineAnimationERKN13QSSGSceneDesc9AnimationEP7QObjectbb@Base 6.2.2
  _ZN16QSSGQmlUtilities8writeQmlERKN13QSSGSceneDesc5SceneER11QTextStreamRK4QDir@Base 6.2.2
  _ZN16QSSGRuntimeUtils11createSceneER12QQuick3DNodeRKN13QSSGSceneDesc5SceneE@Base 6.2.2
+ _ZN16QSSGRuntimeUtils17createGraphObjectERN13QSSGSceneDesc4NodeER5QListIPS1_ER14QQuick3DObjectb@Base 6.4.0
  _ZN21QQuick3DRuntimeLoader10loadSourceEv@Base 6.2.2
  _ZN21QQuick3DRuntimeLoader11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.2.2
  _ZN21QQuick3DRuntimeLoader11qt_metacastEPKc@Base 6.2.2
@@ -45,12 +49,4 @@ libQt6Quick3DAssetUtils.so.6 libqt6quick3dassetutils6 #MINVER#
  _ZTI21QQuick3DRuntimeLoader@Base 6.2.2
  _ZTS21QQuick3DRuntimeLoader@Base 6.2.2
  _ZTV21QQuick3DRuntimeLoader@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeI4QUrlE10getCopyCtrEvENUlPKNS_18QMetaTypeInterfaceEPvPKvE_4_FUNES5_S6_S8_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeI4QUrlE10getMoveCtrEvENUlPKNS_18QMetaTypeInterfaceEPvS6_E_4_FUNES5_S6_S6_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeI4QUrlE13getDefaultCtrEvENUlPKNS_18QMetaTypeInterfaceEPvE_4_FUNES5_S6_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeI4QUrlE7getDtorEvENUlPKNS_18QMetaTypeInterfaceEPvE_4_FUNES5_S6_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeI7QStringE10getCopyCtrEvENUlPKNS_18QMetaTypeInterfaceEPvPKvE_4_FUNES5_S6_S8_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeI7QStringE10getMoveCtrEvENUlPKNS_18QMetaTypeInterfaceEPvS6_E_4_FUNES5_S6_S6_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeI7QStringE13getDefaultCtrEvENUlPKNS_18QMetaTypeInterfaceEPvE_4_FUNES5_S6_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeI7QStringE7getDtorEvENUlPKNS_18QMetaTypeInterfaceEPvE_4_FUNES5_S6_@Base 6.2.2
  (c++)"non-virtual thunk to QQuick3DRuntimeLoader::componentComplete()@Base" 6.2.2

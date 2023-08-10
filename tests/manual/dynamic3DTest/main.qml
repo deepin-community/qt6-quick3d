@@ -1,52 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2020 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of the examples of the Qt Toolkit.
-**
-** $QT_BEGIN_LICENSE:BSD$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** BSD License Usage
-** Alternatively, you may use this file under the terms of the BSD license
-** as follows:
-**
-** "Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions are
-** met:
-**   * Redistributions of source code must retain the above copyright
-**     notice, this list of conditions and the following disclaimer.
-**   * Redistributions in binary form must reproduce the above copyright
-**     notice, this list of conditions and the following disclaimer in
-**     the documentation and/or other materials provided with the
-**     distribution.
-**   * Neither the name of The Qt Company Ltd nor the names of its
-**     contributors may be used to endorse or promote products derived
-**     from this software without specific prior written permission.
-**
-**
-** THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-** "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-** LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-** A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-** OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-** SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-** LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-** OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2020 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 
 import QtQuick
 import QtQuick.Window
@@ -55,7 +8,6 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtQml
 import QtQuick3D.Helpers
-
 import io.qt.tests.manual.dynamic3DTest
 
 Window {
@@ -100,7 +52,7 @@ Window {
                 from: 0
                 to: 50
                 duration: 10000
-                running: true
+                running: enableAnimationCheckbox.checked
                 loops: -1
             }
         }
@@ -114,8 +66,12 @@ Window {
             property var cameras: []
             property var models: []
             property var dynamicModels: []
+            property var dynamicGeometries: []
             property var textures: []
             property var dynamicTextures: []
+            property var qmlTextures: []
+            property var qmlSharedTextures: []
+            property var item2Ds: []
 
             property int directionLightsCount: 0
             property int pointLightsCount: 0
@@ -125,24 +81,28 @@ Window {
             property int dynamicModelsCount: 0
             property int texturesCount: 0
             property int dynamicTexturesCount: 0
+            property int qmlTexturesCount: 0
+            property int qmlSharedTexturesCount: 0
+            property int item2DsCount: 0
 
             Component {
                 id: directionalLight
                 DirectionalLight {
+                    ambientColor: Qt.rgba(0.1, 0.1, 0.1, 1.0)
                 }
             }
 
             Component {
                 id: pointLight
                 PointLight {
-
+                    ambientColor: Qt.rgba(0.1, 0.1, 0.1, 1.0)
                 }
             }
 
             Component {
                 id: spotLight
                 SpotLight {
-
+                    ambientColor: Qt.rgba(0.1, 0.1, 0.1, 1.0)
                 }
             }
 
@@ -168,20 +128,24 @@ Window {
             Component {
                 id: dynamicModel
                 Model {
-                    property alias color: material.diffuseColor
+                    property alias color: material.baseColor
+                    materials: PrincipledMaterial {
+                        lighting: PrincipledMaterial.NoLighting
+                        id: material
+                        baseColor: "red"
+
+                    }
+                }
+            }
+
+            Component {
+                id: dynamicGeometry
+                GridGeometry {
                     property alias lines: gridGeometry.horizontalLines
                     property alias step: gridGeometry.horizontalStep
-
-                    geometry: GridGeometry {
-                        id: gridGeometry
-                        verticalLines: horizontalLines
-                        verticalStep: horizontalStep
-                    }
-
-                    materials: DefaultMaterial {
-                        id: material
-                        diffuseColor: "red"
-                    }
+                    id: gridGeometry
+                    verticalLines: horizontalLines
+                    verticalStep: horizontalStep
                 }
             }
 
@@ -201,6 +165,58 @@ Window {
                     textureData: GradientTexture {
                         id: gradientTexture
 
+                    }
+                }
+            }
+
+            Component {
+                id: qmlTexture
+                Model {
+                    property alias color: sourceItemRect.color
+                    property alias text: textLabel.text
+                    source: "#Rectangle"
+                    materials: PrincipledMaterial {
+                        lighting: PrincipledMaterial.NoLighting
+                        baseColorMap: Texture {
+                            sourceItem: Rectangle {
+                                id: sourceItemRect
+                                width: 256
+                                height: 256
+                                color: "black"
+                                Text {
+                                    id: textLabel
+                                    anchors.centerIn: parent
+                                    color: "white"
+                                    font.pointSize: 64
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Component {
+                id: qmlTextureShared
+                Model {
+                    property alias sharedItem: texture.sourceItem
+                    source: "#Rectangle"
+                    materials: PrincipledMaterial {
+                        lighting: PrincipledMaterial.NoLighting
+                        baseColorMap: Texture {
+                            id: texture
+                        }
+                    }
+                }
+            }
+
+            Component {
+                id: item2D
+                Node {
+                    property alias text: textLabel.text
+                    Text {
+                        id: textLabel
+                        anchors.centerIn: parent
+                        font.pointSize: 64
+                        color: "black"
                     }
                 }
             }
@@ -331,7 +347,9 @@ Window {
                 let color = getRandomColor();
                 let lines = getRandomInt(100, 1000);
                 let steps = getRandomInt(1, 25);
-                let instance = dynamicModel.createObject(objectSpawner, {"position": position, "eulerRotation": rotation, "color": color, "lines": lines, "step": steps})
+                let geometry = dynamicGeometry.createObject(objectSpawner, {"lines": lines, "step": steps})
+                dynamicGeometries.push(geometry)
+                let instance = dynamicModel.createObject(objectSpawner, {"position": position, "eulerRotation": rotation, "color": color, "geometry": geometry})
                 dynamicModels.push(instance)
                 dynamicModelsCount++
             }
@@ -340,6 +358,11 @@ Window {
                 if (dynamicModels.length > 0) {
                     let instance = dynamicModels.pop();
                     instance.destroy();
+                    // Reset the dynamicGeometries
+                    for (var i = 0; i < dynamicModels.length; i++)
+                        dynamicModels[i].geometry = dynamicGeometries[i]
+                    let geometryInstance = dynamicGeometries.pop();
+                    geometryInstance.destroy()
                     dynamicModelsCount--
                 }
             }
@@ -384,6 +407,54 @@ Window {
                 }
             }
 
+            function addQmlTexture() {
+                let rectColor = getRandomColor()
+                let position = getRandomVector3d(objectSpawner.range * 2)
+                let labelText = qmlTexturesCount + 1
+                let instance = qmlTexture.createObject(objectSpawner, {"position": position, "color": rectColor, "text": labelText})
+                qmlTextures.push(instance)
+                qmlTexturesCount++
+            }
+
+            function removeQmlTexture() {
+                if (qmlTextures.length > 0) {
+                    let instance = qmlTextures.pop()
+                    instance.destroy()
+                    qmlTexturesCount--
+                }
+            }
+
+            function addQmlSharedTexture() {
+                let position = getRandomVector3d(objectSpawner.range * 2)
+                let instance = qmlTextureShared.createObject(objectSpawner, {"sharedItem": sharedItem, "position": position})
+                qmlSharedTextures.push(instance)
+                qmlSharedTexturesCount++
+            }
+
+            function removeQmlSharedTexture() {
+                if (qmlSharedTextures.length > 0) {
+                    let instance = qmlSharedTextures.pop()
+                    instance.destroy()
+                    qmlSharedTexturesCount--
+                }
+            }
+
+            function addItem2D() {
+                let position = getRandomVector3d(objectSpawner.range * 2)
+                let labelText = item2DsCount + 1
+                let instance = item2D.createObject(objectSpawner, {"position": position, "text":labelText})
+                item2Ds.push(instance);
+                item2DsCount++
+            }
+
+            function removeItem2D() {
+                if (item2Ds.length > 0) {
+                    let instance = item2Ds.pop()
+                    instance.destroy()
+                    item2DsCount--
+                }
+            }
+
             function changeModels() {
                 // reset the model sources
                 models.forEach(model => model.source = getMeshSource())
@@ -402,10 +473,8 @@ Window {
                     return a;
                 }
                 shuffleIndexs = shuffle(shuffleIndexs);
-                var newSources = []
-                shuffleIndexs.forEach(index => newSources.push(dynamicModels[index].geometry));
                 for (var i = 0; i < dynamicModels.length; i++)
-                    dynamicModels[i].geometry = newSources[i]
+                    dynamicModels[i].geometry = dynamicGeometries[shuffleIndexs[i]]
             }
         }
 
@@ -417,6 +486,15 @@ Window {
         anchors.right: controlsContainer.left
         anchors.bottom: parent.bottom
         anchors.left: parent.left
+
+        property var windowView: undefined
+
+        Image {
+            id: sharedItem
+            source: "noise1.jpg"
+            width: 256
+            height: 256
+        }
 
         View3D {
             id: view1
@@ -457,6 +535,25 @@ Window {
         }
     }
 
+    Component {
+        id: windowComponent
+        Window {
+            id: subWindow
+            visible: true
+            height: 400
+            width: 400
+            View3D {
+                id: view3
+                anchors.fill: parent
+                importScene: sceneRoot
+                environment: SceneEnvironment {
+                    clearColor: "orange"
+                    backgroundMode: SceneEnvironment.Color
+                }
+            }
+        }
+    }
+
     Rectangle {
         id: controlsContainer
         width: 300
@@ -465,6 +562,27 @@ Window {
         anchors.bottom: parent.bottom
         color: "grey"
         ColumnLayout {
+            CheckBox {
+                id: enableAnimationCheckbox
+                checked: false
+                text: "Enable Animation"
+            }
+
+            CheckBox {
+                id: enableWindowCheckbox
+                checked: false
+                text: "Enable Window View"
+                onCheckedChanged: {
+                    if (checked) {
+                        // Create Window component
+                        viewsContainer.windowView = windowComponent.createObject(viewsContainer)
+                    } else {
+                        // Delete Window component
+                        viewsContainer.windowView.destroy();
+                        viewsContainer.windowView = undefined
+                    }
+                }
+            }
             RowLayout {
                 Label {
                     text: "Directional Light"
@@ -673,6 +791,78 @@ Window {
                     text: "-"
                     onClicked: {
                         objectSpawner.removeDynamicTexture()
+                    }
+                }
+            }
+            RowLayout {
+                Label {
+                    text: "QML Texture"
+                    color: "white"
+                    Layout.fillWidth: true
+                }
+                Label {
+                    text: objectSpawner.qmlTexturesCount
+                    color: "white"
+                    Layout.fillWidth: true
+                }
+                ToolButton {
+                    text: "+"
+                    onClicked: {
+                        objectSpawner.addQmlTexture()
+                    }
+                }
+                ToolButton {
+                    text: "-"
+                    onClicked: {
+                        objectSpawner.removeQmlTexture()
+                    }
+                }
+            }
+            RowLayout {
+                Label {
+                    text: "QML Texture (Shared)"
+                    color: "white"
+                    Layout.fillWidth: true
+                }
+                Label {
+                    text: objectSpawner.qmlSharedTexturesCount
+                    color: "white"
+                    Layout.fillWidth: true
+                }
+                ToolButton {
+                    text: "+"
+                    onClicked: {
+                        objectSpawner.addQmlSharedTexture()
+                    }
+                }
+                ToolButton {
+                    text: "-"
+                    onClicked: {
+                        objectSpawner.removeQmlSharedTexture()
+                    }
+                }
+            }
+            RowLayout {
+                Label {
+                    text: "Item 2D"
+                    color: "white"
+                    Layout.fillWidth: true
+                }
+                Label {
+                    text: objectSpawner.item2DsCount
+                    color: "white"
+                    Layout.fillWidth: true
+                }
+                ToolButton {
+                    text: "+"
+                    onClicked: {
+                        objectSpawner.addItem2D()
+                    }
+                }
+                ToolButton {
+                    text: "-"
+                    onClicked: {
+                        objectSpawner.removeItem2D()
                     }
                 }
             }

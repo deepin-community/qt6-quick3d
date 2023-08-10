@@ -1,32 +1,6 @@
-/****************************************************************************
-**
-** Copyright (C) 2008-2012 NVIDIA Corporation.
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2008-2012 NVIDIA Corporation.
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #ifndef QSSGDATAREF_H
 #define QSSGDATAREF_H
@@ -44,7 +18,7 @@
 
 #include <QtQuick3DUtils/private/qtquick3dutilsglobal_p.h>
 
-#include <QtCore/qvector.h>
+#include <QtCore/qlist.h>
 #include <QtCore/qbytearray.h>
 
 QT_BEGIN_NAMESPACE
@@ -55,7 +29,7 @@ struct QSSGDataView
     const T *mData;
     qsizetype mSize;
 
-    explicit QSSGDataView(const QVector<T> &data) : mData(data.constBegin()), mSize(data.size()) { Q_ASSERT(mSize >= 0); }
+    explicit QSSGDataView(const QList<T> &data) : mData(data.constData()), mSize(data.size()) { Q_ASSERT(mSize >= 0); }
     QSSGDataView(const T *inData, qsizetype inSize) : mData(inData), mSize(inSize) { Q_ASSERT(mSize >= 0); }
     constexpr QSSGDataView() : mData(nullptr), mSize(0) {}
 
@@ -90,7 +64,7 @@ struct QSSGDataView<quint8>
         : mData(reinterpret_cast<const quint8 *>(data.constBegin())), mSize(data.size())
     { Q_ASSERT(mSize >= 0); }
     template<typename T>
-    explicit QSSGDataView(const QVector<T> &data)
+    explicit QSSGDataView(const QList<T> &data)
         : mData(reinterpret_cast<const quint8 *>(data.constData())), mSize(data.size()*sizeof(T))
     { Q_ASSERT(mSize >= 0); }
     QSSGDataView(const quint8 *inData, qsizetype inSize) : mData(inData), mSize(inSize) { Q_ASSERT(mSize >= 0); }
@@ -130,7 +104,7 @@ inline QSSGDataView<T> toDataView(const T &type)
 }
 
 template<typename T>
-inline QSSGDataView<T> toDataView(const QVector<T> &type)
+inline QSSGDataView<T> toDataView(const QList<T> &type)
 {
     return QSSGDataView<T>(type);
 }
@@ -142,7 +116,7 @@ inline QSSGByteView toByteView(const T &type)
 }
 
 template<typename T>
-inline QSSGByteView toByteView(const QVector<T> &type)
+inline QSSGByteView toByteView(const QList<T> &type)
 {
     return QSSGByteView(type);
 }

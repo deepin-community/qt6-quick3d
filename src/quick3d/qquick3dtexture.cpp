@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qquick3dtexture_p.h"
 #include <QtQuick3DRuntimeRender/private/qssgrenderimage_p.h>
@@ -56,6 +30,10 @@ QT_BEGIN_NAMESPACE
     is typically to map onto / wrap around three-dimensional geometry to emulate
     additional detail which cannot be efficiently modelled in 3D. It can also be
     used to emulate other lighting effects, such as reflections.
+
+    While Texture itself always represents a 2D texture, other kinds of
+    textures are available as well via subclasses of Texture. For example, to
+    create a cube map texture with 6 faces, use the \l CubeMapTexture type.
 
     When the geometry is being rendered, each location on its surface will be
     transformed to a corresponding location in the texture by transforming and
@@ -110,7 +88,12 @@ QT_BEGIN_NAMESPACE
 */
 
 QQuick3DTexture::QQuick3DTexture(QQuick3DObject *parent)
-    : QQuick3DObject(*(new QQuick3DObjectPrivate(QQuick3DObjectPrivate::Type::Image)), parent)
+    : QQuick3DTexture(*(new QQuick3DObjectPrivate(QQuick3DObjectPrivate::Type::Image2D)), parent)
+{
+}
+
+QQuick3DTexture::QQuick3DTexture(QQuick3DObjectPrivate &dd, QQuick3DObject *parent)
+    : QQuick3DObject(dd, parent)
 {
     const QMetaObject *mo = metaObject();
     const int updateSlotIdx = mo->indexOfSlot("update()");
@@ -122,8 +105,9 @@ QQuick3DTexture::QQuick3DTexture(QQuick3DObject *parent)
 
 QQuick3DTexture::~QQuick3DTexture()
 {
-    if (m_layer && m_sceneManagerForLayer) {
-        m_sceneManagerForLayer->qsgDynamicTextures.removeAll(m_layer);
+    if (m_layer) {
+        if (m_sceneManagerForLayer)
+            m_sceneManagerForLayer->qsgDynamicTextures.removeAll(m_layer);
         m_layer->deleteLater(); // uhh...
     }
 
@@ -132,7 +116,7 @@ QQuick3DTexture::~QQuick3DTexture()
         sourcePrivate->removeItemChangeListener(this, QQuickItemPrivate::Geometry);
     }
 
-    for (const auto &connection : qAsConst(m_connections))
+    for (const auto &connection : std::as_const(m_connections))
         disconnect(connection);
 }
 
@@ -1020,7 +1004,7 @@ QSSGRenderGraphObject *QQuick3DTexture::updateSpatialNode(QSSGRenderGraphObject 
 {
     if (!node) {
         markAllDirty();
-        node = new QSSGRenderImage();
+        node = new QSSGRenderImage(QQuick3DObjectPrivate::get(this)->type);
     }
 
     auto imageNode = static_cast<QSSGRenderImage *>(node);
@@ -1107,12 +1091,15 @@ QSSGRenderGraphObject *QQuick3DTexture::updateSpatialNode(QSSGRenderGraphObject 
                 imageNode->m_qsgTexture = provider->texture();
 
                 disconnect(m_textureProviderConnection);
-                m_textureProviderConnection = connect(provider, &QSGTextureProvider::textureChanged, this, [this, provider, imageNode] () {
+                m_textureProviderConnection = connect(provider, &QSGTextureProvider::textureChanged, this, [this, provider] () {
                     // called on the render thread, if there is one; the gui
                     // thread may or may not be blocked (e.g. if the source is
                     // a View3D, that emits textureChanged() from preprocess,
                     // so after sync, whereas an Image emits in
                     // updatePaintNode() where gui is blocked)
+                    auto imageNode = static_cast<QSSGRenderImage *>(QQuick3DObjectPrivate::get(this)->spatialNode);
+                    if (!imageNode)
+                        return;
 
                     imageNode->m_qsgTexture = provider->texture();
                     // the QSGTexture may be different now, go through loadRenderImage() again
@@ -1144,13 +1131,17 @@ QSSGRenderGraphObject *QQuick3DTexture::updateSpatialNode(QSSGRenderGraphObject 
                     // This eliminates, or in the worst case reduces, the ugly effects of not
                     // having a texture ready when rendering the 3D scene.
 
-                    m_textureUpdateConnection = connect(sourcePrivate->window, &QQuickWindow::afterSynchronizing, this, [this, imageNode, sourceItem]() {
+                    m_textureUpdateConnection = connect(sourcePrivate->window, &QQuickWindow::afterSynchronizing, this, [this, sourceItem]() {
                         // Called on the render thread with gui blocked (if there is a render thread, that is).
                         if (m_sourceItem != sourceItem) {
                             disconnect(m_textureProviderConnection);
                             disconnect(m_textureUpdateConnection);
                             return;
                         }
+                        auto imageNode = static_cast<QSSGRenderImage *>(QQuick3DObjectPrivate::get(this)->spatialNode);
+                        if (!imageNode)
+                            return;
+
                         if (QSGDynamicTexture *t = qobject_cast<QSGDynamicTexture *>(imageNode->m_qsgTexture)) {
                             if (t->updateTexture())
                                 update(); // safe because the gui thread is blocked
@@ -1179,7 +1170,11 @@ QSSGRenderGraphObject *QQuick3DTexture::updateSpatialNode(QSSGRenderGraphObject 
 
                     // The earliest next point where we can do anything is
                     // after the scenegraph's QQuickItem sync round has completed.
-                    connect(window, &QQuickWindow::afterSynchronizing, this, [this, imageNode, window]() {
+                    connect(window, &QQuickWindow::afterSynchronizing, this, [this, window]() {
+                        auto imageNode = static_cast<QSSGRenderImage *>(QQuick3DObjectPrivate::get(this)->spatialNode);
+                        if (!imageNode)
+                            return;
+
                         // Called on the render thread with gui blocked (if there is a render thread, that is).
                         disconnect(window, &QQuickWindow::afterSynchronizing, this, nullptr);
                         if (m_layer) {

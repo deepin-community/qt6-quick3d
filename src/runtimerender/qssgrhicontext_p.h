@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #ifndef QSSGRHICONTEXT_P_H
 #define QSSGRHICONTEXT_P_H
@@ -45,6 +19,7 @@
 #include <QtCore/qstack.h>
 #include <QtQuick3DUtils/private/qssgrenderbasetypes_p.h>
 #include <QtGui/private/qrhi_p.h>
+#include "private/qquick3dprofiler_p.h"
 
 QT_BEGIN_NAMESPACE
 
@@ -62,6 +37,7 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRhiInputAssemblerState
         NormalSemantic,             // attr_norm
         TexCoord0Semantic,          // attr_uv0
         TexCoord1Semantic,          // attr_uv1
+        TexCoordLightmapSemantic,   // attr_lightmapuv
         TangentSemantic,            // attr_textan
         BinormalSemantic,           // attr_binormal
         JointSemantic,              // attr_joints
@@ -162,11 +138,12 @@ struct QSSGRhiSamplerDescription
     QRhiSampler::Filter mipmap;
     QRhiSampler::AddressMode hTiling;
     QRhiSampler::AddressMode vTiling;
+    QRhiSampler::AddressMode zTiling;
 };
 
 inline bool operator==(const QSSGRhiSamplerDescription &a, const QSSGRhiSamplerDescription &b) Q_DECL_NOTHROW
 {
-   return a.hTiling == b.hTiling && a.vTiling == b.vTiling
+   return a.hTiling == b.hTiling && a.vTiling == b.vTiling && a.zTiling == b.zTiling
            && a.minFilter == b.minFilter && a.magFilter == b.magFilter
            && a.mipmap == b.mipmap;
 }
@@ -189,6 +166,7 @@ enum class QSSGRhiSamplerBindingHints
     ScreenTexture,
     DepthTexture,
     AoTexture,
+    LightmapTexture,
 
     BindingMapSize
 };
@@ -301,6 +279,9 @@ public:
         int material_properties2Idx = -1;
         int material_properties3Idx = -1;
         int material_properties4Idx = -1;
+        int material_properties5Idx = -1;
+        int material_attenuationIdx = -1;
+        int thicknessFactorIdx = -1;
         int rhiPropertiesIdx = -1;
         int displaceAmountIdx = -1;
         int boneTransformsIdx = -1;
@@ -308,6 +289,11 @@ public:
         int shadowDepthAdjustIdx = -1;
         int pointSizeIdx = -1;
         int morphWeightsIdx = -1;
+        int reflectionProbeCubeMapCenter = -1;
+        int reflectionProbeBoxMax = -1;
+        int reflectionProbeBoxMin = -1;
+        int reflectionProbeCorrection = -1;
+        int specularAAIdx = -1;
 
         struct ImageIndices
         {
@@ -340,7 +326,7 @@ public:
 
     void resetShadowMaps() { m_shadowMaps.clear(); }
     QSSGRhiShadowMapProperties &addShadowMap() { m_shadowMaps.append(QSSGRhiShadowMapProperties()); return m_shadowMaps.last(); }
-    int shadowMapCount() const { return m_shadowMaps.count(); }
+    int shadowMapCount() const { return m_shadowMaps.size(); }
     const QSSGRhiShadowMapProperties &shadowMapAt(int index) const { return m_shadowMaps[index]; }
     QSSGRhiShadowMapProperties &shadowMapAt(int index) { return m_shadowMaps[index]; }
 
@@ -368,10 +354,14 @@ public:
     void setSsaoTexture(QRhiTexture *texture) { m_ssaoTexture = texture; }
     QRhiTexture *ssaoTexture() const { return m_ssaoTexture; }
 
+    void setLightmapTexture(QRhiTexture *texture) { m_lightmapTexture = texture; }
+    QRhiTexture *lightmapTexture() const { return m_lightmapTexture; }
+
     void resetExtraTextures() { m_extraTextures.clear(); }
     void addExtraTexture(const QSSGRhiTexture &t) { m_extraTextures.append(t); }
-    int extraTextureCount() const { return m_extraTextures.count(); }
-    const QSSGRhiTexture &extraTextureAt(int index) { return m_extraTextures[index]; }
+    int extraTextureCount() const { return m_extraTextures.size(); }
+    const QSSGRhiTexture &extraTextureAt(int index) const { return m_extraTextures[index]; }
+    QSSGRhiTexture &extraTextureAt(int index) { return m_extraTextures[index]; }
 
     QSSGShaderLightsUniformData &lightsUniformData() { return m_lightsUniformData; }
     InstanceLocations instanceBufferLocations() const { return instanceLocations; }
@@ -402,6 +392,7 @@ private:
     QRhiTexture *m_screenTexture = nullptr;
     QRhiTexture *m_depthTexture = nullptr;
     QRhiTexture *m_ssaoTexture = nullptr;
+    QRhiTexture *m_lightmapTexture = nullptr;
     QVarLengthArray<QSSGRhiTexture, 8> m_extraTextures;
 };
 
@@ -666,7 +657,9 @@ struct QSSGRhiDrawCallDataKey
         SkyBox,
         ProgressiveAA,
         Effects,
-        Item2D
+        Item2D,
+        Reflection,
+        Lightmap
     };
     const void *layer;
     const void *model;
@@ -733,6 +726,7 @@ struct QSSGRhiParticleData
 {
     QRhiTexture *texture = nullptr;
     QByteArray sortedData;
+    QByteArray convertData;
     QList<QSSGRhiSortData> sortData;
     int particleCount = 0;
     int serial = -1;
@@ -770,7 +764,7 @@ class QSSGRhiContextStats
 public:
     static bool isEnabled()
     {
-        static bool enabled = qgetenv("QSG_RENDERER_DEBUG").contains(QByteArrayLiteral("render"));
+        static bool enabled = Q_QUICK3D_PROFILING_ENABLED || qgetenv("QSG_RENDERER_DEBUG").contains(QByteArrayLiteral("render"));
         return enabled;
     }
 
@@ -784,7 +778,7 @@ public:
 
     void stop()
     {
-        const int rpCount = renderPasses.count();
+        const int rpCount = renderPasses.size();
         qDebug("%d render passes in 3D renderer %p", rpCount, rendererPtr);
         for (int i = 0; i < rpCount; ++i) {
             const RenderPassInfo &rp(renderPasses[i]);
@@ -803,7 +797,7 @@ public:
     void beginRenderPass(QRhiTextureRenderTarget *rt)
     {
         renderPasses.append({ rt->pixelSize(), {}, {} });
-        currentRenderPassIndex = renderPasses.count() - 1;
+        currentRenderPassIndex = renderPasses.size() - 1;
     }
 
     void endRenderPass()
@@ -837,7 +831,6 @@ public:
         }
     }
 
-private:
     struct IndexedDrawInfo {
         quint32 callCount = 0;
         quint32 instancedCallCount = 0;
@@ -927,10 +920,9 @@ public:
     }
 
     QRhiSampler *sampler(const QSSGRhiSamplerDescription &samplerDescription);
+    void checkAndAdjustForNPoT(QRhiTexture *texture, QSSGRhiSamplerDescription *samplerDescription);
 
-    // ### this will become something more sophisticated later on, for now just hold on
-    // to whatever texture we get, and make sure they get destroyed in the dtor
-    void registerTexture(QRhiTexture *texture) { m_textures.insert(texture); }
+    void registerTexture(QRhiTexture *texture);
     void releaseTexture(QRhiTexture *texture);
 
     void cleanupDrawCallData(const QSSGRenderModel *model);
@@ -946,6 +938,7 @@ public:
     }
 
     static bool shaderDebuggingEnabled();
+    static bool editorMode();
 
     QSSGRhiInstanceBufferData &instanceBufferData(QSSGRenderInstanceTable *instanceTable)
     {

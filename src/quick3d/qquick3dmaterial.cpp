@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qquick3dmaterial_p.h"
 #include "qquick3dobject_p.h"
@@ -51,6 +25,10 @@ QT_BEGIN_NAMESPACE
 
     \note Setting a light probe on the material will override the
     \l {SceneEnvironment::lightProbe} {scene's light probe} for models using this material.
+
+    \note This property is ignored when Reflection Probe is used to show
+    reflections on the Model using this material because Reflection Probe uses
+    the \l {SceneEnvironment::lightProbe} {scene's light probe}.
 
     \sa SceneEnvironment::lightProbe
 */
@@ -105,7 +83,7 @@ QQuick3DMaterial::QQuick3DMaterial(QQuick3DObjectPrivate &dd, QQuick3DObject *pa
 
 QQuick3DMaterial::~QQuick3DMaterial()
 {
-    for (const auto &connection : qAsConst(m_connections))
+    for (const auto &connection : std::as_const(m_connections))
         disconnect(connection);
 }
 
@@ -164,7 +142,9 @@ QSSGRenderGraphObject *QQuick3DMaterial::updateSpatialNode(QSSGRenderGraphObject
         return nullptr;
 
     // Set the common properties
-    if (node->type == QSSGRenderGraphObject::Type::DefaultMaterial || node->type == QSSGRenderGraphObject::Type::PrincipledMaterial) {
+    if (node->type == QSSGRenderGraphObject::Type::DefaultMaterial ||
+        node->type == QSSGRenderGraphObject::Type::PrincipledMaterial ||
+        node->type == QSSGRenderGraphObject::Type::SpecularGlossyMaterial) {
         auto defaultMaterial = static_cast<QSSGRenderDefaultMaterial *>(node);
 
         if (!m_iblProbe)

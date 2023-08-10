@@ -1,11 +1,220 @@
-qt6-quick3d (6.2.4.1-1+dde) stable; urgency=medium
+qt6-quick3d (6.4.2-3) unstable; urgency=medium
 
-  * Adapt to V23.
+  * Team upload ot unstable.
 
- -- Lu YaNing <luyaning@uniontech.com>  Mon, 10 Oct 2022 10:34:06 +0800
+ -- Lisandro Damián Nicanor Pérez Meyer <lisandro@debian.org>  Tue, 01 Aug 2023 14:20:59 -0300
 
-qt6-quick3d (6.2.4-1+dde) stable; urgency=medium
+qt6-quick3d (6.4.2-2) experimental; urgency=medium
 
-  * ['Rebuild  against by  current gcc 11.2']
+  * Team upload.
 
- -- Deepin Packages Builder <packages@deepin.org>  Wed, 31 Aug 2022 15:04:06 +0800
+  [ Patrick Franz ]
+  * Remove build-dependency on libqt6opengl6-dev as it has been merged
+    into qt6-base-dev.
+
+  [ Lisandro Damián Nicanor Pérez Meyer ]
+  * Add documentation and examples packages (Closes: #1042357).
+
+ -- Lisandro Damián Nicanor Pérez Meyer <lisandro@debian.org>  Sat, 29 Jul 2023 11:42:15 -0300
+
+qt6-quick3d (6.4.2-1) unstable; urgency=medium
+
+  [ Patrick Franz ]
+  * Switch to the official 6.4.2 tarball, the tarball is the same.
+
+ -- Patrick Franz <deltaone@debian.org>  Sun, 29 Jan 2023 00:08:22 +0100
+
+qt6-quick3d (6.4.2~rc1-3) unstable; urgency=medium
+
+  * Team upload.
+  * Add missing dependencies to qt6-quick3d-dev, so the cmake config files work:
+    qml6-module-quick3d, qml6-module-quick3d-assetutils,
+    qml6-module-quick3d-effects, qml6-module-quick3d-helpers,
+    qml6-module-quick3d-particleeffects, qml6-module-quick3d-particles3d,
+    qt6-qmltooling-quick3dprofiler-plugin and qt6-quick3d-assetimporters-plugin.
+    (Closes: #1027475)
+
+ -- Pino Toscano <pino@debian.org>  Sun, 01 Jan 2023 14:02:35 +0100
+
+qt6-quick3d (6.4.2~rc1-2) unstable; urgency=medium
+
+  [ Patrick Franz ]
+  * Upload to unstable.
+
+ -- Patrick Franz <deltaone@debian.org>  Fri, 30 Dec 2022 16:58:39 +0100
+
+qt6-quick3d (6.4.2~rc1-1) experimental; urgency=medium
+
+  [ Patrick Franz ]
+  * New upstream release (6.4.2).
+  * Bump Qt B-Ds to 6.4.2.
+  * Bump Standards-Version to 4.6.2 (no changes needed).
+  * Update list of installed files.
+  * Update symbols from buildlogs.
+
+ -- Patrick Franz <deltaone@debian.org>  Tue, 27 Dec 2022 22:27:12 +0100
+
+qt6-quick3d (6.4.1-2) experimental; urgency=medium
+
+  [ Patrick Franz ]
+  * Adjust build-dependencies.
+  * Pass QT_HOST_PATH to cmake in cross-builds, thx to Helmut Grohne
+    (Closes: #1023187):
+    + Pass QT_HOST_PATH*.
+    + Depend on ourselves when cross compiling.
+    + Do build tools when cross compiling.
+  * Enable link time optimization (Closes: #1015622).
+
+ -- Patrick Franz <deltaone@debian.org>  Sun, 11 Dec 2022 01:48:21 +0100
+
+qt6-quick3d (6.4.1-1) experimental; urgency=medium
+
+  [ Patrick Franz ]
+  * New upstream release (6.4.1).
+  * Bump Qt B-Ds to 6.4.1.
+  * Update list of installed files.
+  * Update symbols from buildlogs.
+
+ -- Patrick Franz <deltaone@debian.org>  Thu, 17 Nov 2022 21:51:21 +0100
+
+qt6-quick3d (6.4.0-4) experimental; urgency=medium
+
+  * Team upload.
+  * Update symbols files from the logs of buildds.
+
+ -- Pino Toscano <pino@debian.org>  Fri, 21 Oct 2022 07:33:36 +0200
+
+qt6-quick3d (6.4.0-3) experimental; urgency=medium
+
+  [ Patrick Franz ]
+  * Add missing B-D dh-exec.
+
+ -- Patrick Franz <deltaone@debian.org>  Wed, 19 Oct 2022 23:08:22 +0200
+
+qt6-quick3d (6.4.0-2) experimental; urgency=medium
+
+  [ Patrick Franz ]
+  * Install files for Embree only for amd64 and arm64.
+
+ -- Patrick Franz <deltaone@debian.org>  Wed, 19 Oct 2022 20:08:05 +0200
+
+qt6-quick3d (6.4.0-1) experimental; urgency=medium
+
+  [ Patrick Franz ]
+  * New upstream release (6.4.0).
+  * Bump Qt B-Ds to 6.4.0.
+  * Bump minimum CMake version in order to get pkg-config's .pc files.
+  * Increase CMake verbosity level.
+  * Remove patches as they have been applied upstream.
+  * Update build-deps and deps with the info from cmake.
+  * Update list of installed files.
+  * Update symbols from buildlogs.
+
+ -- Patrick Franz <deltaone@debian.org>  Sun, 16 Oct 2022 01:54:27 +0200
+
+qt6-quick3d (6.3.1-3) unstable; urgency=medium
+
+  [ Patrick Franz ]
+  * Update lintian-overrides.
+
+ -- Patrick Franz <deltaone@debian.org>  Wed, 17 Aug 2022 00:29:11 +0200
+
+qt6-quick3d (6.3.1-2) unstable; urgency=medium
+
+  [ Patrick Franz ]
+  * Upload to unstable.
+
+ -- Patrick Franz <deltaone@debian.org>  Mon, 15 Aug 2022 19:23:07 +0200
+
+qt6-quick3d (6.3.1-1) experimental; urgency=medium
+
+  [ Patrick Franz ]
+  * New upstream release (6.3.1).
+  * Bump Qt B-Ds to 6.3.1.
+  * Update list of installed files.
+  * Update symbols from buildlogs.
+
+ -- Patrick Franz <deltaone@debian.org>  Sun, 17 Jul 2022 21:00:02 +0200
+
+qt6-quick3d (6.3.0-2) experimental; urgency=medium
+
+  [ Patrick Franz ]
+  * Update symbols from buildlogs.
+
+ -- Patrick Franz <deltaone@debian.org>  Thu, 07 Jul 2022 12:38:46 +0200
+
+qt6-quick3d (6.3.0-1) experimental; urgency=medium
+
+  [ Patrick Franz ]
+  * New upstream release (6.3.0).
+  * Bump Qt B-Ds to 6.3.0.
+  * Remove fix-assimp-compilation.patch as it is no longer needed.
+  * Update list of installed files.
+  * New binary packages libqt6quick3dglslparser6,
+    libqt6quick3dparticleeffects6, qml6-module-quick3d-particleeffects
+    and qt6-qmltooling-quick3dprofiler-plugin.
+  * Update symbols from buildlogs.
+  * Bump Standards-Version to 4.6.1 (no changes needed).
+  * Update lintian-overrides.
+  * Update d/copyright.
+
+ -- Patrick Franz <deltaone@debian.org>  Tue, 05 Jul 2022 20:27:00 +0200
+
+qt6-quick3d (6.2.4-2) unstable; urgency=medium
+
+  [ Pino Toscano ]
+  * Add the qt6-quick3d-dev-tools dependency to qt6-quick3d-dev: the latter has
+    cmake config files with targets for the tools, so it makes sense to not
+    have to install tools based on which cmake target is being used.
+
+  [ Patrick Franz ]
+  * Upload to unstable.
+
+ -- Patrick Franz <deltaone@debian.org>  Fri, 22 Apr 2022 20:07:01 +0200
+
+qt6-quick3d (6.2.4-1) experimental; urgency=medium
+
+  [ Patrick Franz ]
+  * New upstream release (6.2.4).
+  * Bump Qt B-Ds to 6.2.4.
+  * Update list of installed files.
+
+ -- Patrick Franz <deltaone@debian.org>  Thu, 31 Mar 2022 23:48:30 +0200
+
+qt6-quick3d (6.2.2-4) unstable; urgency=medium
+
+  [ Pino Toscano ]
+  * Switch back to arch:any for all the binaries, instead of limiting to only
+    some architectures:
+    - on some of the architectures previously mentioned with uninstallable B-Ds
+      (e.g. mips*), qt6-quick3d is buildable now
+    - other architectures already wait for qt6-declarative
+    thus there is no need add extra artificial limitations that add special
+    cases and raise the maintenance cost.
+  * Backport upstream commit 7a4403da52960fd56dff7ea9c53d2c069e85fca8 to fix
+    the build on mips* architectures; patch
+    upstream_Rename-mips-parameter-to-wantsMips.patch.
+
+ -- Patrick Franz <deltaone@debian.org>  Mon, 21 Feb 2022 18:27:43 +0100
+
+qt6-quick3d (6.2.2-3) unstable; urgency=medium
+
+  [ Patrick Franz ]
+  * Upload to unstable.
+
+ -- Patrick Franz <deltaone@debian.org>  Tue, 15 Feb 2022 22:43:22 +0100
+
+qt6-quick3d (6.2.2-2) experimental; urgency=medium
+
+  [ Patrick Franz ]
+  * Update symbols from buildlogs.
+  * Disable building on mips and all other architectures with
+    uninstallable B-Ds.
+
+ -- Patrick Franz <deltaone@debian.org>  Mon, 14 Feb 2022 23:16:25 +0100
+
+qt6-quick3d (6.2.2-1) experimental; urgency=medium
+
+  * Initial release (Closes: #999852)
+
+ -- Patrick Franz <deltaone@debian.org>  Wed, 17 Nov 2021 21:05:24 +0100

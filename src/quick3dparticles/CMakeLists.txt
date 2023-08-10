@@ -25,8 +25,11 @@ qt_internal_add_qml_module(Quick3DParticles
         qquick3dparticlepointrotator.cpp qquick3dparticlepointrotator_p.h
         qquick3dparticlerandomizer_p.h
         qquick3dparticleabstractshape.cpp qquick3dparticleabstractshape_p.h
+        qquick3dparticlecustomshape.cpp qquick3dparticlecustomshape_p.h
         qquick3dparticleshape.cpp qquick3dparticleshape_p.h
         qquick3dparticlemodelshape.cpp qquick3dparticlemodelshape_p.h
+        qquick3dparticlerepeller.cpp qquick3dparticlerepeller_p.h
+        qquick3dparticleshapedatautils.cpp qquick3dparticleshapedatautils_p.h
         qquick3dparticlespriteparticle.cpp qquick3dparticlespriteparticle_p.h
         qquick3dparticlesystem.cpp qquick3dparticlesystem_p.h
         qquick3dparticlesystemlogging.cpp qquick3dparticlesystemlogging_p.h
@@ -36,7 +39,10 @@ qt_internal_add_qml_module(Quick3DParticles
         qquick3dparticlewander.cpp qquick3dparticlewander_p.h
         qquick3dparticleutils.cpp qquick3dparticleutils_p.h
         qquick3dparticlespritesequence.cpp qquick3dparticlespritesequence_p.h
+        qquick3dparticlescaleaffector.cpp qquick3dparticlescaleaffector_p.h
         qquick3dparticlemodelblendparticle_p.h qquick3dparticlemodelblendparticle.cpp
+        qquick3dparticledynamicburst.cpp qquick3dparticledynamicburst_p.h
+        qquick3dparticlelineparticle.cpp qquick3dparticlelineparticle_p.h
     DEFINES
         QT_BUILD_QUICK3DPARTICLES_LIB
     LIBRARIES
@@ -63,6 +69,8 @@ qt_internal_add_qml_module(Quick3DParticles
         Qt::Quick3DAssetImportPrivate
         Qt::QuickPrivate
         Qt::Quick3DPrivate
+    GENERATE_CPP_EXPORTS
+    GENERATE_PRIVATE_CPP_EXPORTS
 )
 
 if(QT_FEATURE_quick_designer AND QT_BUILD_SHARED_LIBS) # special case handle unconverted static

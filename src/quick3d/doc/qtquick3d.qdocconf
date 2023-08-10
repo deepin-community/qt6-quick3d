@@ -15,10 +15,6 @@ qhp.QtQuick3D.virtualFolder       = qtquick3d
 qhp.QtQuick3D.indexTitle          = Qt Quick 3D
 qhp.QtQuick3D.indexRoot           =
 
-qhp.QtQuick3D.filterAttributes    = qtquick3d $QT_VERSION qtrefdoc
-qhp.QtQuick3D.customFilters.Qt.name = QtQuick3D $QT_VERSION
-qhp.QtQuick3D.customFilters.Qt.filterAttributes = qtquick3d $QT_VERSION
-
 qhp.QtQuick3D.subprojects = qmltypes examples classes
 qhp.QtQuick3D.subprojects.qmltypes.title = QML Types
 qhp.QtQuick3D.subprojects.qmltypes.indexTitle = Qt Quick 3D QML Types
@@ -32,13 +28,17 @@ qhp.QtQuick3D.subprojects.classes.indexTitle = Qt Quick 3D C++ Classes
 qhp.QtQuick3D.subprojects.classes.selectors  = class doc:headerfile
 qhp.QtQuick3D.subprojects.classes.sortPages  = true
 
-depends += qtcore qtgui qtdoc qtqml qtqmlmodels qtquick qtquickcontrols qtshadertools qtquicktimeline
+depends += qtcore qtgui qtdoc qtqml qtqmlmodels qtquick qtquickcontrols qtshadertools qtquicktimeline qtcmake
 
 headerdirs  += .. \
                ../../quick3dparticles/
 
 headers += ../../helpers/gridgeometry_p.h \
            ../../helpers/randominstancing_p.h \
+           ../../helpers/instancerepeater_p.h \
+           ../../helpers/lookatnode_p.h \
+           ../../helpers/heightfieldgeometry_p.h \
+           ../../helpers/proceduralskytexturedata_p.h \
            ../../assetutils/qquick3druntimeloader_p.h
 
 sourcedirs  += .. \
@@ -47,6 +47,10 @@ sourcedirs  += .. \
 
 sources += ../../helpers/gridgeometry.cpp \
            ../../helpers/randominstancing.cpp \
+           ../../helpers/instancerepeater.cpp \
+           ../../helpers/lookatnode.cpp \
+           ../../helpers/heightfieldgeometry.cpp \
+           ../../helpers/proceduralskytexturedata.cpp \
            ../../assetutils/qquick3druntimeloader.cpp
 
 exampledirs +=  ../../../examples/quick3d
@@ -56,10 +60,11 @@ imagedirs   += images
 # Exclude private header files from the documentation build
 excludefiles += "*_p.h"
 
-manifestmeta.highlighted.names = "QtQuick3D/Qt Quick 3D - Morphing Example" \
+manifestmeta.highlighted.names = "QtQuick3D/Qt Quick 3D - Principled Material Example" \
+                                 "QtQuick3D/Qt Quick 3D - Reflection Probes Example" \
                                  "QtQuick3D/Qt Quick 3D - Particles 3D Testbed Example" \
-                                 "QtQuick3D/Qt Quick 3D - Custom Instanced Rendering" \
-                                 "QtQuick3D/Qt Quick 3D - Principled Material Example"
+                                 "QtQuick3D/Qt Quick 3D - Morphing Example" \
+                                 "QtQuick3D/Qt Quick 3D - Robot Arm Example"
 
 
 Cpp.ignoretokens += Q_QUICK3D_EXPORT
@@ -69,3 +74,6 @@ navigation.qmltypespage = "Qt Quick 3D QML Types"
 navigation.cppclassespage = "Qt Quick 3D C++ Classes"
 
 tagfile                 = qtquick3d.tags
+
+# Fail the documentation build if there are more warnings than the limit
+warninglimit = 0

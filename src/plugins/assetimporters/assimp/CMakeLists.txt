@@ -52,6 +52,20 @@ qt_internal_add_plugin(AssimpImporterPlugin
         Qt::Quick3DRuntimeRenderPrivate
 )
 
+# Work around "command line is too long" issue due to a long list of include directories,
+# when using the MinGW windres.exe resource (.rc) compiler.
+# https://gitlab.kitware.com/cmake/cmake/-/issues/16171
+# https://gitlab.kitware.com/cmake/cmake/-/issues/16223
+# Disable the compilation of the rc file entirely, by ensuring that the
+# QT_TARGET_VERSION and QT_TARGET_WINDOWS_RC_FILE
+# properties read by _qt_internal_generate_win32_rc_file are unset.
+if(GCC AND MINGW AND WIN32 AND NOT QT_FEATURE_system_assimp)
+    set_target_properties(AssimpImporterPlugin
+        PROPERTIES
+            QT_TARGET_VERSION ""
+            QT_TARGET_WINDOWS_RC_FILE "")
+endif()
+
 set_target_properties(AssimpImporterPlugin PROPERTIES
     QT_SKIP_WARNINGS_ARE_ERRORS TRUE
 )
@@ -92,12 +106,15 @@ qt_internal_extend_target(AssimpImporterPlugin CONDITION NOT QT_FEATURE_system_a
         ../../../3rdparty/assimp/src/code/AssetLib/Collada/ColladaParser.cpp ../../../3rdparty/assimp/src/code/AssetLib/Collada/ColladaParser.h
         ../../../3rdparty/assimp/src/code/Common/Assimp.cpp
         ../../../3rdparty/assimp/src/code/Common/AssertHandler.cpp ../../../3rdparty/assimp/src/code/Common/AssertHandler.h
+        ../../../3rdparty/assimp/src/code/Common/Base64.cpp
         ../../../3rdparty/assimp/src/code/Common/BaseImporter.cpp
         ../../../3rdparty/assimp/src/code/Common/BaseProcess.cpp ../../../3rdparty/assimp/src/code/Common/BaseProcess.h
         ../../../3rdparty/assimp/src/code/Common/Bitmap.cpp
         ../../../3rdparty/assimp/src/code/Common/CreateAnimMesh.cpp
+        ../../../3rdparty/assimp/src/code/Common/Compression.cpp ../../../3rdparty/assimp/src/code/Common/Compression.h
         ../../../3rdparty/assimp/src/code/Common/DefaultIOStream.cpp
         ../../../3rdparty/assimp/src/code/Common/DefaultIOSystem.cpp
+        ../../../3rdparty/assimp/src/code/Common/IOSystem.cpp
         ../../../3rdparty/assimp/src/code/Common/DefaultLogger.cpp
         ../../../3rdparty/assimp/src/code/Common/DefaultProgressHandler.h
         ../../../3rdparty/assimp/src/code/Common/Exceptional.cpp
@@ -197,6 +214,7 @@ qt_internal_extend_target(AssimpImporterPlugin CONDITION NOT QT_FEATURE_system_a
         ../../../3rdparty/assimp/src/contrib/unzip/crypt.h
         ../../../3rdparty/assimp/src/contrib/unzip/ioapi.c ../../../3rdparty/assimp/src/contrib/unzip/ioapi.h
         ../../../3rdparty/assimp/src/contrib/unzip/unzip.c
+        ../../../3rdparty/assimp/src/include/assimp/Base64.hpp
         ../../../3rdparty/assimp/src/include/assimp/BaseImporter.h
         ../../../3rdparty/assimp/src/include/assimp/Bitmap.h
         ../../../3rdparty/assimp/src/include/assimp/BlobIOSystem.h
@@ -208,7 +226,6 @@ qt_internal_extend_target(AssimpImporterPlugin CONDITION NOT QT_FEATURE_system_a
         ../../../3rdparty/assimp/src/include/assimp/DefaultIOStream.h
         ../../../3rdparty/assimp/src/include/assimp/DefaultIOSystem.h
         ../../../3rdparty/assimp/src/include/assimp/DefaultLogger.hpp
-        ../../../3rdparty/assimp/src/include/assimp/Defines.h
         ../../../3rdparty/assimp/src/include/assimp/Exceptional.h
         ../../../3rdparty/assimp/src/include/assimp/Exporter.hpp
         ../../../3rdparty/assimp/src/include/assimp/GenericProperty.h
@@ -292,6 +309,7 @@ qt_internal_extend_target(AssimpImporterPlugin CONDITION NOT QT_FEATURE_system_a
         ASSIMP_BUILD_NO_IFC_IMPORTER
         ASSIMP_BUILD_NO_IRRMESH_IMPORTER
         ASSIMP_BUILD_NO_IRR_IMPORTER
+        ASSIMP_BUILD_NO_IQM_IMPORTER
         ASSIMP_BUILD_NO_LIMITBONEWEIGHTS_PROCESS
         ASSIMP_BUILD_NO_LWO_IMPORTER
         ASSIMP_BUILD_NO_LWS_IMPORTER
@@ -396,6 +414,7 @@ qt_internal_extend_target(AssimpImporterPlugin CONDITION MSVC AND NOT QT_FEATURE
     COMPILE_OPTIONS
         "-wd4100"
         "-wd4189"
+        "-wd4244"
         "-wd4267"
         "-wd4996"
         "-wd4828"
@@ -413,4 +432,11 @@ qt_internal_extend_target(AssimpImporterPlugin CONDITION MSVC AND (CMAKE_CROSSCO
         _SCL_SECURE_NO_WARNINGS
     COMPILE_OPTIONS
         /bigobj
+)
+
+qt_internal_extend_target(AssimpImporterPlugin CONDITION GCC AND (NOT QT_FEATURE_system_assimp) AND (host_build OR NOT QT_FEATURE_system_assimp)
+    SOURCES
+        ../../../3rdparty/assimp/src/code/Common/ZipArchiveIOSystem.cpp
+    COMPILE_OPTIONS
+        "-Wno-cast-function-type"
 )

@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2020 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2020 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #ifndef Q_QUICK3D_INSTANCING_H
 #define Q_QUICK3D_INSTANCING_H
@@ -52,12 +26,17 @@ class Q_QUICK3D_EXPORT QQuick3DInstancing : public QQuick3DObject
     Q_PROPERTY(bool depthSortingEnabled READ depthSortingEnabled WRITE setDepthSortingEnabled NOTIFY depthSortingEnabledChanged)
 
 public:
-    struct InstanceTableEntry {
+    struct Q_QUICK3D_EXPORT InstanceTableEntry {
         QVector4D row0;
         QVector4D row1;
         QVector4D row2;
         QVector4D color;
         QVector4D instanceData;
+
+        QVector3D getPosition() const;
+        QVector3D getScale() const;
+        QQuaternion getRotation() const;
+        QColor getColor() const;
     };
 
     explicit QQuick3DInstancing(QQuick3DObject *parent = nullptr);
@@ -68,12 +47,19 @@ public:
     bool hasTransparency() const;
     bool depthSortingEnabled() const;
 
+    Q_REVISION(6, 3) Q_INVOKABLE QVector3D instancePosition(int index);
+    Q_REVISION(6, 3) Q_INVOKABLE QVector3D instanceScale(int index);
+    Q_REVISION(6, 3) Q_INVOKABLE QQuaternion instanceRotation(int index);
+    Q_REVISION(6, 3) Q_INVOKABLE QColor instanceColor(int index);
+    Q_REVISION(6, 3) Q_INVOKABLE QVector4D instanceCustomData(int index);
+
 public Q_SLOTS:
     void setInstanceCountOverride(int instanceCountOverride);
     void setHasTransparency(bool hasTransparency);
     void setDepthSortingEnabled(bool enabled);
 
 Q_SIGNALS:
+    void instanceTableChanged();
     void instanceNodeDirty();
     void instanceCountOverrideChanged();
     void hasTransparencyChanged();
@@ -89,6 +75,9 @@ protected:
                           const QVector3D &scale, const QQuaternion &rotation,
                                                   const QColor &color, const QVector4D &customData = {});
     QSSGRenderGraphObject *updateSpatialNode(QSSGRenderGraphObject *node) override;
+
+private:
+    const InstanceTableEntry *getInstanceEntry(int index);
 };
 
 QT_END_NAMESPACE

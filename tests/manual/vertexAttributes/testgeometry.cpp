@@ -1,52 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2020 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of the examples of the Qt Toolkit.
-**
-** $QT_BEGIN_LICENSE:BSD$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** BSD License Usage
-** Alternatively, you may use this file under the terms of the BSD license
-** as follows:
-**
-** "Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions are
-** met:
-**   * Redistributions of source code must retain the above copyright
-**     notice, this list of conditions and the following disclaimer.
-**   * Redistributions in binary form must reproduce the above copyright
-**     notice, this list of conditions and the following disclaimer in
-**     the documentation and/or other materials provided with the
-**     distribution.
-**   * Neither the name of The Qt Company Ltd nor the names of its
-**     contributors may be used to endorse or promote products derived
-**     from this software without specific prior written permission.
-**
-**
-** THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-** "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-** LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-** A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-** OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-** SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-** LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-** OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2020 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 
 #include "testgeometry.h"
 
@@ -104,7 +57,7 @@ static void packVertices(const QByteArray &pos, const QByteArray &norm,
                          const QByteArray &tan, const QByteArray &bin,
                          const QByteArray &col, QByteArray &dest)
 {
-    int count = pos.size() / sizeof(QVector3D);
+    int count = int(pos.size() / sizeof(QVector3D));
     QByteArray vertices;
     vertices.resize(count * s_vertexSize);
     vertices.fill(0);
@@ -142,7 +95,7 @@ static QByteArray s_normals = QByteArray();
 QByteArray &generateNormals(const QByteArray &positions, const QByteArray &indices)
 {
     if (!s_normals.size()) {
-        int count = indices.size() / sizeof(Face);
+        int count = int(indices.size() / sizeof(Face));
         s_normals.resize(positions.size());
         s_normals.fill(0);
         const Face *faces = reinterpret_cast<const Face *>(indices.constData());
@@ -159,7 +112,7 @@ QByteArray &generateNormals(const QByteArray &positions, const QByteArray &indic
             n[f.v1] += normal;
             n[f.v2] += normal;
         }
-        count = positions.size() / sizeof(QVector3D);
+        count = int(positions.size() / sizeof(QVector3D));
         for (int i = 0; i < count; i++)
             n[i] = n[i].normalized();
     }
@@ -171,7 +124,7 @@ static QByteArray s_tangents = QByteArray();
 QByteArray &generateTangents(const QByteArray &positions, const QByteArray &normals, const QByteArray &indices)
 {
     if (!s_tangents.size()) {
-        int count = indices.size() / sizeof(Face);
+        int count = int(indices.size() / sizeof(Face));
         s_tangents.resize(positions.size());
         s_tangents.fill(0);
         const Face *faces = reinterpret_cast<const Face *>(indices.constData());
@@ -185,7 +138,7 @@ QByteArray &generateTangents(const QByteArray &positions, const QByteArray &norm
             t[f.v1] += QVector3D::crossProduct(n[f.v1], u).normalized();
             t[f.v2] += QVector3D::crossProduct(n[f.v2], u).normalized();
         }
-        count = positions.size() / sizeof(QVector3D);
+        count = int(positions.size() / sizeof(QVector3D));
         for (int i = 0; i < count; i++)
             t[i] = t[i].normalized();
     }
@@ -197,7 +150,7 @@ static QByteArray s_binormals = QByteArray();
 QByteArray &generateBinormals(const QByteArray &normals, const QByteArray &tangents)
 {
     if (!s_binormals.size()) {
-        int count = normals.size() / sizeof(QVector3D);
+        int count = int(normals.size() / sizeof(QVector3D));
         s_binormals.resize(normals.size());
         s_binormals.fill(0);
 
@@ -217,7 +170,7 @@ QByteArray &generateTexcoords0(const QByteArray &positions, const QByteArray &no
                      QVector3D &minPos, QVector3D &maxPos, float tstep)
 {
     if (!s_texcoords0.size()) {
-        int count = positions.size() / sizeof(QVector3D);
+        int count = int(positions.size() / sizeof(QVector3D));
         s_texcoords0.resize(count * sizeof(QVector2D));
         s_texcoords0.fill(0);
         QVector2D *t = reinterpret_cast<QVector2D *>(s_texcoords0.data());
@@ -246,7 +199,7 @@ static QByteArray s_texcoords1 = QByteArray();
 QByteArray &generateTexcoords1(const QByteArray &positions)
 {
     if (!s_texcoords1.size()) {
-        int count = positions.size() / sizeof(QVector3D);
+        int count = int(positions.size() / sizeof(QVector3D));
         s_texcoords1.resize(count * sizeof(QVector2D));
         s_texcoords1.fill(0);
         QVector2D *t = reinterpret_cast<QVector2D *>(s_texcoords1.data());
@@ -266,7 +219,7 @@ static QByteArray s_colors = QByteArray();
 QByteArray &generateColors(const QByteArray &positions)
 {
     if (!s_colors.size()) {
-        int count = positions.size() / sizeof(QVector3D);
+        int count = int(positions.size() / sizeof(QVector3D));
         s_colors.resize(count * sizeof(QVector4D));
         s_colors.fill(0);
         QVector4D colorF = QVector4D(1.f, 0.5f, 0.5f, 1.0f);
@@ -291,7 +244,7 @@ QByteArray &generateColors(const QByteArray &positions)
 template <typename T>
 quint32 insertData(const T &c, QByteArray &data)
 {
-    int count = data.size() / sizeof(T);
+    int count = int(data.size() / sizeof(T));
     QByteArray d;
     d.resize(sizeof(T));
     memcpy(d.data(), &c, sizeof(T));
@@ -302,7 +255,7 @@ quint32 insertData(const T &c, QByteArray &data)
 quint32 findOrInsertVertex(const QVector3D v, QByteArray &vertices, int &lsty, int step)
 {
     const QVector3D *ptr = reinterpret_cast<const QVector3D *>(vertices.constData());
-    int count = vertices.size() / sizeof(QVector3D);
+    int count = int(vertices.size() / sizeof(QVector3D));
     for (int i = 0; i < count; ++i) {
         if (qFuzzyCompare(v, ptr[(i + lsty) % count])) {
             lsty = (i + lsty) % count;

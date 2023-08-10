@@ -1,12 +1,15 @@
-# SymbolsHelper-Confirmed: 6.2.2 amd64 armel armhf hurd-i386 i386 sh4
+# SymbolsHelper-Confirmed: 6.4.2 amd64
 libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
 * Build-Depends-Package: qt6-quick3d-dev
  _Z24q_quaternionInterpolatorRK11QQuaternionS1_d@Base 6.2.2
  _Z28qml_register_types_QtQuick3Dv@Base 6.2.2
  _ZGVZN9QMetaType21registerConverterImplI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEEEbSt8functionIFbPKvPvEES_S_E10unregister@Base 6.2.2
  _ZGVZN9QMetaType21registerConverterImplI5QListI18QQuick3DPickResultE9QIterableI13QMetaSequenceEEEbSt8functionIFbPKvPvEES_S_E10unregister@Base 6.2.2
+ _ZGVZN9QMetaType21registerConverterImplI5QListI4QUrlE9QIterableI13QMetaSequenceEEEbSt8functionIFbPKvPvEES_S_E10unregister@Base 6.3.0
  _ZGVZN9QMetaType23registerMutableViewImplI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEEEbSt8functionIFbPvS8_EES_S_E10unregister@Base 6.2.2
  _ZGVZN9QMetaType23registerMutableViewImplI5QListI18QQuick3DPickResultE9QIterableI13QMetaSequenceEEEbSt8functionIFbPvS8_EES_S_E10unregister@Base 6.2.2
+ _ZGVZN9QMetaType23registerMutableViewImplI5QListI4QUrlE9QIterableI13QMetaSequenceEEEbSt8functionIFbPvS8_EES_S_E10unregister@Base 6.3.0
+ _ZN12QQuick3DNode10itemChangeEN14QQuick3DObject10ItemChangeERKNS0_14ItemChangeDataE@Base 6.4.2
  _ZN12QQuick3DNode10setVisibleEb@Base 6.2.2
  _ZN12QQuick3DNode11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.2.2
  _ZN12QQuick3DNode11qt_metacastEPKc@Base 6.2.2
@@ -52,15 +55,35 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN12QQuick3DNodeD0Ev@Base 6.2.2
  _ZN12QQuick3DNodeD1Ev@Base 6.2.2
  _ZN12QQuick3DNodeD2Ev@Base 6.2.2
+ (subst)_ZN12QQuick3DSkin10qmlJointAtEP16QQmlListPropertyI12QQuick3DNodeE{qptrdiff}@Base 6.4.0
+ _ZN12QQuick3DSkin11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.4.0
+ _ZN12QQuick3DSkin11qt_metacastEPKc@Base 6.4.0
+ _ZN12QQuick3DSkin12markAllDirtyEv@Base 6.4.0
+ _ZN12QQuick3DSkin14onJointChangedEP12QQuick3DNode@Base 6.4.0
+ _ZN12QQuick3DSkin14qmlAppendJointEP16QQmlListPropertyI12QQuick3DNodeEPS1_@Base 6.4.0
+ _ZN12QQuick3DSkin14qmlClearJointsEP16QQmlListPropertyI12QQuick3DNodeE@Base 6.4.0
+ _ZN12QQuick3DSkin14qmlJointsCountEP16QQmlListPropertyI12QQuick3DNodeE@Base 6.4.0
+ _ZN12QQuick3DSkin16onJointDestroyedEP7QObject@Base 6.4.0
+ _ZN12QQuick3DSkin16staticMetaObjectE@Base 6.4.0
+ _ZN12QQuick3DSkin17updateSpatialNodeEP21QSSGRenderGraphObject@Base 6.4.0
+ _ZN12QQuick3DSkin19setInverseBindPosesERK5QListI10QMatrix4x4E@Base 6.4.0
+ _ZN12QQuick3DSkin23inverseBindPosesChangedEv@Base 6.4.0
+ _ZN12QQuick3DSkin6jointsEv@Base 6.4.0
+ _ZN12QQuick3DSkin9markDirtyEv@Base 6.4.0
+ _ZN12QQuick3DSkinC1EP14QQuick3DObject@Base 6.4.0
+ _ZN12QQuick3DSkinC2EP14QQuick3DObject@Base 6.4.0
+ _ZN12QQuick3DSkinD0Ev@Base 6.4.0
+ _ZN12QQuick3DSkinD1Ev@Base 6.4.0
+ _ZN12QQuick3DSkinD2Ev@Base 6.4.0
  _ZN13QMetaSequence12MetaSequenceI5QListI10QMatrix4x4EE5valueE@Base 6.2.2
  _ZN13QMetaSequence12MetaSequenceI5QListI18QQuick3DPickResultEE5valueE@Base 6.2.2
+ _ZN13QMetaSequence12MetaSequenceI5QListI4QUrlEE5valueE@Base 6.3.0
  _ZN13QQuick3DJoint11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.2.2
  _ZN13QQuick3DJoint11qt_metacastEPKc@Base 6.2.2
  _ZN13QQuick3DJoint12indexChangedEv@Base 6.2.2
  _ZN13QQuick3DJoint12markAllDirtyEv@Base 6.2.2
  _ZN13QQuick3DJoint15setSkeletonRootEP16QQuick3DSkeleton@Base 6.2.2
  _ZN13QQuick3DJoint16staticMetaObjectE@Base 6.2.2
- _ZN13QQuick3DJoint17markSkeletonDirtyEP18QSSGRenderSkeleton@Base 6.2.2
  _ZN13QQuick3DJoint17updateSpatialNodeEP21QSSGRenderGraphObject@Base 6.2.2
  _ZN13QQuick3DJoint19skeletonRootChangedEv@Base 6.2.2
  _ZN13QQuick3DJoint8setIndexEi@Base 6.2.2
@@ -75,6 +98,7 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN13QQuick3DModel11setGeometryEP16QQuick3DGeometry@Base 6.2.2
  _ZN13QQuick3DModel11setPickableEb@Base 6.2.2
  _ZN13QQuick3DModel11setSkeletonEP16QQuick3DSkeleton@Base 6.2.2
+ _ZN13QQuick3DModel11skinChangedEv@Base 6.4.0
  _ZN13QQuick3DModel12markAllDirtyEv@Base 6.2.2
  _ZN13QQuick3DModel12morphTargetsEv@Base 6.2.2
  _ZN13QQuick3DModel12setDepthBiasEf@Base 6.2.2
@@ -87,9 +111,9 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN13QQuick3DModel15setCastsShadowsEb@Base 6.2.2
  _ZN13QQuick3DModel15setInstanceRootEP12QQuick3DNode@Base 6.2.2
  _ZN13QQuick3DModel15skeletonChangedEv@Base 6.2.2
- _ZN13QQuick3DModel15translateSourceEv@Base 6.2.2
  _ZN13QQuick3DModel16depthBiasChangedEv@Base 6.2.2
  (subst)_ZN13QQuick3DModel16qmlMorphTargetAtEP16QQmlListPropertyI19QQuick3DMorphTargetE{qptrdiff}@Base 6.2.2
+ _ZN13QQuick3DModel16setBakedLightmapEP21QQuick3DBakedLightmap@Base 6.4.0
  _ZN13QQuick3DModel16staticMetaObjectE@Base 6.2.2
  _ZN13QQuick3DModel17instancingChangedEv@Base 6.2.2
  _ZN13QQuick3DModel17qmlAppendMaterialEP16QQmlListPropertyI16QQuick3DMaterialEPS1_@Base 6.2.2
@@ -102,13 +126,24 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN13QQuick3DModel19instanceRootChangedEv@Base 6.2.2
  _ZN13QQuick3DModel19morphTargetsChangedEv@Base 6.2.2
  _ZN13QQuick3DModel19onMaterialDestroyedEP7QObject@Base 6.2.2
+ _ZN13QQuick3DModel19setCastsReflectionsEb@Base 6.4.0
  _ZN13QQuick3DModel19setInverseBindPosesERK5QListI10QMatrix4x4E@Base 6.2.2
+ _ZN13QQuick3DModel19translateMeshSourceERK4QUrlP7QObject@Base 6.3.0
+ _ZN13QQuick3DModel20bakedLightmapChangedEv@Base 6.4.0
  _ZN13QQuick3DModel20qmlAppendMorphTargetEP16QQmlListPropertyI19QQuick3DMorphTargetEPS1_@Base 6.2.2
  _ZN13QQuick3DModel20qmlClearMorphTargetsEP16QQmlListPropertyI19QQuick3DMorphTargetE@Base 6.2.2
  _ZN13QQuick3DModel20qmlMorphTargetsCountEP16QQmlListPropertyI19QQuick3DMorphTargetE@Base 6.2.2
  _ZN13QQuick3DModel22onMorphTargetDestroyedEP7QObject@Base 6.2.2
  _ZN13QQuick3DModel22receivesShadowsChangedEv@Base 6.2.2
+ _ZN13QQuick3DModel22setReceivesReflectionsEb@Base 6.3.0
+ _ZN13QQuick3DModel22setUsedInBakedLightingEb@Base 6.4.0
+ _ZN13QQuick3DModel23castsReflectionsChangedEv@Base 6.4.0
  _ZN13QQuick3DModel23inverseBindPosesChangedEv@Base 6.2.2
+ _ZN13QQuick3DModel25setLightmapBaseResolutionEi@Base 6.4.0
+ _ZN13QQuick3DModel26receivesReflectionsChangedEv@Base 6.3.0
+ _ZN13QQuick3DModel26usedInBakedLightingChangedEv@Base 6.4.0
+ _ZN13QQuick3DModel29lightmapBaseResolutionChangedEv@Base 6.4.0
+ _ZN13QQuick3DModel7setSkinEP12QQuick3DSkin@Base 6.4.0
  _ZN13QQuick3DModel9markDirtyENS_18QSSGModelDirtyTypeE@Base 6.2.2
  _ZN13QQuick3DModel9materialsEv@Base 6.2.2
  _ZN13QQuick3DModel9setBoundsERK9QVector3DS2_@Base 6.2.2
@@ -120,9 +155,12 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN13QQuick3DModelD2Ev@Base 6.2.2
  _ZN14QQuick3DCamera11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.2.2
  _ZN14QQuick3DCamera11qt_metacastEPKc@Base 6.2.2
+ _ZN14QQuick3DCamera12updateLookAtEv@Base 6.4.0
  _ZN14QQuick3DCamera13mapToViewportERK9QVector3Ddd@Base 6.2.2
+ _ZN14QQuick3DCamera13setLookAtNodeEP12QQuick3DNode@Base 6.4.0
  _ZN14QQuick3DCamera15mapFromViewportERK9QVector3Ddd@Base 6.2.2
  _ZN14QQuick3DCamera16staticMetaObjectE@Base 6.2.2
+ _ZN14QQuick3DCamera17lookAtNodeChangedEv@Base 6.4.0
  _ZN14QQuick3DCamera17updateSpatialNodeEP21QSSGRenderGraphObject@Base 6.2.2
  _ZN14QQuick3DCamera21updateGlobalVariablesERK6QRectF@Base 6.2.2
  _ZN14QQuick3DCamera24setFrustumCullingEnabledEb@Base 6.2.2
@@ -142,7 +180,7 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN14QQuick3DEffect16staticMetaObjectE@Base 6.2.2
  _ZN14QQuick3DEffect17updateSpatialNodeEP21QSSGRenderGraphObject@Base 6.2.2
  _ZN14QQuick3DEffect18updateSceneManagerEP20QQuick3DSceneManager@Base 6.2.2
- _ZN14QQuick3DEffect20setDynamicTextureMapEP15QQuick3DTextureRK10QByteArray@Base 6.2.2
+ _ZN14QQuick3DEffect20setDynamicTextureMapEP31QQuick3DShaderUtilsTextureInput@Base 6.4.1
  _ZN14QQuick3DEffect6passesEv@Base 6.2.2
  _ZN14QQuick3DEffect9markDirtyENS_5DirtyE@Base 6.2.2
  (subst)_ZN14QQuick3DEffect9qmlPassAtEP16QQmlListPropertyI29QQuick3DShaderUtilsRenderPassE{qptrdiff}@Base 6.2.2
@@ -259,10 +297,18 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN15QQuick3DTexture9setScaleVEf@Base 6.2.2
  _ZN15QQuick3DTexture9setSourceERK4QUrl@Base 6.2.2
  _ZN15QQuick3DTextureC1EP14QQuick3DObject@Base 6.2.2
+ _ZN15QQuick3DTextureC1ER21QQuick3DObjectPrivateP14QQuick3DObject@Base 6.4.0
  _ZN15QQuick3DTextureC2EP14QQuick3DObject@Base 6.2.2
+ _ZN15QQuick3DTextureC2ER21QQuick3DObjectPrivateP14QQuick3DObject@Base 6.4.0
  _ZN15QQuick3DTextureD0Ev@Base 6.2.2
  _ZN15QQuick3DTextureD1Ev@Base 6.2.2
  _ZN15QQuick3DTextureD2Ev@Base 6.2.2
+ _ZN15QSSGShaderUtils11uniformTypeE9QMetaType@Base 6.3.0
+ _ZN15QSSGShaderUtils13resolveShaderERK4QUrlPK11QQmlContextR10QByteArray@Base 6.3.0
+ _ZN15QSSGShaderUtils15uniformTypeNameE24QSSGRenderShaderDataType@Base 6.3.0
+ _ZN15QSSGShaderUtils15uniformTypeNameE9QMetaType@Base 6.3.0
+ _ZN15QSSGShaderUtils18setResolveFunctionEPFbRK4QUrlPK11QQmlContextR10QByteArrayS7_E@Base 6.3.0
+ _ZN15QSSGShaderUtils18supportedMetatypesEv@Base 6.3.0
  _ZN16QQuick3DGeometry11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.2.2
  _ZN16QQuick3DGeometry11qt_metacastEPKc@Base 6.2.2
  _ZN16QQuick3DGeometry12addAttributeENS_9Attribute8SemanticEiNS0_13ComponentTypeE@Base 6.2.2
@@ -277,6 +323,7 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN16QQuick3DGeometry17geometryNodeDirtyEv@Base 6.2.2
  _ZN16QQuick3DGeometry17updateSpatialNodeEP21QSSGRenderGraphObject@Base 6.2.2
  _ZN16QQuick3DGeometry5clearEv@Base 6.2.2
+ _ZN16QQuick3DGeometry9addSubsetEiiRK9QVector3DS2_RK7QString@Base 6.3.0
  _ZN16QQuick3DGeometry9setBoundsERK9QVector3DS2_@Base 6.2.2
  _ZN16QQuick3DGeometry9setStrideEi@Base 6.2.2
  _ZN16QQuick3DGeometryC1EP14QQuick3DObject@Base 6.2.2
@@ -343,6 +390,7 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN16QQuick3DViewport14geometryChangeERK6QRectFS2_@Base 6.2.2
  _ZN16QQuick3DViewport14setEnvironmentEP24QQuick3DSceneEnvironment@Base 6.2.2
  _ZN16QQuick3DViewport14setImportSceneEP12QQuick3DNode@Base 6.2.2
+ _ZN16QQuick3DViewport15setRenderFormatEN24QQuickShaderEffectSource6FormatE@Base 6.4.0
  _ZN16QQuick3DViewport15updatePaintNodeEP7QSGNodePN10QQuickItem19UpdatePaintNodeDataE@Base 6.2.2
  _ZN16QQuick3DViewport16cleanupResourcesEv@Base 6.2.2
  _ZN16QQuick3DViewport16releaseResourcesEv@Base 6.2.2
@@ -350,6 +398,7 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN16QQuick3DViewport17renderModeChangedEv@Base 6.2.2
  _ZN16QQuick3DViewport18environmentChangedEv@Base 6.2.2
  _ZN16QQuick3DViewport18importSceneChangedEv@Base 6.2.2
+ _ZN16QQuick3DViewport19renderFormatChangedEv@Base 6.4.0
  _ZN16QQuick3DViewport19setupDirectRendererENS_10RenderModeE@Base 6.2.2
  _ZN16QQuick3DViewport20invalidateSceneGraphEv@Base 6.2.2
  _ZN16QQuick3DViewport21cleanupDirectRendererEv@Base 6.2.2
@@ -383,12 +432,19 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN17QQuick3DSpotLightC2EP12QQuick3DNode@Base 6.2.2
  _ZN18QQuick3DInstancing11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.2.2
  _ZN18QQuick3DInstancing11qt_metacastEPKc@Base 6.2.2
+ _ZN18QQuick3DInstancing13instanceColorEi@Base 6.3.0
+ _ZN18QQuick3DInstancing13instanceScaleEi@Base 6.3.0
  _ZN18QQuick3DInstancing14instanceBufferEPi@Base 6.2.2
+ _ZN18QQuick3DInstancing16getInstanceEntryEi@Base 6.3.0
+ _ZN18QQuick3DInstancing16instancePositionEi@Base 6.3.0
+ _ZN18QQuick3DInstancing16instanceRotationEi@Base 6.3.0
  _ZN18QQuick3DInstancing16staticMetaObjectE@Base 6.2.2
  _ZN18QQuick3DInstancing17instanceNodeDirtyEv@Base 6.2.2
  _ZN18QQuick3DInstancing17updateSpatialNodeEP21QSSGRenderGraphObject@Base 6.2.2
+ _ZN18QQuick3DInstancing18instanceCustomDataEi@Base 6.3.0
  _ZN18QQuick3DInstancing18setHasTransparencyEb@Base 6.2.2
  _ZN18QQuick3DInstancing19calculateTableEntryERK9QVector3DS2_S2_RK6QColorRK9QVector4D@Base 6.2.2
+ _ZN18QQuick3DInstancing20instanceTableChangedEv@Base 6.3.0
  _ZN18QQuick3DInstancing22hasTransparencyChangedEv@Base 6.2.2
  _ZN18QQuick3DInstancing22setDepthSortingEnabledEb@Base 6.2.2
  _ZN18QQuick3DInstancing24setInstanceCountOverrideEi@Base 6.2.2
@@ -418,6 +474,26 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN18QQuick3DPointLight20quadraticFadeChangedEv@Base 6.2.2
  _ZN18QQuick3DPointLightC1EP12QQuick3DNode@Base 6.2.2
  _ZN18QQuick3DPointLightC2EP12QQuick3DNode@Base 6.2.2
+ _ZN19QQuick3DLightmapper10setBouncesEi@Base 6.4.0
+ _ZN19QQuick3DLightmapper10setSamplesEi@Base 6.4.0
+ _ZN19QQuick3DLightmapper11biasChangedEv@Base 6.4.0
+ _ZN19QQuick3DLightmapper11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.4.0
+ _ZN19QQuick3DLightmapper11qt_metacastEPKc@Base 6.4.0
+ _ZN19QQuick3DLightmapper14bouncesChangedEv@Base 6.4.0
+ _ZN19QQuick3DLightmapper14samplesChangedEv@Base 6.4.0
+ _ZN19QQuick3DLightmapper16staticMetaObjectE@Base 6.4.0
+ _ZN19QQuick3DLightmapper19setOpacityThresholdEf@Base 6.4.0
+ _ZN19QQuick3DLightmapper22setAdaptiveBiasEnabledEb@Base 6.4.0
+ _ZN19QQuick3DLightmapper22setIndirectLightFactorEf@Base 6.4.0
+ _ZN19QQuick3DLightmapper23opacityThresholdChangedEv@Base 6.4.0
+ _ZN19QQuick3DLightmapper23setIndirectLightEnabledEb@Base 6.4.0
+ _ZN19QQuick3DLightmapper26adaptiveBiasEnabledChangedEv@Base 6.4.0
+ _ZN19QQuick3DLightmapper26indirectLightFactorChangedEv@Base 6.4.0
+ _ZN19QQuick3DLightmapper27indirectLightEnabledChangedEv@Base 6.4.0
+ _ZN19QQuick3DLightmapper29setIndirectLightWorkgroupSizeEi@Base 6.4.0
+ _ZN19QQuick3DLightmapper33indirectLightWorkgroupSizeChangedEv@Base 6.4.0
+ _ZN19QQuick3DLightmapper7changedEv@Base 6.4.0
+ _ZN19QQuick3DLightmapper7setBiasEf@Base 6.4.0
  _ZN19QQuick3DMorphTarget10numAttribsEv@Base 6.2.2
  _ZN19QQuick3DMorphTarget11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.2.2
  _ZN19QQuick3DMorphTarget11qt_metacastEPKc@Base 6.2.2
@@ -435,7 +511,6 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN19QQuick3DMorphTargetD1Ev@Base 6.2.2
  _ZN19QQuick3DMorphTargetD2Ev@Base 6.2.2
  _ZN19QQuick3DNodePrivate19setIsHiddenInEditorEb@Base 6.2.2
- _ZN19QQuick3DNodePrivate23calculateLocalTransformEv@Base 6.2.2
  _ZN19QQuick3DNodePrivate23markSceneTransformDirtyEv@Base 6.2.2
  _ZN19QQuick3DNodePrivate24calculateGlobalVariablesEv@Base 6.2.2
  _ZN19QQuick3DNodePrivate27emitChangesToSceneTransformEv@Base 6.2.2
@@ -491,6 +566,7 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN20QQuick3DInstanceList19onInstanceDestroyedEP7QObject@Base 6.2.2
  _ZN20QQuick3DInstanceList20generateInstanceDataEv@Base 6.2.2
  _ZN20QQuick3DInstanceList20handleInstanceChangeEv@Base 6.2.2
+ _ZN20QQuick3DInstanceList20instanceCountChangedEv@Base 6.3.0
  (subst)_ZN20QQuick3DInstanceList22qmlInstanceListEntryAtEP16QQmlListPropertyI25QQuick3DInstanceListEntryE{qptrdiff}@Base 6.2.2
  _ZN20QQuick3DInstanceList26qmlAppendInstanceListEntryEP16QQmlListPropertyI25QQuick3DInstanceListEntryEPS1_@Base 6.2.2
  _ZN20QQuick3DInstanceList27qmlClearInstanceListEntriesEP16QQmlListPropertyI25QQuick3DInstanceListEntryE@Base 6.2.2
@@ -506,14 +582,17 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN20QQuick3DSceneManager11polishItemsEv@Base 6.2.2
  _ZN20QQuick3DSceneManager11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.2.2
  _ZN20QQuick3DSceneManager11qt_metacastEPKc@Base 6.2.2
+ _ZN20QQuick3DSceneManager11updateNodesEPP14QQuick3DObject@Base 6.3.1
  _ZN20QQuick3DSceneManager12cleanupNodesEv@Base 6.2.2
  _ZN20QQuick3DSceneManager13windowChangedEv@Base 6.2.2
  _ZN20QQuick3DSceneManager15updateDirtyNodeEP14QQuick3DObject@Base 6.2.2
  _ZN20QQuick3DSceneManager16staticMetaObjectE@Base 6.2.2
- _ZN20QQuick3DSceneManager16updateDirtyNodesEv@Base 6.2.2
  _ZN20QQuick3DSceneManager19updateBoundingBoxesERK7QSSGRefI17QSSGBufferManagerE@Base 6.2.2
  _ZN20QQuick3DSceneManager19updateDirtyResourceEP14QQuick3DObject@Base 6.2.2
  _ZN20QQuick3DSceneManager22updateDirtySpatialNodeEP12QQuick3DNode@Base 6.2.2
+ _ZN20QQuick3DSceneManager23updateDirtySpatialNodesEv@Base 6.3.1
+ _ZN20QQuick3DSceneManager24getOrSetWindowAttachmentER12QQuickWindow@Base 6.4.2
+ _ZN20QQuick3DSceneManager24updateDirtyResourceNodesEv@Base 6.3.1
  _ZN20QQuick3DSceneManager4syncEv@Base 6.2.2
  _ZN20QQuick3DSceneManager6windowEv@Base 6.2.2
  _ZN20QQuick3DSceneManager7cleanupEP21QSSGRenderGraphObject@Base 6.2.2
@@ -527,12 +606,14 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN20QQuick3DSceneManagerD2Ev@Base 6.2.2
  _ZN21QQuick3DAbstractLight11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.2.2
  _ZN21QQuick3DAbstractLight11qt_metacastEPKc@Base 6.2.2
+ _ZN21QQuick3DAbstractLight11setBakeModeENS_12QSSGBakeModeE@Base 6.4.0
  _ZN21QQuick3DAbstractLight12colorChangedEv@Base 6.2.2
  _ZN21QQuick3DAbstractLight12markAllDirtyEv@Base 6.2.2
  _ZN21QQuick3DAbstractLight12scopeChangedEv@Base 6.2.2
  _ZN21QQuick3DAbstractLight13setBrightnessEf@Base 6.2.2
  _ZN21QQuick3DAbstractLight13setShadowBiasEf@Base 6.2.2
  _ZN21QQuick3DAbstractLight14setCastsShadowEb@Base 6.2.2
+ _ZN21QQuick3DAbstractLight15bakeModeChangedEv@Base 6.4.0
  _ZN21QQuick3DAbstractLight15setAmbientColorERK6QColor@Base 6.2.2
  _ZN21QQuick3DAbstractLight15setShadowFactorEf@Base 6.2.2
  _ZN21QQuick3DAbstractLight15setShadowFilterEf@Base 6.2.2
@@ -556,6 +637,16 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN21QQuick3DAbstractLightD0Ev@Base 6.2.2
  _ZN21QQuick3DAbstractLightD1Ev@Base 6.2.2
  _ZN21QQuick3DAbstractLightD2Ev@Base 6.2.2
+ _ZN21QQuick3DBakedLightmap10keyChangedEv@Base 6.4.0
+ _ZN21QQuick3DBakedLightmap10setEnabledEb@Base 6.4.0
+ _ZN21QQuick3DBakedLightmap11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.4.0
+ _ZN21QQuick3DBakedLightmap11qt_metacastEPKc@Base 6.4.0
+ _ZN21QQuick3DBakedLightmap13setLoadPrefixERK7QString@Base 6.4.0
+ _ZN21QQuick3DBakedLightmap14enabledChangedEv@Base 6.4.0
+ _ZN21QQuick3DBakedLightmap16staticMetaObjectE@Base 6.4.0
+ _ZN21QQuick3DBakedLightmap17loadPrefixChangedEv@Base 6.4.0
+ _ZN21QQuick3DBakedLightmap6setKeyERK7QString@Base 6.4.0
+ _ZN21QQuick3DBakedLightmap7changedEv@Base 6.4.0
  _ZN21QQuick3DFrustumCamera10topChangedEv@Base 6.2.2
  _ZN21QQuick3DFrustumCamera11leftChangedEv@Base 6.2.2
  _ZN21QQuick3DFrustumCamera11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.2.2
@@ -616,6 +707,14 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN21QQuick3DObjectPrivateD0Ev@Base 6.2.2
  _ZN21QQuick3DObjectPrivateD1Ev@Base 6.2.2
  _ZN21QQuick3DObjectPrivateD2Ev@Base 6.2.2
+ _ZN22QQuick3DCubeMapTexture11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.4.0
+ _ZN22QQuick3DCubeMapTexture11qt_metacastEPKc@Base 6.4.0
+ _ZN22QQuick3DCubeMapTexture16staticMetaObjectE@Base 6.4.0
+ _ZN22QQuick3DCubeMapTextureC1EP14QQuick3DObject@Base 6.4.0
+ _ZN22QQuick3DCubeMapTextureC2EP14QQuick3DObject@Base 6.4.0
+ _ZN22QQuick3DCubeMapTextureD0Ev@Base 6.4.0
+ _ZN22QQuick3DCubeMapTextureD1Ev@Base 6.4.0
+ _ZN22QQuick3DCubeMapTextureD2Ev@Base 6.4.0
  _ZN22QQuick3DCustomMaterial10itemChangeEN14QQuick3DObject10ItemChangeERKNS0_14ItemChangeDataE@Base 6.2.2
  _ZN22QQuick3DCustomMaterial11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.2.2
  _ZN22QQuick3DCustomMaterial11qt_metacastEPKc@Base 6.2.2
@@ -637,8 +736,9 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN22QQuick3DCustomMaterial18alwaysDirtyChangedEv@Base 6.2.2
  _ZN22QQuick3DCustomMaterial18shadingModeChangedEv@Base 6.2.2
  _ZN22QQuick3DCustomMaterial19vertexShaderChangedEv@Base 6.2.2
- _ZN22QQuick3DCustomMaterial20setDynamicTextureMapEP15QQuick3DTextureRK10QByteArray@Base 6.2.2
+ _ZN22QQuick3DCustomMaterial20setDynamicTextureMapEP31QQuick3DShaderUtilsTextureInput@Base 6.4.1
  _ZN22QQuick3DCustomMaterial21fragmentShaderChangedEv@Base 6.2.2
+ _ZN22QQuick3DCustomMaterial9markDirtyERS_NS_5DirtyE@Base 6.3.0
  _ZN22QQuick3DCustomMaterialC1EP14QQuick3DObject@Base 6.2.2
  _ZN22QQuick3DCustomMaterialC2EP14QQuick3DObject@Base 6.2.2
  _ZN22QQuick3DCustomMaterialD0Ev@Base 6.2.2
@@ -653,12 +753,37 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN22QQuick3DFileInstancing17getInstanceBufferEPi@Base 6.2.2
  _ZN22QQuick3DFileInstancing17writeToBinaryFileEP9QIODevice@Base 6.2.2
  _ZN22QQuick3DFileInstancing18loadFromBinaryFileERK7QString@Base 6.2.2
+ _ZN22QQuick3DFileInstancing20instanceCountChangedEv@Base 6.3.0
  _ZN22QQuick3DFileInstancing9setSourceERK4QUrl@Base 6.2.2
  _ZN22QQuick3DFileInstancingC1EP14QQuick3DObject@Base 6.2.2
  _ZN22QQuick3DFileInstancingC2EP14QQuick3DObject@Base 6.2.2
  _ZN22QQuick3DFileInstancingD0Ev@Base 6.2.2
  _ZN22QQuick3DFileInstancingD1Ev@Base 6.2.2
  _ZN22QQuick3DFileInstancingD2Ev@Base 6.2.2
+ _ZN22QQuick3DResourceLoader10geometriesEv@Base 6.3.0
+ _ZN22QQuick3DResourceLoader10itemChangeEN14QQuick3DObject10ItemChangeERKNS0_14ItemChangeDataE@Base 6.3.0
+ _ZN22QQuick3DResourceLoader11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.3.0
+ _ZN22QQuick3DResourceLoader11qt_metacastEPKc@Base 6.3.0
+ _ZN22QQuick3DResourceLoader12markAllDirtyEv@Base 6.3.0
+ (subst)_ZN22QQuick3DResourceLoader12qmlTextureAtEP16QQmlListPropertyI15QQuick3DTextureE{qptrdiff}@Base 6.3.0
+ (subst)_ZN22QQuick3DResourceLoader13qmlGeometryAtEP16QQmlListPropertyI16QQuick3DGeometryE{qptrdiff}@Base 6.3.0
+ _ZN22QQuick3DResourceLoader14setMeshSourcesERK5QListI4QUrlE@Base 6.3.0
+ _ZN22QQuick3DResourceLoader16qmlAppendTextureEP16QQmlListPropertyI15QQuick3DTextureEPS1_@Base 6.3.0
+ _ZN22QQuick3DResourceLoader16qmlClearTexturesEP16QQmlListPropertyI15QQuick3DTextureE@Base 6.3.0
+ _ZN22QQuick3DResourceLoader16qmlTexturesCountEP16QQmlListPropertyI15QQuick3DTextureE@Base 6.3.0
+ _ZN22QQuick3DResourceLoader16staticMetaObjectE@Base 6.3.0
+ _ZN22QQuick3DResourceLoader17qmlAppendGeometryEP16QQmlListPropertyI16QQuick3DGeometryEPS1_@Base 6.3.0
+ _ZN22QQuick3DResourceLoader17updateSpatialNodeEP21QSSGRenderGraphObject@Base 6.3.0
+ _ZN22QQuick3DResourceLoader18meshSourcesChangedEv@Base 6.3.0
+ _ZN22QQuick3DResourceLoader18onTextureDestroyedEP7QObject@Base 6.3.0
+ _ZN22QQuick3DResourceLoader18qmlClearGeometriesEP16QQmlListPropertyI16QQuick3DGeometryE@Base 6.3.0
+ _ZN22QQuick3DResourceLoader18qmlGeometriesCountEP16QQmlListPropertyI16QQuick3DGeometryE@Base 6.3.0
+ _ZN22QQuick3DResourceLoader18updateSceneManagerEP20QQuick3DSceneManager@Base 6.3.0
+ _ZN22QQuick3DResourceLoader19onGeometryDestroyedEP7QObject@Base 6.3.0
+ _ZN22QQuick3DResourceLoader8texturesEv@Base 6.3.0
+ _ZN22QQuick3DResourceLoader9markDirtyENS_23ResourceLoaderDirtyTypeE@Base 6.3.0
+ _ZN22QQuick3DResourceLoaderC1EP14QQuick3DObject@Base 6.3.0
+ _ZN22QQuick3DResourceLoaderC2EP14QQuick3DObject@Base 6.3.0
  _ZN23QQuick3DDefaultMaterial10itemChangeEN14QQuick3DObject10ItemChangeERKNS0_14ItemChangeDataE@Base 6.2.2
  _ZN23QQuick3DDefaultMaterial10setBumpMapEP15QQuick3DTexture@Base 6.2.2
  _ZN23QQuick3DDefaultMaterial10setOpacityEf@Base 6.2.2
@@ -746,6 +871,34 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN23QQuick3DQuaternionUtils6lookAtERK9QVector3DS2_S2_S2_@Base 6.2.2
  _ZN23QQuick3DQuaternionUtilsC1EP7QObject@Base 6.2.2
  _ZN23QQuick3DQuaternionUtilsC2EP7QObject@Base 6.2.2
+ _ZN23QQuick3DReflectionProbe10setBoxSizeERK9QVector3D@Base 6.3.0
+ _ZN23QQuick3DReflectionProbe10setQualityENS_17ReflectionQualityE@Base 6.3.0
+ _ZN23QQuick3DReflectionProbe11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.3.0
+ _ZN23QQuick3DReflectionProbe11qt_metacastEPKc@Base 6.3.0
+ _ZN23QQuick3DReflectionProbe12markAllDirtyEv@Base 6.3.0
+ _ZN23QQuick3DReflectionProbe12setBoxOffsetERK9QVector3D@Base 6.4.0
+ _ZN23QQuick3DReflectionProbe12setDebugViewEb@Base 6.4.0
+ _ZN23QQuick3DReflectionProbe13findSceneViewEv@Base 6.4.0
+ _ZN23QQuick3DReflectionProbe13setClearColorERK6QColor@Base 6.3.0
+ _ZN23QQuick3DReflectionProbe14boxSizeChangedEv@Base 6.3.0
+ _ZN23QQuick3DReflectionProbe14qualityChangedEv@Base 6.3.0
+ _ZN23QQuick3DReflectionProbe14scheduleUpdateEv@Base 6.4.0
+ _ZN23QQuick3DReflectionProbe14setRefreshModeENS_21ReflectionRefreshModeE@Base 6.3.0
+ _ZN23QQuick3DReflectionProbe14setTimeSlicingENS_21ReflectionTimeSlicingE@Base 6.3.0
+ _ZN23QQuick3DReflectionProbe15createDebugViewEv@Base 6.4.0
+ _ZN23QQuick3DReflectionProbe15updateDebugViewEv@Base 6.4.0
+ _ZN23QQuick3DReflectionProbe16boxOffsetChangedEv@Base 6.4.0
+ _ZN23QQuick3DReflectionProbe16debugViewChangedEv@Base 6.4.0
+ _ZN23QQuick3DReflectionProbe16staticMetaObjectE@Base 6.3.0
+ _ZN23QQuick3DReflectionProbe17clearColorChangedEv@Base 6.3.0
+ _ZN23QQuick3DReflectionProbe17updateSpatialNodeEP21QSSGRenderGraphObject@Base 6.3.0
+ _ZN23QQuick3DReflectionProbe18refreshModeChangedEv@Base 6.3.0
+ _ZN23QQuick3DReflectionProbe18timeSlicingChangedEv@Base 6.3.0
+ _ZN23QQuick3DReflectionProbe21setParallaxCorrectionEb@Base 6.3.0
+ _ZN23QQuick3DReflectionProbe25mapToReflectionResolutionENS_17ReflectionQualityE@Base 6.3.0
+ _ZN23QQuick3DReflectionProbe25parallaxCorrectionChangedEv@Base 6.3.0
+ _ZN23QQuick3DReflectionProbeC1EP12QQuick3DNode@Base 6.3.0
+ _ZN23QQuick3DReflectionProbeC2EP12QQuick3DNode@Base 6.3.0
  _ZN24QQuick3DDirectionalLight11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.2.2
  _ZN24QQuick3DDirectionalLight11qt_metacastEPKc@Base 6.2.2
  _ZN24QQuick3DDirectionalLight16staticMetaObjectE@Base 6.2.2
@@ -763,6 +916,7 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN24QQuick3DSceneEnvironment13setAoStrengthEf@Base 6.2.2
  _ZN24QQuick3DSceneEnvironment13setClearColorERK6QColor@Base 6.2.2
  _ZN24QQuick3DSceneEnvironment13setLightProbeEP15QQuick3DTexture@Base 6.2.2
+ _ZN24QQuick3DSceneEnvironment14setLightmapperEP19QQuick3DLightmapper@Base 6.4.0
  _ZN24QQuick3DSceneEnvironment14setTonemapModeENS_31QQuick3DEnvironmentTonemapModesE@Base 6.2.2
  _ZN24QQuick3DSceneEnvironment15aoDitherChangedEv@Base 6.2.2
  _ZN24QQuick3DSceneEnvironment15qmlAppendEffectEP16QQmlListPropertyI14QQuick3DEffectEPS1_@Base 6.2.2
@@ -771,6 +925,7 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN24QQuick3DSceneEnvironment15setAoSampleRateEi@Base 6.2.2
  _ZN24QQuick3DSceneEnvironment15setProbeHorizonEf@Base 6.2.2
  _ZN24QQuick3DSceneEnvironment16setProbeExposureEf@Base 6.2.2
+ _ZN24QQuick3DSceneEnvironment16setSkyBoxCubeMapEP22QQuick3DCubeMapTexture@Base 6.4.0
  _ZN24QQuick3DSceneEnvironment16staticMetaObjectE@Base 6.2.2
  _ZN24QQuick3DSceneEnvironment17aoDistanceChangedEv@Base 6.2.2
  _ZN24QQuick3DSceneEnvironment17aoSoftnessChangedEv@Base 6.2.2
@@ -779,6 +934,7 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN24QQuick3DSceneEnvironment17lightProbeChangedEv@Base 6.2.2
  _ZN24QQuick3DSceneEnvironment17setBackgroundModeENS_34QQuick3DEnvironmentBackgroundTypesE@Base 6.2.2
  _ZN24QQuick3DSceneEnvironment17updateSpatialNodeEP21QSSGRenderGraphObject@Base 6.2.2
+ _ZN24QQuick3DSceneEnvironment18lightmapperChangedEv@Base 6.4.0
  _ZN24QQuick3DSceneEnvironment18tonemapModeChangedEv@Base 6.2.2
  _ZN24QQuick3DSceneEnvironment18updateSceneManagerEP20QQuick3DSceneManager@Base 6.2.2
  _ZN24QQuick3DSceneEnvironment19aoSampleRateChangedEv@Base 6.2.2
@@ -786,8 +942,11 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN24QQuick3DSceneEnvironment19setAntialiasingModeENS_31QQuick3DEnvironmentAAModeValuesE@Base 6.2.2
  _ZN24QQuick3DSceneEnvironment19setDepthTestEnabledEb@Base 6.2.2
  _ZN24QQuick3DSceneEnvironment19setProbeOrientationERK9QVector3D@Base 6.2.2
+ _ZN24QQuick3DSceneEnvironment19setSkyboxBlurAmountEf@Base 6.4.0
  _ZN24QQuick3DSceneEnvironment20probeExposureChangedEv@Base 6.2.2
+ _ZN24QQuick3DSceneEnvironment20setSpecularAAEnabledEb@Base 6.4.0
  _ZN24QQuick3DSceneEnvironment20setTemporalAAEnabledEb@Base 6.2.2
+ _ZN24QQuick3DSceneEnvironment20skyBoxCubeMapChangedEv@Base 6.4.0
  _ZN24QQuick3DSceneEnvironment21backgroundModeChangedEv@Base 6.2.2
  _ZN24QQuick3DSceneEnvironment21setTemporalAAStrengthEf@Base 6.2.2
  _ZN24QQuick3DSceneEnvironment22setAntialiasingQualityENS_34QQuick3DEnvironmentAAQualityValuesE@Base 6.2.2
@@ -795,6 +954,8 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN24QQuick3DSceneEnvironment23antialiasingModeChangedEv@Base 6.2.2
  _ZN24QQuick3DSceneEnvironment23depthTestEnabledChangedEv@Base 6.2.2
  _ZN24QQuick3DSceneEnvironment23probeOrientationChangedEv@Base 6.2.2
+ _ZN24QQuick3DSceneEnvironment23skyboxBlurAmountChangedEv@Base 6.4.0
+ _ZN24QQuick3DSceneEnvironment24specularAAEnabledChangedEv@Base 6.4.0
  _ZN24QQuick3DSceneEnvironment24temporalAAEnabledChangedEv@Base 6.2.2
  _ZN24QQuick3DSceneEnvironment25temporalAAStrengthChangedEv@Base 6.2.2
  _ZN24QQuick3DSceneEnvironment26antialiasingQualityChangedEv@Base 6.2.2
@@ -806,6 +967,16 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN24QQuick3DSceneEnvironmentD0Ev@Base 6.2.2
  _ZN24QQuick3DSceneEnvironmentD1Ev@Base 6.2.2
  _ZN24QQuick3DSceneEnvironmentD2Ev@Base 6.2.2
+ _ZN24QQuick3DWindowAttachment11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.4.2
+ _ZN24QQuick3DWindowAttachment11qt_metacastEPKc@Base 6.4.2
+ _ZN24QQuick3DWindowAttachment11synchronizeEP26QSSGRenderContextInterfaceR4QSetIP21QSSGRenderGraphObjectE@Base 6.4.2
+ _ZN24QQuick3DWindowAttachment16staticMetaObjectE@Base 6.4.2
+ _ZN24QQuick3DWindowAttachment7preSyncEv@Base 6.4.2
+ _ZN24QQuick3DWindowAttachmentC1EP12QQuickWindow@Base 6.4.2
+ _ZN24QQuick3DWindowAttachmentC2EP12QQuickWindow@Base 6.4.2
+ _ZN24QQuick3DWindowAttachmentD0Ev@Base 6.4.2
+ _ZN24QQuick3DWindowAttachmentD1Ev@Base 6.4.2
+ _ZN24QQuick3DWindowAttachmentD2Ev@Base 6.4.2
  _ZN25QQuick3DInstanceListEntry11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.2.2
  _ZN25QQuick3DInstanceListEntry11qt_metacastEPKc@Base 6.2.2
  _ZN25QQuick3DInstanceListEntry11setPositionE9QVector3D@Base 6.2.2
@@ -885,11 +1056,13 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN26QQuick3DPrincipledMaterial14setSpecularMapEP15QQuick3DTexture@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterial15lightingChangedENS_8LightingE@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterial15setBaseColorMapEP15QQuick3DTexture@Base 6.2.2
+ _ZN26QQuick3DPrincipledMaterial15setClearcoatMapEP15QQuick3DTexture@Base 6.3.0
  _ZN26QQuick3DPrincipledMaterial15setHeightAmountEf@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterial15setMetalnessMapEP15QQuick3DTexture@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterial15setOcclusionMapEP15QQuick3DTexture@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterial15setRoughnessMapEP15QQuick3DTexture@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterial15setSpecularTintEf@Base 6.2.2
+ _ZN26QQuick3DPrincipledMaterial15setThicknessMapEP15QQuick3DTexture@Base 6.3.0
  _ZN26QQuick3DPrincipledMaterial16alphaModeChangedENS_9AlphaModeE@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterial16baseColorChangedE6QColor@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterial16blendModeChangedENS_9BlendModeE@Base 6.2.2
@@ -909,33 +1082,63 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN26QQuick3DPrincipledMaterial17updateSpatialNodeEP21QSSGRenderGraphObject@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterial18alphaCutoffChangedEf@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterial18emissiveMapChangedEP15QQuick3DTexture@Base 6.2.2
+ _ZN26QQuick3DPrincipledMaterial18setClearcoatAmountEf@Base 6.3.0
  _ZN26QQuick3DPrincipledMaterial18setOcclusionAmountEf@Base 6.2.2
+ _ZN26QQuick3DPrincipledMaterial18setThicknessFactorEf@Base 6.3.0
+ _ZN26QQuick3DPrincipledMaterial18setTransmissionMapEP15QQuick3DTexture@Base 6.3.0
  _ZN26QQuick3DPrincipledMaterial18specularMapChangedEP15QQuick3DTexture@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterial18updateSceneManagerEP20QQuick3DSceneManager@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterial19baseColorMapChangedEP15QQuick3DTexture@Base 6.2.2
+ _ZN26QQuick3DPrincipledMaterial19clearcoatMapChangedEP15QQuick3DTexture@Base 6.3.0
  _ZN26QQuick3DPrincipledMaterial19heightAmountChangedEf@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterial19metalnessMapChangedEP15QQuick3DTexture@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterial19occlusionMapChangedEP15QQuick3DTexture@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterial19roughnessMapChangedEP15QQuick3DTexture@Base 6.2.2
+ _ZN26QQuick3DPrincipledMaterial19setAttenuationColorERK6QColor@Base 6.3.0
+ _ZN26QQuick3DPrincipledMaterial19setClearcoatChannelEN16QQuick3DMaterial21TextureChannelMappingE@Base 6.3.0
  _ZN26QQuick3DPrincipledMaterial19setMetalnessChannelEN16QQuick3DMaterial21TextureChannelMappingE@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterial19setOcclusionChannelEN16QQuick3DMaterial21TextureChannelMappingE@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterial19setRoughnessChannelEN16QQuick3DMaterial21TextureChannelMappingE@Base 6.2.2
+ _ZN26QQuick3DPrincipledMaterial19setThicknessChannelERKN16QQuick3DMaterial21TextureChannelMappingE@Base 6.3.0
  _ZN26QQuick3DPrincipledMaterial19specularTintChangedEf@Base 6.2.2
+ _ZN26QQuick3DPrincipledMaterial19thicknessMapChangedEP15QQuick3DTexture@Base 6.3.0
  _ZN26QQuick3DPrincipledMaterial20heightChannelChangedEN16QQuick3DMaterial21TextureChannelMappingE@Base 6.2.2
+ _ZN26QQuick3DPrincipledMaterial20setIndexOfRefractionEf@Base 6.3.0
  _ZN26QQuick3DPrincipledMaterial21emissiveFactorChangedE9QVector3D@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterial21normalStrengthChangedEf@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterial21opacityChannelChangedEN16QQuick3DMaterial21TextureChannelMappingE@Base 6.2.2
+ _ZN26QQuick3DPrincipledMaterial21setClearcoatNormalMapEP15QQuick3DTexture@Base 6.3.0
+ _ZN26QQuick3DPrincipledMaterial21setTransmissionFactorEf@Base 6.3.0
  _ZN26QQuick3DPrincipledMaterial21specularAmountChangedEf@Base 6.2.2
+ _ZN26QQuick3DPrincipledMaterial22clearcoatAmountChangedEf@Base 6.3.0
  _ZN26QQuick3DPrincipledMaterial22occlusionAmountChangedEf@Base 6.2.2
+ _ZN26QQuick3DPrincipledMaterial22setAttenuationDistanceEf@Base 6.3.0
  _ZN26QQuick3DPrincipledMaterial22setMaxHeightMapSamplesEi@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterial22setMinHeightMapSamplesEi@Base 6.2.2
+ _ZN26QQuick3DPrincipledMaterial22setTransmissionChannelEN16QQuick3DMaterial21TextureChannelMappingE@Base 6.3.0
+ _ZN26QQuick3DPrincipledMaterial22thicknessFactorChangedEf@Base 6.3.0
+ _ZN26QQuick3DPrincipledMaterial22transmissionMapChangedEP15QQuick3DTexture@Base 6.3.0
+ _ZN26QQuick3DPrincipledMaterial23attenuationColorChangedE6QColor@Base 6.3.0
+ _ZN26QQuick3DPrincipledMaterial23clearcoatChannelChangedEN16QQuick3DMaterial21TextureChannelMappingE@Base 6.3.0
  _ZN26QQuick3DPrincipledMaterial23metalnessChannelChangedEN16QQuick3DMaterial21TextureChannelMappingE@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterial23occlusionChannelChangedEN16QQuick3DMaterial21TextureChannelMappingE@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterial23roughnessChannelChangedEN16QQuick3DMaterial21TextureChannelMappingE@Base 6.2.2
+ _ZN26QQuick3DPrincipledMaterial23thicknessChannelChangedEN16QQuick3DMaterial21TextureChannelMappingE@Base 6.3.0
+ _ZN26QQuick3DPrincipledMaterial24indexOfRefractionChangedEf@Base 6.3.0
+ _ZN26QQuick3DPrincipledMaterial24setClearcoatRoughnessMapEP15QQuick3DTexture@Base 6.3.0
  _ZN26QQuick3DPrincipledMaterial24setSpecularReflectionMapEP15QQuick3DTexture@Base 6.2.2
+ _ZN26QQuick3DPrincipledMaterial25clearcoatNormalMapChangedEP15QQuick3DTexture@Base 6.3.0
+ _ZN26QQuick3DPrincipledMaterial25transmissionFactorChangedEf@Base 6.3.0
+ _ZN26QQuick3DPrincipledMaterial26attenuationDistanceChangedEf@Base 6.3.0
  _ZN26QQuick3DPrincipledMaterial26maxHeightMapSamplesChangedEi@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterial26minHeightMapSamplesChangedEi@Base 6.2.2
+ _ZN26QQuick3DPrincipledMaterial26transmissionChannelChangedEN16QQuick3DMaterial21TextureChannelMappingE@Base 6.3.0
+ _ZN26QQuick3DPrincipledMaterial27setClearcoatRoughnessAmountEf@Base 6.3.0
+ _ZN26QQuick3DPrincipledMaterial28clearcoatRoughnessMapChangedEP15QQuick3DTexture@Base 6.3.0
+ _ZN26QQuick3DPrincipledMaterial28setClearcoatRoughnessChannelEN16QQuick3DMaterial21TextureChannelMappingE@Base 6.3.0
  _ZN26QQuick3DPrincipledMaterial28specularReflectionMapChangedEP15QQuick3DTexture@Base 6.2.2
+ _ZN26QQuick3DPrincipledMaterial31clearcoatRoughnessAmountChangedEf@Base 6.3.0
+ _ZN26QQuick3DPrincipledMaterial32clearcoatRoughnessChannelChangedEN16QQuick3DMaterial21TextureChannelMappingE@Base 6.3.0
  _ZN26QQuick3DPrincipledMaterial9markDirtyENS_9DirtyTypeE@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterialC1EP14QQuick3DObject@Base 6.2.2
  _ZN26QQuick3DPrincipledMaterialC2EP14QQuick3DObject@Base 6.2.2
@@ -983,12 +1186,116 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN30QQuick3DShaderUtilsBufferInput11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.2.2
  _ZN30QQuick3DShaderUtilsBufferInput11qt_metacastEPKc@Base 6.2.2
  _ZN30QQuick3DShaderUtilsBufferInput16staticMetaObjectE@Base 6.2.2
+ _ZN30QQuick3DSpecularGlossyMaterial10itemChangeEN14QQuick3DObject10ItemChangeERKNS0_14ItemChangeDataE@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial10setOpacityEf@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial11qt_metacastEPKc@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial11setLightingENS_8LightingE@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial12markAllDirtyEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial12setAlbedoMapEP15QQuick3DTexture@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial12setAlphaModeENS_9AlphaModeE@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial12setBlendModeENS_9BlendModeE@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial12setHeightMapEP15QQuick3DTexture@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial12setLineWidthEf@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial12setNormalMapEP15QQuick3DTexture@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial12setPointSizeEf@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial13setGlossinessEf@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial13setOpacityMapEP15QQuick3DTexture@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial14opacityChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial14setAlbedoColorERK6QColor@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial14setAlphaCutoffEf@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial14setEmissiveMapEP15QQuick3DTexture@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial14setSpecularMapEP15QQuick3DTexture@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial15lightingChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial15setClearcoatMapEP15QQuick3DTexture@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial15setHeightAmountEf@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial15setOcclusionMapEP15QQuick3DTexture@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial15setThicknessMapEP15QQuick3DTexture@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial16albedoMapChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial16alphaModeChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial16blendModeChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial16heightMapChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial16lineWidthChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial16normalMapChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial16pointSizeChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial16setGlossinessMapEP15QQuick3DTexture@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial16setHeightChannelEN16QQuick3DMaterial21TextureChannelMappingE@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial16setSpecularColorERK6QColor@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial16staticMetaObjectE@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial17glossinessChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial17opacityMapChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial17setEmissiveFactorERK9QVector3D@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial17setNormalStrengthEf@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial17setOpacityChannelEN16QQuick3DMaterial21TextureChannelMappingE@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial17updateSpatialNodeEP21QSSGRenderGraphObject@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial18albedoColorChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial18alphaCutoffChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial18emissiveMapChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial18setClearcoatAmountEf@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial18setOcclusionAmountEf@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial18setThicknessFactorEf@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial18setTransmissionMapEP15QQuick3DTexture@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial18specularMapChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial18updateSceneManagerEP20QQuick3DSceneManager@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial19clearcoatMapChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial19heightAmountChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial19occlusionMapChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial19setAttenuationColorERK6QColor@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial19setClearcoatChannelEN16QQuick3DMaterial21TextureChannelMappingE@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial19setOcclusionChannelEN16QQuick3DMaterial21TextureChannelMappingE@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial19setThicknessChannelEN16QQuick3DMaterial21TextureChannelMappingE@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial19thicknessMapChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial20glossinessMapChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial20heightChannelChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial20setGlossinessChannelEN16QQuick3DMaterial21TextureChannelMappingE@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial20specularColorChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial21emissiveFactorChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial21normalStrengthChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial21opacityChannelChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial21setClearcoatNormalMapEP15QQuick3DTexture@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial21setTransmissionFactorEf@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial22clearcoatAmountChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial22occlusionAmountChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial22setAttenuationDistanceEf@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial22setMaxHeightMapSamplesEi@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial22setMinHeightMapSamplesEi@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial22setTransmissionChannelEN16QQuick3DMaterial21TextureChannelMappingE@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial22thicknessFactorChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial22transmissionMapChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial23attenuationColorChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial23clearcoatChannelChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial23occlusionChannelChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial23thicknessChannelChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial24glossinessChannelChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial24setClearcoatRoughnessMapEP15QQuick3DTexture@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial25clearcoatNormalMapChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial25transmissionFactorChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial26attenuationDistanceChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial26maxHeightMapSamplesChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial26minHeightMapSamplesChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial26transmissionChannelChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial27setClearcoatRoughnessAmountEf@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial28clearcoatRoughnessMapChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial28setClearcoatRoughnessChannelEN16QQuick3DMaterial21TextureChannelMappingE@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial31clearcoatRoughnessAmountChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial32clearcoatRoughnessChannelChangedEv@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterial9markDirtyENS_9DirtyTypeE@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterialC1EP14QQuick3DObject@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterialC2EP14QQuick3DObject@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterialD0Ev@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterialD1Ev@Base 6.4.0
+ _ZN30QQuick3DSpecularGlossyMaterialD2Ev@Base 6.4.0
  _ZN31QQuick3DShaderUtilsTextureInput10setTextureEP15QQuick3DTexture@Base 6.2.2
  _ZN31QQuick3DShaderUtilsTextureInput11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.2.2
  _ZN31QQuick3DShaderUtilsTextureInput11qt_metacastEPKc@Base 6.2.2
  _ZN31QQuick3DShaderUtilsTextureInput14enabledChangedEv@Base 6.2.2
  _ZN31QQuick3DShaderUtilsTextureInput14textureChangedEv@Base 6.2.2
  _ZN31QQuick3DShaderUtilsTextureInput16staticMetaObjectE@Base 6.2.2
+ _ZN31QQuick3DShaderUtilsTextureInputC1EP7QObject@Base 6.3.0
+ _ZN31QQuick3DShaderUtilsTextureInputC2EP7QObject@Base 6.3.0
+ _ZN31QQuick3DShaderUtilsTextureInputD0Ev@Base 6.4.1
+ _ZN31QQuick3DShaderUtilsTextureInputD1Ev@Base 6.4.1
+ _ZN31QQuick3DShaderUtilsTextureInputD2Ev@Base 6.4.1
  _ZN32QQuick3DShaderUtilsRenderCommand11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.2.2
  _ZN32QQuick3DShaderUtilsRenderCommand11qt_metacastEPKc@Base 6.2.2
  _ZN32QQuick3DShaderUtilsRenderCommand16staticMetaObjectE@Base 6.2.2
@@ -1021,6 +1328,8 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZNK12QQuick3DNode7visibleEv@Base 6.2.2
  _ZNK12QQuick3DNode8positionEv@Base 6.2.2
  _ZNK12QQuick3DNode8rotationEv@Base 6.2.2
+ _ZNK12QQuick3DSkin10metaObjectEv@Base 6.4.0
+ _ZNK12QQuick3DSkin16inverseBindPosesEv@Base 6.4.0
  _ZNK13QQuick3DJoint10metaObjectEv@Base 6.2.2
  _ZNK13QQuick3DJoint12skeletonRootEv@Base 6.2.2
  _ZNK13QQuick3DJoint5indexEv@Base 6.2.2
@@ -1028,14 +1337,21 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZNK13QQuick3DModel10metaObjectEv@Base 6.2.2
  _ZNK13QQuick3DModel12castsShadowsEv@Base 6.2.2
  _ZNK13QQuick3DModel12instanceRootEv@Base 6.2.2
+ _ZNK13QQuick3DModel13bakedLightmapEv@Base 6.4.0
  _ZNK13QQuick3DModel15receivesShadowsEv@Base 6.2.2
+ _ZNK13QQuick3DModel16castsReflectionsEv@Base 6.4.0
  _ZNK13QQuick3DModel16inverseBindPosesEv@Base 6.2.2
+ _ZNK13QQuick3DModel19receivesReflectionsEv@Base 6.3.0
+ _ZNK13QQuick3DModel21isUsedInBakedLightingEv@Base 6.4.0
+ _ZNK13QQuick3DModel22lightmapBaseResolutionEv@Base 6.4.0
+ _ZNK13QQuick3DModel4skinEv@Base 6.4.0
  _ZNK13QQuick3DModel6boundsEv@Base 6.2.2
  _ZNK13QQuick3DModel6sourceEv@Base 6.2.2
  _ZNK13QQuick3DModel8geometryEv@Base 6.2.2
  _ZNK13QQuick3DModel8pickableEv@Base 6.2.2
  _ZNK13QQuick3DModel8skeletonEv@Base 6.2.2
  _ZNK13QQuick3DModel9depthBiasEv@Base 6.2.2
+ _ZNK14QQuick3DCamera10lookAtNodeEv@Base 6.4.0
  _ZNK14QQuick3DCamera10metaObjectEv@Base 6.2.2
  _ZNK14QQuick3DCamera13mapToViewportERK9QVector3D@Base 6.2.2
  _ZNK14QQuick3DCamera15mapFromViewportERK9QVector3D@Base 6.2.2
@@ -1078,9 +1394,15 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZNK15QQuick3DTexture9positionUEv@Base 6.2.2
  _ZNK15QQuick3DTexture9positionVEv@Base 6.2.2
  _ZNK16QQuick3DGeometry10metaObjectEv@Base 6.2.2
+ _ZNK16QQuick3DGeometry10subsetNameEi@Base 6.3.0
  _ZNK16QQuick3DGeometry10vertexDataEv@Base 6.2.2
+ _ZNK16QQuick3DGeometry11subsetCountEi@Base 6.3.0
+ _ZNK16QQuick3DGeometry11subsetCountEv@Base 6.3.0
+ _ZNK16QQuick3DGeometry12subsetOffsetEi@Base 6.3.0
  _ZNK16QQuick3DGeometry13primitiveTypeEv@Base 6.2.2
  _ZNK16QQuick3DGeometry14attributeCountEv@Base 6.2.2
+ _ZNK16QQuick3DGeometry15subsetBoundsMaxEi@Base 6.3.0
+ _ZNK16QQuick3DGeometry15subsetBoundsMinEi@Base 6.3.0
  _ZNK16QQuick3DGeometry6strideEv@Base 6.2.2
  _ZNK16QQuick3DGeometry9attributeEi@Base 6.2.2
  _ZNK16QQuick3DGeometry9boundsMaxEv@Base 6.2.2
@@ -1105,6 +1427,7 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZNK16QQuick3DViewport11renderStatsEv@Base 6.2.2
  _ZNK16QQuick3DViewport12internalPickEP13QPointerEventRK9QVector3DS4_@Base 6.2.2
  _ZNK16QQuick3DViewport12mapTo3DSceneERK9QVector3D@Base 6.2.2
+ _ZNK16QQuick3DViewport12renderFormatEv@Base 6.4.0
  _ZNK16QQuick3DViewport14checkIsVisibleEv@Base 6.2.2
  _ZNK16QQuick3DViewport14createRendererEv@Base 6.2.2
  _ZNK16QQuick3DViewport14mapFrom3DSceneERK9QVector3D@Base 6.2.2
@@ -1124,6 +1447,10 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZNK17QQuick3DSpotLight9coneAngleEv@Base 6.2.2
  _ZNK18QQuick3DInstancing10metaObjectEv@Base 6.2.2
  _ZNK18QQuick3DInstancing15hasTransparencyEv@Base 6.2.2
+ _ZNK18QQuick3DInstancing18InstanceTableEntry11getPositionEv@Base 6.4.0
+ _ZNK18QQuick3DInstancing18InstanceTableEntry11getRotationEv@Base 6.4.0
+ _ZNK18QQuick3DInstancing18InstanceTableEntry8getColorEv@Base 6.4.0
+ _ZNK18QQuick3DInstancing18InstanceTableEntry8getScaleEv@Base 6.4.0
  _ZNK18QQuick3DInstancing19depthSortingEnabledEv@Base 6.2.2
  _ZNK18QQuick3DInstancing21instanceCountOverrideEv@Base 6.2.2
  _ZNK18QQuick3DPickResult10uvPositionEv@Base 6.2.2
@@ -1137,6 +1464,15 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZNK18QQuick3DPointLight10metaObjectEv@Base 6.2.2
  _ZNK18QQuick3DPointLight12constantFadeEv@Base 6.2.2
  _ZNK18QQuick3DPointLight13quadraticFadeEv@Base 6.2.2
+ _ZNK19QQuick3DLightmapper10metaObjectEv@Base 6.4.0
+ _ZNK19QQuick3DLightmapper16opacityThresholdEv@Base 6.4.0
+ _ZNK19QQuick3DLightmapper19indirectLightFactorEv@Base 6.4.0
+ _ZNK19QQuick3DLightmapper21isAdaptiveBiasEnabledEv@Base 6.4.0
+ _ZNK19QQuick3DLightmapper22isIndirectLightEnabledEv@Base 6.4.0
+ _ZNK19QQuick3DLightmapper26indirectLightWorkgroupSizeEv@Base 6.4.0
+ _ZNK19QQuick3DLightmapper4biasEv@Base 6.4.0
+ _ZNK19QQuick3DLightmapper7bouncesEv@Base 6.4.0
+ _ZNK19QQuick3DLightmapper7samplesEv@Base 6.4.0
  _ZNK19QQuick3DMorphTarget10attributesEv@Base 6.2.2
  _ZNK19QQuick3DMorphTarget10metaObjectEv@Base 6.2.2
  _ZNK19QQuick3DMorphTarget6weightEv@Base 6.2.2
@@ -1158,6 +1494,7 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZNK20QQuick3DCustomCamera10metaObjectEv@Base 6.2.2
  _ZNK20QQuick3DCustomCamera10projectionEv@Base 6.2.2
  _ZNK20QQuick3DInstanceList10metaObjectEv@Base 6.2.2
+ _ZNK20QQuick3DInstanceList13instanceCountEv@Base 6.3.0
  _ZNK20QQuick3DSceneManager10lookUpNodeEPK21QSSGRenderGraphObject@Base 6.2.2
  _ZNK20QQuick3DSceneManager10metaObjectEv@Base 6.2.2
  _ZNK21QQuick3DAbstractLight10brightnessEv@Base 6.2.2
@@ -1171,6 +1508,11 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZNK21QQuick3DAbstractLight16shadowMapQualityEv@Base 6.2.2
  _ZNK21QQuick3DAbstractLight5colorEv@Base 6.2.2
  _ZNK21QQuick3DAbstractLight5scopeEv@Base 6.2.2
+ _ZNK21QQuick3DAbstractLight8bakeModeEv@Base 6.4.0
+ _ZNK21QQuick3DBakedLightmap10loadPrefixEv@Base 6.4.0
+ _ZNK21QQuick3DBakedLightmap10metaObjectEv@Base 6.4.0
+ _ZNK21QQuick3DBakedLightmap3keyEv@Base 6.4.0
+ _ZNK21QQuick3DBakedLightmap9isEnabledEv@Base 6.4.0
  _ZNK21QQuick3DFrustumCamera10metaObjectEv@Base 6.2.2
  _ZNK21QQuick3DFrustumCamera3topEv@Base 6.2.2
  _ZNK21QQuick3DFrustumCamera4leftEv@Base 6.2.2
@@ -1179,17 +1521,20 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZNK21QQuick3DObjectPrivate13dirtyToStringEv@Base 6.2.2
  _ZNK21QQuick3DObjectPrivate20paintOrderChildItemsEv@Base 6.2.2
  _ZNK21QQuick3DObjectPrivate5stateEv@Base 6.2.2
+ _ZNK22QQuick3DCubeMapTexture10metaObjectEv@Base 6.4.0
  _ZNK22QQuick3DCustomMaterial10metaObjectEv@Base 6.2.2
  _ZNK22QQuick3DCustomMaterial11alwaysDirtyEv@Base 6.2.2
  _ZNK22QQuick3DCustomMaterial11shadingModeEv@Base 6.2.2
  _ZNK22QQuick3DCustomMaterial12vertexShaderEv@Base 6.2.2
  _ZNK22QQuick3DCustomMaterial14fragmentShaderEv@Base 6.2.2
- _ZNK22QQuick3DCustomMaterial18dynamicTextureMapsEv@Base 6.2.2
  _ZNK22QQuick3DCustomMaterial8dstBlendEv@Base 6.2.2
  _ZNK22QQuick3DCustomMaterial8srcBlendEv@Base 6.2.2
  _ZNK22QQuick3DCustomMaterial9lineWidthEv@Base 6.2.2
  _ZNK22QQuick3DFileInstancing10metaObjectEv@Base 6.2.2
+ _ZNK22QQuick3DFileInstancing13instanceCountEv@Base 6.3.0
  _ZNK22QQuick3DFileInstancing6sourceEv@Base 6.2.2
+ _ZNK22QQuick3DResourceLoader10metaObjectEv@Base 6.3.0
+ _ZNK22QQuick3DResourceLoader11meshSourcesEv@Base 6.3.0
  _ZNK23QQuick3DDefaultMaterial10bumpAmountEv@Base 6.2.2
  _ZNK23QQuick3DDefaultMaterial10diffuseMapEv@Base 6.2.2
  _ZNK23QQuick3DDefaultMaterial10metaObjectEv@Base 6.2.2
@@ -1221,6 +1566,15 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZNK23QQuick3DDefaultMaterial9normalMapEv@Base 6.2.2
  _ZNK23QQuick3DDefaultMaterial9pointSizeEv@Base 6.2.2
  _ZNK23QQuick3DQuaternionUtils10metaObjectEv@Base 6.2.2
+ _ZNK23QQuick3DReflectionProbe10clearColorEv@Base 6.3.0
+ _ZNK23QQuick3DReflectionProbe10metaObjectEv@Base 6.3.0
+ _ZNK23QQuick3DReflectionProbe11refreshModeEv@Base 6.3.0
+ _ZNK23QQuick3DReflectionProbe11timeSlicingEv@Base 6.3.0
+ _ZNK23QQuick3DReflectionProbe18parallaxCorrectionEv@Base 6.3.0
+ _ZNK23QQuick3DReflectionProbe7boxSizeEv@Base 6.3.0
+ _ZNK23QQuick3DReflectionProbe7qualityEv@Base 6.3.0
+ _ZNK23QQuick3DReflectionProbe9boxOffsetEv@Base 6.4.0
+ _ZNK23QQuick3DReflectionProbe9debugViewEv@Base 6.4.0
  _ZNK24QQuick3DDirectionalLight10metaObjectEv@Base 6.2.2
  _ZNK24QQuick3DSceneEnvironment10aoDistanceEv@Base 6.2.2
  _ZNK24QQuick3DSceneEnvironment10aoSoftnessEv@Base 6.2.2
@@ -1228,20 +1582,26 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZNK24QQuick3DSceneEnvironment10clearColorEv@Base 6.2.2
  _ZNK24QQuick3DSceneEnvironment10lightProbeEv@Base 6.2.2
  _ZNK24QQuick3DSceneEnvironment10metaObjectEv@Base 6.2.2
+ _ZNK24QQuick3DSceneEnvironment11lightmapperEv@Base 6.4.0
  _ZNK24QQuick3DSceneEnvironment11tonemapModeEv@Base 6.2.2
  _ZNK24QQuick3DSceneEnvironment12aoSampleRateEv@Base 6.2.2
  _ZNK24QQuick3DSceneEnvironment12probeHorizonEv@Base 6.2.2
  _ZNK24QQuick3DSceneEnvironment13probeExposureEv@Base 6.2.2
+ _ZNK24QQuick3DSceneEnvironment13skyBoxCubeMapEv@Base 6.4.0
  _ZNK24QQuick3DSceneEnvironment14backgroundModeEv@Base 6.2.2
  _ZNK24QQuick3DSceneEnvironment16antialiasingModeEv@Base 6.2.2
  _ZNK24QQuick3DSceneEnvironment16depthTestEnabledEv@Base 6.2.2
  _ZNK24QQuick3DSceneEnvironment16probeOrientationEv@Base 6.2.2
+ _ZNK24QQuick3DSceneEnvironment16skyboxBlurAmountEv@Base 6.4.0
+ _ZNK24QQuick3DSceneEnvironment17specularAAEnabledEv@Base 6.4.0
  _ZNK24QQuick3DSceneEnvironment17temporalAAEnabledEv@Base 6.2.2
  _ZNK24QQuick3DSceneEnvironment18temporalAAStrengthEv@Base 6.2.2
  _ZNK24QQuick3DSceneEnvironment19antialiasingQualityEv@Base 6.2.2
  _ZNK24QQuick3DSceneEnvironment19depthPrePassEnabledEv@Base 6.2.2
  _ZNK24QQuick3DSceneEnvironment6aoBiasEv@Base 6.2.2
  _ZNK24QQuick3DSceneEnvironment8aoDitherEv@Base 6.2.2
+ _ZNK24QQuick3DWindowAttachment10metaObjectEv@Base 6.4.2
+ _ZNK24QQuick3DWindowAttachment6windowEv@Base 6.4.2
  _ZNK25QQuick3DInstanceListEntry10metaObjectEv@Base 6.2.2
  _ZNK25QQuick3DPerspectiveCamera10metaObjectEv@Base 6.2.2
  _ZNK25QQuick3DPerspectiveCamera11fieldOfViewEv@Base 6.2.2
@@ -1262,23 +1622,39 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZNK26QQuick3DPrincipledMaterial11emissiveMapEv@Base 6.2.2
  _ZNK26QQuick3DPrincipledMaterial11specularMapEv@Base 6.2.2
  _ZNK26QQuick3DPrincipledMaterial12baseColorMapEv@Base 6.2.2
+ _ZNK26QQuick3DPrincipledMaterial12clearcoatMapEv@Base 6.3.0
  _ZNK26QQuick3DPrincipledMaterial12heightAmountEv@Base 6.2.2
  _ZNK26QQuick3DPrincipledMaterial12metalnessMapEv@Base 6.2.2
  _ZNK26QQuick3DPrincipledMaterial12occlusionMapEv@Base 6.2.2
  _ZNK26QQuick3DPrincipledMaterial12roughnessMapEv@Base 6.2.2
  _ZNK26QQuick3DPrincipledMaterial12specularTintEv@Base 6.2.2
+ _ZNK26QQuick3DPrincipledMaterial12thicknessMapEv@Base 6.3.0
  _ZNK26QQuick3DPrincipledMaterial13heightChannelEv@Base 6.2.2
  _ZNK26QQuick3DPrincipledMaterial14emissiveFactorEv@Base 6.2.2
  _ZNK26QQuick3DPrincipledMaterial14normalStrengthEv@Base 6.2.2
  _ZNK26QQuick3DPrincipledMaterial14opacityChannelEv@Base 6.2.2
  _ZNK26QQuick3DPrincipledMaterial14specularAmountEv@Base 6.2.2
+ _ZNK26QQuick3DPrincipledMaterial15clearcoatAmountEv@Base 6.3.0
  _ZNK26QQuick3DPrincipledMaterial15occlusionAmountEv@Base 6.2.2
+ _ZNK26QQuick3DPrincipledMaterial15thicknessFactorEv@Base 6.3.0
+ _ZNK26QQuick3DPrincipledMaterial15transmissionMapEv@Base 6.3.0
+ _ZNK26QQuick3DPrincipledMaterial16attenuationColorEv@Base 6.3.0
+ _ZNK26QQuick3DPrincipledMaterial16clearcoatChannelEv@Base 6.3.0
  _ZNK26QQuick3DPrincipledMaterial16metalnessChannelEv@Base 6.2.2
  _ZNK26QQuick3DPrincipledMaterial16occlusionChannelEv@Base 6.2.2
  _ZNK26QQuick3DPrincipledMaterial16roughnessChannelEv@Base 6.2.2
+ _ZNK26QQuick3DPrincipledMaterial16thicknessChannelEv@Base 6.3.0
+ _ZNK26QQuick3DPrincipledMaterial17indexOfRefractionEv@Base 6.3.0
+ _ZNK26QQuick3DPrincipledMaterial18clearcoatNormalMapEv@Base 6.3.0
+ _ZNK26QQuick3DPrincipledMaterial18transmissionFactorEv@Base 6.3.0
+ _ZNK26QQuick3DPrincipledMaterial19attenuationDistanceEv@Base 6.3.0
  _ZNK26QQuick3DPrincipledMaterial19maxHeightMapSamplesEv@Base 6.2.2
  _ZNK26QQuick3DPrincipledMaterial19minHeightMapSamplesEv@Base 6.2.2
+ _ZNK26QQuick3DPrincipledMaterial19transmissionChannelEv@Base 6.3.0
+ _ZNK26QQuick3DPrincipledMaterial21clearcoatRoughnessMapEv@Base 6.3.0
  _ZNK26QQuick3DPrincipledMaterial21specularReflectionMapEv@Base 6.2.2
+ _ZNK26QQuick3DPrincipledMaterial24clearcoatRoughnessAmountEv@Base 6.3.0
+ _ZNK26QQuick3DPrincipledMaterial25clearcoatRoughnessChannelEv@Base 6.3.0
  _ZNK26QQuick3DPrincipledMaterial7opacityEv@Base 6.2.2
  _ZNK26QQuick3DPrincipledMaterial8lightingEv@Base 6.2.2
  _ZNK26QQuick3DPrincipledMaterial9alphaModeEv@Base 6.2.2
@@ -1303,17 +1679,60 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZNK29QQuick3DShaderUtilsApplyValue10metaObjectEv@Base 6.2.2
  _ZNK29QQuick3DShaderUtilsRenderPass10metaObjectEv@Base 6.2.2
  _ZNK30QQuick3DShaderUtilsBufferInput10metaObjectEv@Base 6.2.2
+ _ZNK30QQuick3DSpecularGlossyMaterial10glossinessEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial10metaObjectEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial10opacityMapEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial11albedoColorEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial11alphaCutoffEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial11emissiveMapEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial11specularMapEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial12clearcoatMapEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial12heightAmountEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial12occlusionMapEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial12thicknessMapEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial13glossinessMapEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial13heightChannelEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial13specularColorEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial14emissiveFactorEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial14normalStrengthEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial14opacityChannelEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial15clearcoatAmountEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial15occlusionAmountEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial15thicknessFactorEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial15transmissionMapEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial16attenuationColorEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial16clearcoatChannelEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial16occlusionChannelEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial16thicknessChannelEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial17glossinessChannelEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial18clearcoatNormalMapEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial18transmissionFactorEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial19attenuationDistanceEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial19maxHeightMapSamplesEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial19minHeightMapSamplesEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial19transmissionChannelEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial21clearcoatRoughnessMapEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial24clearcoatRoughnessAmountEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial25clearcoatRoughnessChannelEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial7opacityEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial8lightingEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial9albedoMapEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial9alphaModeEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial9blendModeEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial9heightMapEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial9lineWidthEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial9normalMapEv@Base 6.4.0
+ _ZNK30QQuick3DSpecularGlossyMaterial9pointSizeEv@Base 6.4.0
  _ZNK31QQuick3DShaderUtilsTextureInput10metaObjectEv@Base 6.2.2
  _ZNK32QQuick3DShaderUtilsRenderCommand10metaObjectEv@Base 6.2.2
- (optional=templinst)_ZNSt8_Rb_treeIK10QByteArraySt4pairIS1_N16QQuick3DGeometry9Attribute8SemanticEESt10_Select1stIS6_ESt4lessIS1_ESaIS6_EE16_M_insert_uniqueIS6_EES2_ISt17_Rb_tree_iteratorIS6_EbEOT_@Base 6.2.2
  _ZTI12QQuick3DNode@Base 6.2.2
+ _ZTI12QQuick3DSkin@Base 6.4.0
  _ZTI13QQuick3DJoint@Base 6.2.2
  _ZTI13QQuick3DModel@Base 6.2.2
  _ZTI14QQuick3DCamera@Base 6.2.2
  _ZTI14QQuick3DEffect@Base 6.2.2
  _ZTI14QQuick3DLoader@Base 6.2.2
  _ZTI14QQuick3DObject@Base 6.2.2
- _ZTI14QSSGRenderNode@Base 6.2.2
  _ZTI15QQuick3DTexture@Base 6.2.2
  _ZTI16QQuick3DGeometry@Base 6.2.2
  _ZTI16QQuick3DMaterial@Base 6.2.2
@@ -1323,6 +1742,7 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZTI17QQuick3DSpotLight@Base 6.2.2
  _ZTI18QQuick3DInstancing@Base 6.2.2
  _ZTI18QQuick3DPointLight@Base 6.2.2
+ _ZTI19QQuick3DLightmapper@Base 6.4.0
  _ZTI19QQuick3DMorphTarget@Base 6.2.2
  _ZTI19QQuick3DNodePrivate@Base 6.2.2
  _ZTI19QQuick3DRenderStats@Base 6.2.2
@@ -1331,16 +1751,19 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZTI20QQuick3DInstanceList@Base 6.2.2
  _ZTI20QQuick3DSceneManager@Base 6.2.2
  _ZTI21QQuick3DAbstractLight@Base 6.2.2
+ _ZTI21QQuick3DBakedLightmap@Base 6.4.0
  _ZTI21QQuick3DFrustumCamera@Base 6.2.2
  _ZTI21QQuick3DObjectPrivate@Base 6.2.2
+ _ZTI22QQuick3DCubeMapTexture@Base 6.4.0
  _ZTI22QQuick3DCustomMaterial@Base 6.2.2
  _ZTI22QQuick3DFileInstancing@Base 6.2.2
+ _ZTI22QQuick3DResourceLoader@Base 6.3.0
  _ZTI23QQuick3DDefaultMaterial@Base 6.2.2
- _ZTI23QQuick3DGeometryPrivate@Base 6.2.2
  _ZTI23QQuick3DQuaternionUtils@Base 6.2.2
- _ZTI23QSSGRenderInstanceTable@Base 6.2.2
+ _ZTI23QQuick3DReflectionProbe@Base 6.3.0
  _ZTI24QQuick3DDirectionalLight@Base 6.2.2
  _ZTI24QQuick3DSceneEnvironment@Base 6.2.2
+ _ZTI24QQuick3DWindowAttachment@Base 6.4.2
  _ZTI25QQuick3DInstanceListEntry@Base 6.2.2
  _ZTI25QQuick3DPerspectiveCamera@Base 6.2.2
  _ZTI25QQuick3DShaderUtilsBuffer@Base 6.2.2
@@ -1351,22 +1774,25 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZTI29QQuick3DShaderUtilsApplyValue@Base 6.2.2
  _ZTI29QQuick3DShaderUtilsRenderPass@Base 6.2.2
  _ZTI30QQuick3DShaderUtilsBufferInput@Base 6.2.2
+ _ZTI30QQuick3DSpecularGlossyMaterial@Base 6.4.0
  _ZTI31QQuick3DShaderUtilsTextureInput@Base 6.2.2
  _ZTI32QQuick3DShaderUtilsRenderCommand@Base 6.2.2
  _ZTIFP7QObjectP10QQmlEngineP9QJSEngineE@Base 6.2.2
  _ZTIPFP7QObjectP10QQmlEngineP9QJSEngineE@Base 6.2.2
  _ZTIZN9QMetaType17registerConverterI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEN9QtPrivate33QSequentialIterableConvertFunctorIS3_EEEEbT1_EUlPKvPvE_@Base 6.2.2
  _ZTIZN9QMetaType17registerConverterI5QListI18QQuick3DPickResultE9QIterableI13QMetaSequenceEN9QtPrivate33QSequentialIterableConvertFunctorIS3_EEEEbT1_EUlPKvPvE_@Base 6.2.2
+ _ZTIZN9QMetaType17registerConverterI5QListI4QUrlE9QIterableI13QMetaSequenceEN9QtPrivate33QSequentialIterableConvertFunctorIS3_EEEEbT1_EUlPKvPvE_@Base 6.3.0
  _ZTIZN9QMetaType19registerMutableViewI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEN9QtPrivate37QSequentialIterableMutableViewFunctorIS3_EEEEbT1_EUlPvSB_E_@Base 6.2.2
  _ZTIZN9QMetaType19registerMutableViewI5QListI18QQuick3DPickResultE9QIterableI13QMetaSequenceEN9QtPrivate37QSequentialIterableMutableViewFunctorIS3_EEEEbT1_EUlPvSB_E_@Base 6.2.2
+ _ZTIZN9QMetaType19registerMutableViewI5QListI4QUrlE9QIterableI13QMetaSequenceEN9QtPrivate37QSequentialIterableMutableViewFunctorIS3_EEEEbT1_EUlPvSB_E_@Base 6.3.0
  _ZTS12QQuick3DNode@Base 6.2.2
+ _ZTS12QQuick3DSkin@Base 6.4.0
  _ZTS13QQuick3DJoint@Base 6.2.2
  _ZTS13QQuick3DModel@Base 6.2.2
  _ZTS14QQuick3DCamera@Base 6.2.2
  _ZTS14QQuick3DEffect@Base 6.2.2
  _ZTS14QQuick3DLoader@Base 6.2.2
  _ZTS14QQuick3DObject@Base 6.2.2
- _ZTS14QSSGRenderNode@Base 6.2.2
  _ZTS15QQuick3DTexture@Base 6.2.2
  _ZTS16QQuick3DGeometry@Base 6.2.2
  _ZTS16QQuick3DMaterial@Base 6.2.2
@@ -1376,6 +1802,7 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZTS17QQuick3DSpotLight@Base 6.2.2
  _ZTS18QQuick3DInstancing@Base 6.2.2
  _ZTS18QQuick3DPointLight@Base 6.2.2
+ _ZTS19QQuick3DLightmapper@Base 6.4.0
  _ZTS19QQuick3DMorphTarget@Base 6.2.2
  _ZTS19QQuick3DNodePrivate@Base 6.2.2
  _ZTS19QQuick3DRenderStats@Base 6.2.2
@@ -1384,16 +1811,21 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZTS20QQuick3DInstanceList@Base 6.2.2
  _ZTS20QQuick3DSceneManager@Base 6.2.2
  _ZTS21QQuick3DAbstractLight@Base 6.2.2
+ _ZTS21QQuick3DBakedLightmap@Base 6.4.0
  _ZTS21QQuick3DFrustumCamera@Base 6.2.2
  _ZTS21QQuick3DObjectPrivate@Base 6.2.2
+ _ZTS22QQuick3DCubeMapTexture@Base 6.4.0
  _ZTS22QQuick3DCustomMaterial@Base 6.2.2
  _ZTS22QQuick3DFileInstancing@Base 6.2.2
+ _ZTS22QQuick3DResourceLoader@Base 6.3.0
  _ZTS23QQuick3DDefaultMaterial@Base 6.2.2
  _ZTS23QQuick3DGeometryPrivate@Base 6.2.2
  _ZTS23QQuick3DQuaternionUtils@Base 6.2.2
+ _ZTS23QQuick3DReflectionProbe@Base 6.3.0
  _ZTS23QSSGRenderInstanceTable@Base 6.2.2
  _ZTS24QQuick3DDirectionalLight@Base 6.2.2
  _ZTS24QQuick3DSceneEnvironment@Base 6.2.2
+ _ZTS24QQuick3DWindowAttachment@Base 6.4.2
  _ZTS25QQuick3DInstanceListEntry@Base 6.2.2
  _ZTS25QQuick3DPerspectiveCamera@Base 6.2.2
  _ZTS25QQuick3DShaderUtilsBuffer@Base 6.2.2
@@ -1404,22 +1836,25 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZTS29QQuick3DShaderUtilsApplyValue@Base 6.2.2
  _ZTS29QQuick3DShaderUtilsRenderPass@Base 6.2.2
  _ZTS30QQuick3DShaderUtilsBufferInput@Base 6.2.2
+ _ZTS30QQuick3DSpecularGlossyMaterial@Base 6.4.0
  _ZTS31QQuick3DShaderUtilsTextureInput@Base 6.2.2
  _ZTS32QQuick3DShaderUtilsRenderCommand@Base 6.2.2
  _ZTSFP7QObjectP10QQmlEngineP9QJSEngineE@Base 6.2.2
  _ZTSPFP7QObjectP10QQmlEngineP9QJSEngineE@Base 6.2.2
  _ZTSZN9QMetaType17registerConverterI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEN9QtPrivate33QSequentialIterableConvertFunctorIS3_EEEEbT1_EUlPKvPvE_@Base 6.2.2
  _ZTSZN9QMetaType17registerConverterI5QListI18QQuick3DPickResultE9QIterableI13QMetaSequenceEN9QtPrivate33QSequentialIterableConvertFunctorIS3_EEEEbT1_EUlPKvPvE_@Base 6.2.2
+ _ZTSZN9QMetaType17registerConverterI5QListI4QUrlE9QIterableI13QMetaSequenceEN9QtPrivate33QSequentialIterableConvertFunctorIS3_EEEEbT1_EUlPKvPvE_@Base 6.3.0
  _ZTSZN9QMetaType19registerMutableViewI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEN9QtPrivate37QSequentialIterableMutableViewFunctorIS3_EEEEbT1_EUlPvSB_E_@Base 6.2.2
  _ZTSZN9QMetaType19registerMutableViewI5QListI18QQuick3DPickResultE9QIterableI13QMetaSequenceEN9QtPrivate37QSequentialIterableMutableViewFunctorIS3_EEEEbT1_EUlPvSB_E_@Base 6.2.2
+ _ZTSZN9QMetaType19registerMutableViewI5QListI4QUrlE9QIterableI13QMetaSequenceEN9QtPrivate37QSequentialIterableMutableViewFunctorIS3_EEEEbT1_EUlPvSB_E_@Base 6.3.0
  _ZTV12QQuick3DNode@Base 6.2.2
+ _ZTV12QQuick3DSkin@Base 6.4.0
  _ZTV13QQuick3DJoint@Base 6.2.2
  _ZTV13QQuick3DModel@Base 6.2.2
  _ZTV14QQuick3DCamera@Base 6.2.2
  _ZTV14QQuick3DEffect@Base 6.2.2
  _ZTV14QQuick3DLoader@Base 6.2.2
  _ZTV14QQuick3DObject@Base 6.2.2
- _ZTV14QSSGRenderNode@Base 6.2.2
  _ZTV15QQuick3DTexture@Base 6.2.2
  _ZTV16QQuick3DGeometry@Base 6.2.2
  _ZTV16QQuick3DMaterial@Base 6.2.2
@@ -1429,6 +1864,7 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZTV17QQuick3DSpotLight@Base 6.2.2
  _ZTV18QQuick3DInstancing@Base 6.2.2
  _ZTV18QQuick3DPointLight@Base 6.2.2
+ _ZTV19QQuick3DLightmapper@Base 6.4.0
  _ZTV19QQuick3DMorphTarget@Base 6.2.2
  _ZTV19QQuick3DNodePrivate@Base 6.2.2
  _ZTV19QQuick3DRenderStats@Base 6.2.2
@@ -1437,16 +1873,19 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZTV20QQuick3DInstanceList@Base 6.2.2
  _ZTV20QQuick3DSceneManager@Base 6.2.2
  _ZTV21QQuick3DAbstractLight@Base 6.2.2
+ _ZTV21QQuick3DBakedLightmap@Base 6.4.0
  _ZTV21QQuick3DFrustumCamera@Base 6.2.2
  _ZTV21QQuick3DObjectPrivate@Base 6.2.2
+ _ZTV22QQuick3DCubeMapTexture@Base 6.4.0
  _ZTV22QQuick3DCustomMaterial@Base 6.2.2
  _ZTV22QQuick3DFileInstancing@Base 6.2.2
+ _ZTV22QQuick3DResourceLoader@Base 6.3.0
  _ZTV23QQuick3DDefaultMaterial@Base 6.2.2
- _ZTV23QQuick3DGeometryPrivate@Base 6.2.2
  _ZTV23QQuick3DQuaternionUtils@Base 6.2.2
- _ZTV23QSSGRenderInstanceTable@Base 6.2.2
+ _ZTV23QQuick3DReflectionProbe@Base 6.3.0
  _ZTV24QQuick3DDirectionalLight@Base 6.2.2
  _ZTV24QQuick3DSceneEnvironment@Base 6.2.2
+ _ZTV24QQuick3DWindowAttachment@Base 6.4.2
  _ZTV25QQuick3DInstanceListEntry@Base 6.2.2
  _ZTV25QQuick3DPerspectiveCamera@Base 6.2.2
  _ZTV25QQuick3DShaderUtilsBuffer@Base 6.2.2
@@ -1457,47 +1896,17 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZTV29QQuick3DShaderUtilsApplyValue@Base 6.2.2
  _ZTV29QQuick3DShaderUtilsRenderPass@Base 6.2.2
  _ZTV30QQuick3DShaderUtilsBufferInput@Base 6.2.2
+ _ZTV30QQuick3DSpecularGlossyMaterial@Base 6.4.0
  _ZTV31QQuick3DShaderUtilsTextureInput@Base 6.2.2
  _ZTV32QQuick3DShaderUtilsRenderCommand@Base 6.2.2
  (optional=templinst)_ZZN9QMetaType21registerConverterImplI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEEEbSt8functionIFbPKvPvEES_S_E10unregister@Base 6.2.2
  (optional=templinst)_ZZN9QMetaType21registerConverterImplI5QListI18QQuick3DPickResultE9QIterableI13QMetaSequenceEEEbSt8functionIFbPKvPvEES_S_E10unregister@Base 6.2.2
+ (optional=templinst)_ZZN9QMetaType21registerConverterImplI5QListI4QUrlE9QIterableI13QMetaSequenceEEEbSt8functionIFbPKvPvEES_S_E10unregister@Base 6.3.0
  (optional=templinst)_ZZN9QMetaType23registerMutableViewImplI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEEEbSt8functionIFbPvS8_EES_S_E10unregister@Base 6.2.2
  (optional=templinst)_ZZN9QMetaType23registerMutableViewImplI5QListI18QQuick3DPickResultE9QIterableI13QMetaSequenceEEEbSt8functionIFbPvS8_EES_S_E10unregister@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeI10QByteArrayE10getCopyCtrEvENUlPKNS_18QMetaTypeInterfaceEPvPKvE_4_FUNES5_S6_S8_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeI10QByteArrayE10getMoveCtrEvENUlPKNS_18QMetaTypeInterfaceEPvS6_E_4_FUNES5_S6_S6_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeI10QByteArrayE13getDefaultCtrEvENUlPKNS_18QMetaTypeInterfaceEPvE_4_FUNES5_S6_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeI10QByteArrayE7getDtorEvENUlPKNS_18QMetaTypeInterfaceEPvE_4_FUNES5_S6_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeI4QUrlE10getCopyCtrEvENUlPKNS_18QMetaTypeInterfaceEPvPKvE_4_FUNES5_S6_S8_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeI4QUrlE10getMoveCtrEvENUlPKNS_18QMetaTypeInterfaceEPvS6_E_4_FUNES5_S6_S6_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeI4QUrlE13getDefaultCtrEvENUlPKNS_18QMetaTypeInterfaceEPvE_4_FUNES5_S6_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeI4QUrlE7getDtorEvENUlPKNS_18QMetaTypeInterfaceEPvE_4_FUNES5_S6_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeI7QStringE10getCopyCtrEvENUlPKNS_18QMetaTypeInterfaceEPvPKvE_4_FUNES5_S6_S8_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeI7QStringE10getMoveCtrEvENUlPKNS_18QMetaTypeInterfaceEPvS6_E_4_FUNES5_S6_S6_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeI7QStringE13getDefaultCtrEvENUlPKNS_18QMetaTypeInterfaceEPvE_4_FUNES5_S6_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeI7QStringE7getDtorEvENUlPKNS_18QMetaTypeInterfaceEPvE_4_FUNES5_S6_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeI8QVariantE10getCopyCtrEvENUlPKNS_18QMetaTypeInterfaceEPvPKvE_4_FUNES5_S6_S8_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeI8QVariantE10getMoveCtrEvENUlPKNS_18QMetaTypeInterfaceEPvS6_E_4_FUNES5_S6_S6_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeI8QVariantE13getDefaultCtrEvENUlPKNS_18QMetaTypeInterfaceEPvE_4_FUNES5_S6_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeI8QVariantE7getDtorEvENUlPKNS_18QMetaTypeInterfaceEPvE_4_FUNES5_S6_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIP7QObjectE10getCopyCtrEvENUlPKNS_18QMetaTypeInterfaceEPvPKvE_4_FUNES6_S7_S9_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIP7QObjectE10getMoveCtrEvENUlPKNS_18QMetaTypeInterfaceEPvS7_E_4_FUNES6_S7_S7_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIP7QObjectE13getDefaultCtrEvENUlPKNS_18QMetaTypeInterfaceEPvE_4_FUNES6_S7_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIbE10getCopyCtrEvENUlPKNS_18QMetaTypeInterfaceEPvPKvE_4_FUNES4_S5_S7_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIbE10getMoveCtrEvENUlPKNS_18QMetaTypeInterfaceEPvS5_E_4_FUNES4_S5_S5_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIbE13getDefaultCtrEvENUlPKNS_18QMetaTypeInterfaceEPvE_4_FUNES4_S5_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIdE10getCopyCtrEvENUlPKNS_18QMetaTypeInterfaceEPvPKvE_4_FUNES4_S5_S7_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIdE10getMoveCtrEvENUlPKNS_18QMetaTypeInterfaceEPvS5_E_4_FUNES4_S5_S5_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIdE13getDefaultCtrEvENUlPKNS_18QMetaTypeInterfaceEPvE_4_FUNES4_S5_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIfE10getCopyCtrEvENUlPKNS_18QMetaTypeInterfaceEPvPKvE_4_FUNES4_S5_S7_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIfE10getMoveCtrEvENUlPKNS_18QMetaTypeInterfaceEPvS5_E_4_FUNES4_S5_S5_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIfE13getDefaultCtrEvENUlPKNS_18QMetaTypeInterfaceEPvE_4_FUNES4_S5_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIiE10getCopyCtrEvENUlPKNS_18QMetaTypeInterfaceEPvPKvE_4_FUNES4_S5_S7_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIiE10getMoveCtrEvENUlPKNS_18QMetaTypeInterfaceEPvS5_E_4_FUNES4_S5_S5_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIiE13getDefaultCtrEvENUlPKNS_18QMetaTypeInterfaceEPvE_4_FUNES4_S5_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIyE10getCopyCtrEvENUlPKNS_18QMetaTypeInterfaceEPvPKvE_4_FUNES4_S5_S7_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIyE10getMoveCtrEvENUlPKNS_18QMetaTypeInterfaceEPvS5_E_4_FUNES4_S5_S5_@Base 6.2.2
- (optional=templinst)_ZZN9QtPrivate16QMetaTypeForTypeIyE13getDefaultCtrEvENUlPKNS_18QMetaTypeInterfaceEPvE_4_FUNES4_S5_@Base 6.2.2
+ (optional=templinst)_ZZN9QMetaType23registerMutableViewImplI5QListI4QUrlE9QIterableI13QMetaSequenceEEEbSt8functionIFbPvS8_EES_S_E10unregister@Base 6.3.0
  (c++)"non-virtual thunk to QQuick3DAbstractLight::~QQuick3DAbstractLight()@Base" 6.2.2
+ (c++)"non-virtual thunk to QQuick3DCubeMapTexture::~QQuick3DCubeMapTexture()@Base" 6.4.0
  (c++)"non-virtual thunk to QQuick3DCustomMaterial::~QQuick3DCustomMaterial()@Base" 6.2.2
  (c++)"non-virtual thunk to QQuick3DDefaultMaterial::~QQuick3DDefaultMaterial()@Base" 6.2.2
  (c++)"non-virtual thunk to QQuick3DFileInstancing::~QQuick3DFileInstancing()@Base" 6.2.2
@@ -1520,6 +1929,8 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  (c++)"non-virtual thunk to QQuick3DRepeater::~QQuick3DRepeater()@Base" 6.2.2
  (c++)"non-virtual thunk to QQuick3DSceneEnvironment::~QQuick3DSceneEnvironment()@Base" 6.2.2
  (c++)"non-virtual thunk to QQuick3DSkeleton::~QQuick3DSkeleton()@Base" 6.2.2
+ (c++)"non-virtual thunk to QQuick3DSkin::~QQuick3DSkin()@Base" 6.4.0
+ (c++)"non-virtual thunk to QQuick3DSpecularGlossyMaterial::~QQuick3DSpecularGlossyMaterial()@Base" 6.4.0
  (c++)"non-virtual thunk to QQuick3DTexture::itemGeometryChanged(QQuickItem*, QQuickGeometryChange, QRectF const&)@Base" 6.2.2
  (c++)"non-virtual thunk to QQuick3DTexture::~QQuick3DTexture()@Base" 6.2.2
  (c++)"non-virtual thunk to QQuick3DTextureData::~QQuick3DTextureData()@Base" 6.2.2

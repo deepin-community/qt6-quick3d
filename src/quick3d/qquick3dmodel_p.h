@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #ifndef QSSGMODEL_H
 #define QSSGMODEL_H
@@ -46,6 +20,8 @@
 #include <QtQuick3D/private/qquick3dgeometry_p.h>
 #include <QtQuick3D/private/qquick3dinstancing_p.h>
 #include <QtQuick3D/private/qquick3dskeleton_p.h>
+#include <QtQuick3D/private/qquick3dskin_p.h>
+#include <QtQuick3D/private/qquick3dbakedlightmap_p.h>
 #include <QtQuick3D/private/qquick3dmorphtarget_p.h>
 #include <QtQuick3DUtils/private/qssgbounds3_p.h>
 
@@ -93,9 +69,15 @@ class Q_QUICK3D_EXPORT QQuick3DModel : public QQuick3DNode
     Q_PROPERTY(QQuick3DInstancing *instancing READ instancing WRITE setInstancing NOTIFY instancingChanged)
     Q_PROPERTY(QQuick3DNode *instanceRoot READ instanceRoot WRITE setInstanceRoot NOTIFY instanceRootChanged)
     Q_PROPERTY(QQuick3DSkeleton *skeleton READ skeleton WRITE setSkeleton NOTIFY skeletonChanged)
+    Q_PROPERTY(QQuick3DSkin *skin READ skin WRITE setSkin NOTIFY skinChanged REVISION(6, 4))
     Q_PROPERTY(QList<QMatrix4x4> inverseBindPoses READ inverseBindPoses WRITE setInverseBindPoses NOTIFY inverseBindPosesChanged)
     Q_PROPERTY(QQuick3DBounds3 bounds READ bounds NOTIFY boundsChanged)
     Q_PROPERTY(float depthBias READ depthBias WRITE setDepthBias NOTIFY depthBiasChanged)
+    Q_PROPERTY(bool receivesReflections READ receivesReflections WRITE setReceivesReflections NOTIFY receivesReflectionsChanged REVISION(6, 3))
+    Q_PROPERTY(bool castsReflections READ castsReflections WRITE setCastsReflections NOTIFY castsReflectionsChanged REVISION(6, 4))
+    Q_PROPERTY(bool usedInBakedLighting READ isUsedInBakedLighting WRITE setUsedInBakedLighting NOTIFY usedInBakedLightingChanged REVISION(6, 4))
+    Q_PROPERTY(int lightmapBaseResolution READ lightmapBaseResolution WRITE setLightmapBaseResolution NOTIFY lightmapBaseResolutionChanged REVISION(6, 4))
+    Q_PROPERTY(QQuick3DBakedLightmap *bakedLightmap READ bakedLightmap WRITE setBakedLightmap NOTIFY bakedLightmapChanged REVISION(6, 4))
 
     QML_NAMED_ELEMENT(Model)
 
@@ -119,6 +101,16 @@ public:
     QQuick3DInstancing *instancing() const;
     QQuick3DNode *instanceRoot() const;
 
+    Q_REVISION(6, 3)  bool receivesReflections() const;
+    Q_REVISION(6, 4)  bool castsReflections() const;
+    Q_REVISION(6, 4)  QQuick3DSkin *skin() const;
+
+    static QString translateMeshSource(const QUrl &source, QObject *contextObject);
+
+    Q_REVISION(6, 4) bool isUsedInBakedLighting() const;
+    Q_REVISION(6, 4) int lightmapBaseResolution() const;
+    Q_REVISION(6, 4) QQuick3DBakedLightmap *bakedLightmap() const;
+
 public Q_SLOTS:
     void setSource(const QUrl &source);
     void setCastsShadows(bool castsShadows);
@@ -131,6 +123,12 @@ public Q_SLOTS:
     void setInstancing(QQuick3DInstancing *instancing);
     void setInstanceRoot(QQuick3DNode *instanceRoot);
     void setDepthBias(float bias);
+    Q_REVISION(6, 3)  void setReceivesReflections(bool receivesReflections);
+    Q_REVISION(6, 4)  void setCastsReflections(bool castsReflections);
+    Q_REVISION(6, 4)  void setSkin(QQuick3DSkin *skin);
+    Q_REVISION(6, 4) void setUsedInBakedLighting(bool enable);
+    Q_REVISION(6, 4) void setLightmapBaseResolution(int resolution);
+    Q_REVISION(6, 4) void setBakedLightmap(QQuick3DBakedLightmap *bakedLightmap);
 
 Q_SIGNALS:
     void sourceChanged();
@@ -145,6 +143,12 @@ Q_SIGNALS:
     void instanceRootChanged();
     void morphTargetsChanged();
     void depthBiasChanged();
+    Q_REVISION(6, 3)  void receivesReflectionsChanged();
+    Q_REVISION(6, 4)  void castsReflectionsChanged();
+    Q_REVISION(6, 4)  void skinChanged();
+    Q_REVISION(6, 4) void usedInBakedLightingChanged();
+    Q_REVISION(6, 4) void lightmapBaseResolutionChanged();
+    Q_REVISION(6, 4) void bakedLightmapChanged();
 
 protected:
     QSSGRenderGraphObject *updateSpatialNode(QSSGRenderGraphObject *node) override;
@@ -167,9 +171,10 @@ private:
         InstancesDirty =         0x00000080,
         MorphTargetsDirty =      0x00000100,
         PropertyDirty =          0x00000200,
+        ReflectionDirty =        0x00000400,
+        SkinDirty =              0x00000800
     };
 
-    QString translateSource();
     QUrl m_source;
 
     quint32 m_dirtyAttributes = 0xffffffff; // all dirty by default
@@ -206,6 +211,13 @@ private:
     bool m_castsShadows = true;
     bool m_receivesShadows = true;
     bool m_pickable = false;
+    bool m_receivesReflections = false;
+    bool m_castsReflections = true;
+    bool m_usedInBakedLighting = false;
+    int m_lightmapBaseResolution = 1024;
+    QQuick3DBakedLightmap *m_bakedLightmap = nullptr;
+    QMetaObject::Connection m_bakedLightmapSignalConnection;
+    QQuick3DSkin *m_skin = nullptr;
 
     QHash<QByteArray, QMetaObject::Connection> m_connections;
 };

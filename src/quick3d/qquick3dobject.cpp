@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2019 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2019 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qquick3dobject.h"
 #include "qquick3dobject_p.h"
@@ -655,7 +629,7 @@ void QQuick3DObjectPrivate::resources_clear(QQmlListProperty<QObject> *prop)
     QQuick3DObject *quickItem = static_cast<QQuick3DObject *>(prop->object);
     QQuick3DObjectPrivate *quickItemPrivate = QQuick3DObjectPrivate::get(quickItem);
     if (quickItemPrivate->extra.isAllocated()) { // If extra is not allocated resources is empty.
-        for (QObject *object : qAsConst(quickItemPrivate->extra->resourcesList)) {
+        for (QObject *object : std::as_const(quickItemPrivate->extra->resourcesList)) {
             // clang-format off
             qmlobject_disconnect(object, QObject, SIGNAL(destroyed(QObject*)),
                                  quickItem, QQuick3DObject, SLOT(_q_resourceObjectDeleted(QObject*)));
@@ -807,7 +781,7 @@ void QQuick3DObjectPrivate::addToDirtyList()
         // NOTE: Skeleton node will be treated as a resources when creating/updating the backend nodes
         // (as it's a resource to the model node).
         if (QSSGRenderGraphObject::isResource(type) || type == QSSGRenderGraphObject::Type::Skeleton) {
-            if (type == Type::Image) {
+            if (QSSGRenderGraphObject::isTexture(type)) {
                 // Will likely need to refactor this, but images need to come before other
                 // resources
                 nextDirtyItem = sceneManager->dirtyImageList;
@@ -950,8 +924,15 @@ void QQuick3DObjectPrivate::refSceneManager(QQuick3DSceneManager &c)
     Q_ASSERT((sceneManager != nullptr) == (sceneRefCount > 0));
     if (++sceneRefCount > 1) {
         // Sanity check. Even if there's a different scene manager the window should be the same.
-        if (c.window() != sceneManager->window())
+        if (c.window() != sceneManager->window()) {
             qWarning("QSSGObject: Cannot use same item on different windows at the same time.");
+            return;
+        }
+
+        // NOTE: Simple tracking for resources that are shared between scenes.
+        if (&c != sceneManager && QSSGRenderGraphObject::isResource(type))
+            sharedResource = true;
+
         return; // Scene manager already set.
     }
 
@@ -1152,7 +1133,7 @@ void QV4::Heap::QSSGItemWrapper::markObjects(QV4::Heap::Base *that, QV4::MarkSta
 {
     QObjectWrapper *This = static_cast<QObjectWrapper *>(that);
     if (QQuick3DObject *item = static_cast<QQuick3DObject *>(This->object())) {
-        for (QQuick3DObject *child : qAsConst(QQuick3DObjectPrivate::get(item)->childItems))
+        for (QQuick3DObject *child : std::as_const(QQuick3DObjectPrivate::get(item)->childItems))
             QV4::QObjectWrapper::markWrapper(child, markStack);
     }
     QObjectWrapper::markObjects(that, markStack);

@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2020 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2020 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #ifndef QQUICK3DSHADERUTILS_H
 #define QQUICK3DSHADERUTILS_H
@@ -56,15 +30,22 @@ class QQuick3DShaderUtilsShader;
 class QQmlContext;
 
 namespace QSSGShaderUtils {
-QByteArray resolveShader(const QUrl &fileUrl, const QQmlContext *context, QByteArray &shaderPathKey);
+
+using MetaTypeList = QList<QMetaType::Type>;
+using ResolveFunction = bool (*)(const QUrl &url, const QQmlContext *context, QByteArray &shaderData, QByteArray &shaderPathKey);
+Q_QUICK3D_EXPORT void setResolveFunction(ResolveFunction fn);
+Q_QUICK3D_EXPORT QByteArray resolveShader(const QUrl &fileUrl, const QQmlContext *context, QByteArray &shaderPathKey);
+Q_QUICK3D_EXPORT MetaTypeList supportedMetatypes();
+
 
 template<QMetaType::Type>
 struct ShaderType
 {
 };
 
-QByteArray uniformTypeName(QMetaType type);
-QSSGRenderShaderDataType uniformType(QMetaType type);
+Q_QUICK3D_EXPORT QByteArray uniformTypeName(QMetaType type);
+Q_QUICK3D_EXPORT QByteArray uniformTypeName(QSSGRenderShaderDataType type);
+Q_QUICK3D_EXPORT QSSGRenderShaderDataType uniformType(QMetaType type);
 }
 
 class Q_QUICK3D_EXPORT QQuick3DShaderUtilsTextureInput : public QObject
@@ -76,8 +57,8 @@ class Q_QUICK3D_EXPORT QQuick3DShaderUtilsTextureInput : public QObject
     QML_NAMED_ELEMENT(TextureInput)
 
 public:
-    QQuick3DShaderUtilsTextureInput() = default;
-    virtual ~QQuick3DShaderUtilsTextureInput() = default;
+    explicit QQuick3DShaderUtilsTextureInput(QObject *p = nullptr);
+    virtual ~QQuick3DShaderUtilsTextureInput();
     QQuick3DTexture *m_texture = nullptr;
     bool enabled = true;
     QByteArray name;

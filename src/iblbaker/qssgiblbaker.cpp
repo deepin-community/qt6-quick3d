@@ -1,31 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2021 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of Qt Quick 3D.
-**
-** $QT_BEGIN_LICENSE:GPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3 or (at your option) any later version
-** approved by the KDE Free Qt Foundation. The licenses are as published by
-** the Free Software Foundation and appearing in the file LICENSE.GPL3
-** included in the packaging of this file. Please review the following
-** information to ensure the GNU General Public License requirements will
-** be met: https://www.gnu.org/licenses/gpl-3.0.html.
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+// Copyright (C) 2021 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qssgiblbaker_p.h"
 #include <QFile>
@@ -38,6 +12,7 @@
 
 #if QT_CONFIG(opengl)
 #include <QtGui/private/qrhigles2_p.h>
+#include <QOffscreenSurface>
 #include <QOpenGLContext>
 #endif
 #if QT_CONFIG(vulkan)
@@ -64,7 +39,7 @@ static constexpr QSSGRenderTextureFormat FORMAT(QSSGRenderTextureFormat::RGBA16F
 
 const QStringList QSSGIblBaker::inputExtensions() const
 {
-    return { QStringLiteral("hdr") };
+    return { QStringLiteral("hdr"), QStringLiteral("exr")};
 }
 
 const QString QSSGIblBaker::outputExtension() const
@@ -242,11 +217,11 @@ QString renderToKTXFileInternal(const char *name, const QString &inPath, const Q
 
     // Upload the equirectangular texture
     QRhiTextureUploadDescription desc;
-    if (inImage->compressedData.isValid()) {
+    if (inImage->textureFileData.isValid()) {
         desc = { { 0,
                    0,
-                   { inImage->compressedData.data().constData() + inImage->compressedData.dataOffset(0),
-                     int(inImage->compressedData.dataLength(0)) } } };
+                   { inImage->textureFileData.data().constData() + inImage->textureFileData.dataOffset(0),
+                     int(inImage->textureFileData.dataLength(0)) } } };
     } else {
         desc = { { 0, 0, { inImage->data, int(inImage->dataSizeInBytes) } } };
     }
@@ -254,7 +229,7 @@ QString renderToKTXFileInternal(const char *name, const QString &inPath, const Q
     rub->uploadTexture(sourceTexture, desc);
 
     const QSSGRhiSamplerDescription samplerDesc {
-        QRhiSampler::Linear, QRhiSampler::Linear, QRhiSampler::None, QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge
+        QRhiSampler::Linear, QRhiSampler::Linear, QRhiSampler::None, QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge, QRhiSampler::Repeat
     };
     QRhiSampler *sampler = rhiContext->sampler(samplerDesc);
 
@@ -412,7 +387,7 @@ QString renderToKTXFileInternal(const char *name, const QString &inPath, const Q
 
     // Create a new Sampler
     const QSSGRhiSamplerDescription samplerMipMapDesc {
-        QRhiSampler::Linear, QRhiSampler::Linear, QRhiSampler::Linear, QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge
+        QRhiSampler::Linear, QRhiSampler::Linear, QRhiSampler::Linear, QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge, QRhiSampler::Repeat
     };
 
     QRhiSampler *envMapCubeSampler = nullptr;
@@ -425,18 +400,25 @@ QString renderToKTXFileInternal(const char *name, const QString &inPath, const Q
     // Reuse Vertex Buffer from phase 1
     // Reuse UniformBuffer from phase 1 (for vertex shader)
 
-    // UniformBuffer (roughness + resolution)
-    int ubufRoughnessElementSize = rhi->ubufAligned(8);
-    QRhiBuffer *uBufRoughness = rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, ubufRoughnessElementSize * mipmapCount);
-    uBufRoughness->create();
-    uBufRoughness->deleteLater();
+    // UniformBuffer
+    // float roughness;
+    // float resolution;
+    // float lodBias;
+    // int sampleCount;
+    // int distribution;
+
+    int ubufPrefilterElementSize = rhi->ubufAligned(20);
+    QRhiBuffer *uBufPrefilter = rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, ubufPrefilterElementSize * mipmapCount);
+    uBufPrefilter->create();
+    uBufPrefilter->deleteLater();
 
     // Shader Resource Bindings
     QRhiShaderResourceBindings *preFilterSrb = rhi->newShaderResourceBindings();
-    preFilterSrb->setBindings(
-            { QRhiShaderResourceBinding::uniformBufferWithDynamicOffset(0, QRhiShaderResourceBinding::VertexStage, uBuf, 128),
-              QRhiShaderResourceBinding::uniformBufferWithDynamicOffset(2, QRhiShaderResourceBinding::FragmentStage, uBufRoughness, 8),
-              QRhiShaderResourceBinding::sampledTexture(1, QRhiShaderResourceBinding::FragmentStage, envCubeMap, envMapCubeSampler) });
+    preFilterSrb->setBindings({
+                          QRhiShaderResourceBinding::uniformBufferWithDynamicOffset(0, QRhiShaderResourceBinding::VertexStage, uBuf, 128),
+                          QRhiShaderResourceBinding::uniformBufferWithDynamicOffset(2, QRhiShaderResourceBinding::FragmentStage, uBufPrefilter, 20),
+                          QRhiShaderResourceBinding::sampledTexture(1, QRhiShaderResourceBinding::FragmentStage, envCubeMap, envMapCubeSampler)
+                      });
     preFilterSrb->create();
     preFilterSrb->deleteLater();
 
@@ -445,78 +427,49 @@ QString renderToKTXFileInternal(const char *name, const QString &inPath, const Q
     prefilterPipeline->setCullMode(QRhiGraphicsPipeline::Front);
     prefilterPipeline->setFrontFace(QRhiGraphicsPipeline::CCW);
     prefilterPipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
-    prefilterPipeline->setShaderStages({ *prefilterShaderStages->vertexStage(), *prefilterShaderStages->fragmentStage() });
+    prefilterPipeline->setShaderStages({
+                            *prefilterShaderStages->vertexStage(),
+                            *prefilterShaderStages->fragmentStage()
+                        });
     // same as phase 1
     prefilterPipeline->setVertexInputLayout(inputLayout);
     prefilterPipeline->setShaderResourceBindings(preFilterSrb);
     prefilterPipeline->setRenderPassDescriptor(renderPassDescriptorPhase2);
-    if (!prefilterPipeline->create()) {
+    if (!prefilterPipeline->create())
         return QStringLiteral("Failed to create pre-filter env map pipeline state");
-    }
     prefilterPipeline->deleteLater();
-
-    // Load the prefilter shader stages
-    QSSGRef<QSSGRhiShaderPipeline> irradianceShaderStages;
-    if (isRGBE)
-        irradianceShaderStages = shaderCache->loadBuiltinForRhi("environmentmapirradiance_rgbe");
-    else
-        irradianceShaderStages = shaderCache->loadBuiltinForRhi("environmentmapirradiance");
-
-    // Setup Irradiance pipline as well
-
-    QRhiGraphicsPipeline *irradiancePipeline = rhi->newGraphicsPipeline();
-    irradiancePipeline->setCullMode(QRhiGraphicsPipeline::Front);
-    irradiancePipeline->setFrontFace(QRhiGraphicsPipeline::CCW);
-    irradiancePipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
-    irradiancePipeline->setShaderStages({ *irradianceShaderStages->vertexStage(), *irradianceShaderStages->fragmentStage() });
-    QRhiShaderResourceBindings *irradianceSrb = rhi->newShaderResourceBindings();
-    irradianceSrb->setBindings(
-            { QRhiShaderResourceBinding::uniformBufferWithDynamicOffset(0, QRhiShaderResourceBinding::VertexStage, uBuf, 128),
-              QRhiShaderResourceBinding::sampledTexture(1, QRhiShaderResourceBinding::FragmentStage, envCubeMap, sampler) });
-    irradianceSrb->create();
-    irradianceSrb->deleteLater();
-    irradiancePipeline->setShaderResourceBindings(irradianceSrb);
-    irradiancePipeline->setVertexInputLayout(inputLayout);
-    irradiancePipeline->setRenderPassDescriptor(renderPassDescriptorPhase2);
-    if (!irradiancePipeline->create()) {
-        return QStringLiteral("Failed to create irradiance env map pipeline state");
-    }
-    irradiancePipeline->deleteLater();
 
     // Uniform Data
     // set the roughness uniform buffer data
     rub = rhi->nextResourceUpdateBatch();
-    for (int mipLevel = 0; mipLevel < mipmapCount - 1; ++mipLevel) {
+    const float resolution = environmentMapSize.width();
+    const float lodBias = 0.0f;
+    const int sampleCount = 1024;
+    for (int mipLevel = 0; mipLevel < mipmapCount; ++mipLevel) {
         Q_ASSERT(mipmapCount - 2);
         const float roughness = float(mipLevel) / float(mipmapCount - 2);
-        const float resolution = environmentMapSize.width();
-        rub->updateDynamicBuffer(uBufRoughness, mipLevel * ubufRoughnessElementSize, 4, &roughness);
-        rub->updateDynamicBuffer(uBufRoughness, mipLevel * ubufRoughnessElementSize + 4, 4, &resolution);
+        const int distribution = mipLevel == (mipmapCount - 1) ? 0 : 1; // last mip level is for irradiance
+        rub->updateDynamicBuffer(uBufPrefilter, mipLevel * ubufPrefilterElementSize, 4, &roughness);
+        rub->updateDynamicBuffer(uBufPrefilter, mipLevel * ubufPrefilterElementSize + 4, 4, &resolution);
+        rub->updateDynamicBuffer(uBufPrefilter, mipLevel * ubufPrefilterElementSize + 4 + 4, 4, &lodBias);
+        rub->updateDynamicBuffer(uBufPrefilter, mipLevel * ubufPrefilterElementSize + 4 + 4 + 4, 4, &sampleCount);
+        rub->updateDynamicBuffer(uBufPrefilter, mipLevel * ubufPrefilterElementSize + 4 + 4 + 4 + 4, 4, &distribution);
     }
+
     cb->resourceUpdate(rub);
 
     // Render
     for (int mipLevel = 0; mipLevel < mipmapCount; ++mipLevel) {
         for (int face = 0; face < 6; ++face) {
             cb->beginPass(renderTargetsMap[mipLevel][face], QColor(0, 0, 0, 1), { 1.0f, 0 }, nullptr, QSSGRhiContext::commonPassFlags());
-            if (mipLevel < mipmapCount - 1) {
-                // Specular pre-filtered Environment Map levels
-                cb->setGraphicsPipeline(prefilterPipeline);
-                cb->setVertexInput(0, 1, &vbufBinding);
-                cb->setViewport(QRhiViewport(0, 0, mipLevelSizes[mipLevel].width(), mipLevelSizes[mipLevel].height()));
-                QVector<QPair<int, quint32>> dynamicOffsets = { { 0, quint32(ubufElementSize * face) },
-                                                                { 2, quint32(ubufRoughnessElementSize * mipLevel) } };
-                cb->setShaderResources(preFilterSrb, 2, dynamicOffsets.constData());
-            } else {
-                // Diffuse Irradiance
-                cb->setGraphicsPipeline(irradiancePipeline);
-                cb->setVertexInput(0, 1, &vbufBinding);
-                cb->setViewport(QRhiViewport(0, 0, mipLevelSizes[mipLevel].width(), mipLevelSizes[mipLevel].height()));
-                QVector<QPair<int, quint32>> dynamicOffsets = {
-                    { 0, quint32(ubufElementSize * face) },
-                };
-                cb->setShaderResources(irradianceSrb, 1, dynamicOffsets.constData());
-            }
+            cb->setGraphicsPipeline(prefilterPipeline);
+            cb->setVertexInput(0, 1, &vbufBinding);
+            cb->setViewport(QRhiViewport(0, 0, mipLevelSizes[mipLevel].width(), mipLevelSizes[mipLevel].height()));
+            QVector<QPair<int, quint32>> dynamicOffsets = {
+                { 0, quint32(ubufElementSize * face) },
+                { 2, quint32(ubufPrefilterElementSize * mipLevel) }
+            };
+            cb->setShaderResources(preFilterSrb, 2, dynamicOffsets.constData());
             cb->draw(36);
             cb->endPass();
         }
@@ -624,7 +577,7 @@ QString renderToKTXFileInternal(const char *name, const QString &inPath, const Q
 
             // Write imageSize once size is known
             if (imageSize == 0) {
-                imageSize = result.data.length();
+                imageSize = result.data.size();
                 writeUInt32(ktxOutputFile, quint32(imageSize));
             }
 

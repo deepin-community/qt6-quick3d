@@ -182,10 +182,23 @@
             "type": "Boolean"
         },
         "generateLightmapUV": {
-            "name": "Generate lightmap UV channel",
+            "name": "Generate Lightmap UV Channel",
             "description": "Unwrap mesh to generate lightmap UV channel",
             "value": false,
             "type": "Boolean"
+        },
+        "lightmapBaseResolution": {
+            "name": "Lightmap Base Resolution",
+            "description": "Approx. size (width and height) which lightmap images should target.",
+            "value": 1024,
+            "type": "Real",
+            "conditions": [
+                {
+                    "mode": "Equals",
+                    "property": "generateLightmapUV",
+                    "value": true
+                }
+            ]
         }
     },
     "groups": {
@@ -194,6 +207,13 @@
             "items": [
                 "globalScale",
                 "globalScaleValue"
+            ]
+        },
+        "generateLightmapUV": {
+            "name": "Lightmap",
+            "items": [
+                "generateLightmapUV",
+                "lightmapBaseResolution"
             ]
         },
         "removeComponents": {
