@@ -8,12 +8,9 @@
 struct Vertex {
     QVector3D position;
     QVector3D normal;
-
-    QVector3D targetPosition;
-    QVector3D targetNormal;
+    QVector4D color;
 };
 //! [vertex struct]
-Q_STATIC_ASSERT((sizeof(Vertex)/16)*16 == sizeof(Vertex)); // must be  4-float aligned
 
 //! [constructor]
 MorphGeometry::MorphGeometry(QQuick3DObject *parent)
@@ -46,12 +43,13 @@ void MorphGeometry::updateData()
                  QQuick3DGeometry::Attribute::ComponentType::F32Type);
     addAttribute(QQuick3DGeometry::Attribute::NormalSemantic, 3 * sizeof(float),
                  QQuick3DGeometry::Attribute::ComponentType::F32Type);
-
-    addAttribute(QQuick3DGeometry::Attribute::TargetPositionSemantic, 6 * sizeof(float),
-                 QQuick3DGeometry::Attribute::ComponentType::F32Type);
-    addAttribute(QQuick3DGeometry::Attribute::TargetNormalSemantic, 9 * sizeof(float),
+    addAttribute(QQuick3DGeometry::Attribute::ColorSemantic, 6 * sizeof(float),
                  QQuick3DGeometry::Attribute::ComponentType::F32Type);
 
+    addTargetAttribute(0, QQuick3DGeometry::Attribute::PositionSemantic, 0);
+    addTargetAttribute(0, QQuick3DGeometry::Attribute::NormalSemantic, m_targetPositions.size() * sizeof(float) * 3);
+    addTargetAttribute(0, QQuick3DGeometry::Attribute::ColorSemantic,
+                       m_targetPositions.size() * sizeof(float) * 3 + m_targetNormals.size() * sizeof(float) * 3);
     addAttribute(QQuick3DGeometry::Attribute::IndexSemantic, 0,
                  QQuick3DGeometry::Attribute::ComponentType::U32Type);
 
@@ -63,12 +61,15 @@ void MorphGeometry::updateData()
         Vertex &v = vert[i];
         v.position = m_positions[i];
         v.normal = m_normals[i];
-        v.targetPosition = m_targetPositions[i];
-        v.targetNormal = m_targetNormals[i];
+        v.color = m_colors[i];
     }
+    m_targetBuffer.append(QByteArray(reinterpret_cast<char *>(m_targetPositions.data()), m_targetPositions.size() * sizeof(QVector3D)));
+    m_targetBuffer.append(QByteArray(reinterpret_cast<char *>(m_targetNormals.data()), m_targetNormals.size() * sizeof(QVector3D)));
+    m_targetBuffer.append(QByteArray(reinterpret_cast<char *>(m_targetColors.data()), m_targetColors.size() * sizeof(QVector4D)));
 
     setStride(sizeof(Vertex));
     setVertexData(m_vertexBuffer);
+    setTargetData(m_targetBuffer);
     setPrimitiveType(QQuick3DGeometry::PrimitiveType::Triangles);
     setBounds(boundsMin, boundsMax);
 
@@ -90,6 +91,7 @@ void MorphGeometry::calculateGeometry()
     m_indexes.clear();
     m_targetPositions.clear();
     m_targetNormals.clear();
+    m_targetColors.clear();
 
     constexpr float maxFloat = std::numeric_limits<float>::max();
     boundsMin = QVector3D(maxFloat, maxFloat, maxFloat);
@@ -149,6 +151,13 @@ void MorphGeometry::calculateGeometry()
 
             m_targetPositions.append(targetPosition);
             m_targetNormals.append(targetNormal.normalized());
+
+            // Set custom colors for the vertices:
+            const float tmp = (y + 5.0f) / 10.0f;
+            m_colors.append({1.0, tmp, tmp, 1.0f});
+
+            const float ttmp = (ix % (iw / 8)) < 3 ? 0.5 : 1.0;
+            m_targetColors.append({ttmp, ttmp, ttmp, 1.0f});
 
             // Note: We only use the bounds of the target positions since they are strictly
             // bigger than the original

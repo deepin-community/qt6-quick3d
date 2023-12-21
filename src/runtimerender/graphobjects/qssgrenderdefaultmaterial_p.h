@@ -61,9 +61,6 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderDefaultMaterial : QSSGRenderGraph
         A
     };
 
-    // Materials are stored as a linked list on models.
-    QSSGRenderGraphObject *nextSibling = nullptr;
-    QSSGRenderModel *parent = nullptr;
     QSSGRenderImage *colorMap = nullptr;
     // material section
     QSSGRenderImage *iblProbe = nullptr;
@@ -147,6 +144,8 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderDefaultMaterial : QSSGRenderGraph
     void clearDirty();
 
     QSSGShaderMaterialAdapter *adapter = nullptr;
+
+    QString debugObjectName;
 };
 
 QT_END_NAMESPACE

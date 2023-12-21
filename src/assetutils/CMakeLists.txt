@@ -1,8 +1,11 @@
+# Copyright (C) 2022 The Qt Company Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 qt_internal_add_qml_module(Quick3DAssetUtils
     URI "QtQuick3D.AssetUtils"
     VERSION "${PROJECT_VERSION}"
     DESIGNER_SUPPORTED
-    CLASSNAME QtQuick3DAssetUtilsPlugin
+    CLASS_NAME QtQuick3DAssetUtilsPlugin
     PLUGIN_TARGET qtquick3dassetutilsplugin
     DEPENDENCIES
         QtQuick3D/auto
@@ -10,6 +13,7 @@ qt_internal_add_qml_module(Quick3DAssetUtils
         qtquick3dassetutilsglobal_p.h
         qssgscenedesc.cpp qssgscenedesc_p.h
         qssgqmlutilities.cpp qssgqmlutilities_p.h
+        qssgsceneedit.cpp qssgsceneedit_p.h
         qssgrtutilities.cpp qssgrtutilities_p.h
         qquick3druntimeloader.cpp qquick3druntimeloader_p.h
     DEFINES

@@ -4,18 +4,20 @@
 import QtQuick
 import QtQuick.Window
 import QtQuick.Controls
+import QtQuick.Layouts
 
 import Qt.labs.platform
-import Qt.labs.settings
+import QtCore
 
 import QtQuick3D
 import QtQuick3D.Helpers
 import QtQuick3D.AssetUtils
 
 Window {
+    id: windowRoot
     visible: true
-    width: 800
-    height: 600
+    width: 1280
+    height: 720
 
     property url importUrl;
 
@@ -24,17 +26,24 @@ Window {
         id: view3D
         anchors.fill: parent
         environment: SceneEnvironment {
+            id: env
             backgroundMode: SceneEnvironment.SkyBox
             lightProbe: Texture {
                 textureData: ProceduralSkyTextureData{}
+            }
+            InfiniteGrid {
+                visible: helper.gridEnabled
+                gridInterval: helper.gridInterval
             }
         }
 
         camera: helper.orbitControllerEnabled ? orbitCamera : wasdCamera
 
         DirectionalLight {
-            eulerRotation: "-30, -20, -40"
-            ambientColor: "#333"
+            eulerRotation.x: -35
+            eulerRotation.y: -90
+
+            castsShadow: true
         }
 
         Node {
@@ -46,6 +55,20 @@ Window {
 
         PerspectiveCamera {
             id: wasdCamera
+            onPositionChanged: {
+                // Near/far logic copied from OrbitController
+                let distance = position.length()
+                if (distance < 1) {
+                    clipNear = 0.01
+                    clipFar = 100
+                } else if (distance < 100) {
+                    clipNear = 0.1
+                    clipFar = 1000
+                } else {
+                    clipNear = 1
+                    clipFar = 10000
+                }
+            }
         }
 
     //! [base scene]
@@ -74,6 +97,9 @@ Window {
             property vector3d boundsCenter
             property vector3d boundsSize
             property bool orbitControllerEnabled: true
+            property bool gridEnabled: gridButton.checked
+            property real cameraDistance: orbitControllerEnabled ? orbitCamera.z : wasdCamera.position.length()
+            property real gridInterval: Math.pow(10, Math.round(Math.log10(cameraDistance)) - 1)
 
             function updateBounds(bounds) {
                 boundsSize = Qt.vector3d(bounds.maximum.x - bounds.minimum.x,
@@ -83,8 +109,6 @@ Window {
                 boundsCenter = Qt.vector3d((bounds.maximum.x + bounds.minimum.x) / 2,
                                            (bounds.maximum.y + bounds.minimum.y) / 2,
                                            (bounds.maximum.z + bounds.minimum.z) / 2 )
-                console.log("Bounds changed: ", bounds.minimum, bounds.maximum,
-                            " center:", boundsCenter, "diameter:", boundsDiameter)
 
                 wasdController.speed = boundsDiameter / 1000.0
                 wasdController.shiftSpeed = 3 * wasdController.speed
@@ -126,7 +150,7 @@ Window {
         //! [runtimeloader]
         RuntimeLoader {
             id: importNode
-            source: importUrl
+            source: windowRoot.importUrl
             instancing: instancingButton.checked ? instancing : null
             onBoundsChanged: helper.updateBounds(bounds)
         }
@@ -185,36 +209,85 @@ Window {
     }
     //! [camera control]
 
-    Row {
-        RoundButton {
-            id: importButton
-            text: "Import..."
-            onClicked: fileDialog.open()
-            focusPolicy: Qt.NoFocus
-        }
-        RoundButton {
-            id: resetButton
-            text: "Reset view"
-            onClicked: view3D.resetView()
-            focusPolicy: Qt.NoFocus
-        }
-        RoundButton {
-            id: visualizeButton
-            checkable: true
-            text: "Visualize bounds"
-            focusPolicy: Qt.NoFocus
-        }
-        RoundButton {
-            id: instancingButton
-            checkable: true
-            text: "Instancing"
-            focusPolicy: Qt.NoFocus
-        }
-        RoundButton {
-            id: controllerButton
-            text: helper.orbitControllerEnabled ? "Orbit controller" : "WASD controller"
-            onClicked: helper.switchController(!helper.orbitControllerEnabled)
-            focusPolicy: Qt.NoFocus
+    Pane {
+        width: parent.width
+        contentHeight: controlsLayout.implicitHeight
+        RowLayout {
+            id: controlsLayout
+            Button {
+                id: importButton
+                text: "Import..."
+                onClicked: fileDialog.open()
+                focusPolicy: Qt.NoFocus
+            }
+            Button {
+                id: resetButton
+                text: "Reset view"
+                onClicked: view3D.resetView()
+                focusPolicy: Qt.NoFocus
+            }
+            Button {
+                id: visualizeButton
+                checkable: true
+                text: "Visualize bounds"
+                focusPolicy: Qt.NoFocus
+            }
+            Button {
+                id: instancingButton
+                checkable: true
+                text: "Instancing"
+                focusPolicy: Qt.NoFocus
+            }
+            Button {
+                id: gridButton
+                text: "Show grid"
+                focusPolicy: Qt.NoFocus
+                checkable: true
+                checked: false
+            }
+            Button {
+                id: controllerButton
+                text: helper.orbitControllerEnabled ? "Orbit" : "WASD"
+                onClicked: helper.switchController(!helper.orbitControllerEnabled)
+                focusPolicy: Qt.NoFocus
+            }
+            RowLayout {
+                Label {
+                    text: "Material Override"
+                }
+                ComboBox {
+                    id: materialOverrideComboBox
+                    textRole: "text"
+                    valueRole: "value"
+                    implicitContentWidthPolicy: ComboBox.WidestText
+                    onActivated: env.debugSettings.materialOverride = currentValue
+
+                    Component.onCompleted: materialOverrideComboBox.currentIndex = materialOverrideComboBox.indexOfValue(env.debugSettings.materialOverride)
+
+                    model: [
+                        { value: DebugSettings.None, text: "None"},
+                        { value: DebugSettings.BaseColor, text: "Base Color"},
+                        { value: DebugSettings.Roughness, text: "Roughness"},
+                        { value: DebugSettings.Metalness, text: "Metalness"},
+                        { value: DebugSettings.Diffuse, text: "Diffuse"},
+                        { value: DebugSettings.Specular, text: "Specular"},
+                        { value: DebugSettings.ShadowOcclusion, text: "Shadow Occlusion"},
+                        { value: DebugSettings.Emission, text: "Emission"},
+                        { value: DebugSettings.AmbientOcclusion, text: "Ambient Occlusion"},
+                        { value: DebugSettings.Normals, text: "Normals"},
+                        { value: DebugSettings.Tangents, text: "Tangents"},
+                        { value: DebugSettings.Binormals, text: "Binormals"},
+                        { value: DebugSettings.F0, text: "F0"}
+                    ]
+                }
+            }
+            CheckBox {
+                text: "Wireframe"
+                checked: env.debugSettings.wireframeEnabled
+                onCheckedChanged: {
+                    env.debugSettings.wireframeEnabled = checked
+                }
+            }
         }
     }
     FileDialog {
@@ -225,6 +298,29 @@ Window {
             id: fileDialogSettings
             category: "QtQuick3D.Examples.RuntimeLoader"
             property alias folder: fileDialog.folder
+        }
+    }
+
+    Item {
+        width: debugViewToggleText.implicitWidth
+        height: debugViewToggleText.implicitHeight
+        anchors.right: parent.right
+        Label {
+            id: debugViewToggleText
+            text: "Click here " + (dbg.visible ? "to hide DebugView" : "for DebugView")
+            anchors.right: parent.right
+            anchors.top: parent.top
+        }
+        MouseArea {
+            anchors.fill: parent
+            onClicked: dbg.visible = !dbg.visible
+            DebugView {
+                y: debugViewToggleText.height * 2
+                anchors.right: parent.right
+                source: view3D
+                id: dbg
+                visible: false
+            }
         }
     }
 }

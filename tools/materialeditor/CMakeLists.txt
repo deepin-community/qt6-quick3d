@@ -1,23 +1,21 @@
+# Copyright (C) 2022 The Qt Company Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 qt_get_tool_target_name(target_name materialeditor)
+
+set(materialeditor_uri "QtQuick3D.MaterialEditor")
+set(materialeditor_asset_prefix "/qt-project.org/imports/QtQuick3D/MaterialEditor")
+
 qt_internal_add_tool(${target_name}
     TOOLS_TARGET Quick3D
     SOURCES
-        materialadapter.h materialadapter.cpp
-        resourceserver.h resourceserver.cpp
-        resourceclient.h resourceclient.cpp
-        syntaxhighlighter.h syntaxhighlighter.cpp
-        uniformmodel.h uniformmodel.cpp
-        custommaterial.h custommaterial.cpp
-        message.h message.cpp
-        buildmessage.h buildmessage.cpp
         main.cpp
-    PUBLIC_LIBRARIES
+    LIBRARIES
         Qt::Core
         Qt::Gui
         Qt::Quick
         Qt::Quick3D
         Qt::Quick3DUtils
-    LIBRARIES
         Qt::Quick3DGlslParserPrivate
         Qt::Quick3DAssetUtilsPrivate
         Qt::Quick3DRuntimeRenderPrivate
@@ -25,24 +23,9 @@ qt_internal_add_tool(${target_name}
 
 qt_internal_return_unless_building_tools()
 
-qt_internal_add_resource(${target_name} "qml"
-    PREFIX "/"
-    FILES
-        main.qml
-        ShaderEditor.qml
-        EditorView.qml
-        Preview.qml
-        PreviewControls.qml
-        qtquickcontrols2.conf
-        FrostedGlass.qml
-        AboutDialog.qml
-        MaterialPropertiesPane.qml
-        SaveChangesDialog.qml
-        UniformManagerPane.qml
-)
-
 qt_internal_add_resource(${target_name} "assets"
-    PREFIX "/"
+    PREFIX
+        ${materialeditor_asset_prefix}
     FILES
         assets/meshes/suzanne.mesh
         assets/skybox/OpenfootageNET_lowerAustria01-1024.hdr
@@ -57,19 +40,47 @@ qt_internal_add_resource(${target_name} "assets"
         assets/images/noise.png
 )
 
-qt_add_qml_module(${target_name}
+qt_internal_add_qml_module(${target_name}
     VERSION 1.0
-    URI MaterialEditorHelpers
+    URI ${materialeditor_uri}
     SOURCES
         materialadapter.h materialadapter.cpp
         syntaxhighlighter.h syntaxhighlighter.cpp
         uniformmodel.h uniformmodel.cpp
         buildmessage.h buildmessage.cpp
+        materialadapter.h materialadapter.cpp
+        resourceserver.h resourceserver.cpp
+        resourceclient.h resourceclient.cpp
+        syntaxhighlighter.h syntaxhighlighter.cpp
+        uniformmodel.h uniformmodel.cpp
+        custommaterial.h custommaterial.cpp
+        message.h message.cpp
+        buildmessage.h buildmessage.cpp
+    QML_FILES
+        main.qml
+        ShaderEditor.qml
+        EditorView.qml
+        Preview.qml
+        PreviewControls.qml
+        FrostedGlass.qml
+        AboutDialog.qml
+        MaterialPropertiesPane.qml
+        SaveChangesDialog.qml
+        UniformManagerPane.qml
+    NO_PLUGIN
+    IMPORTS
+        QtQuick3D
+)
+
+qt_add_resources(${target_name}
+    PREFIX "/"
+    FILES
+        qtquickcontrols2.conf
 )
 
 qt_add_shaders(${target_name} "shaders"
     PREFIX
-        "/"
+        ${materialeditor_asset_prefix}
     FILES
         "assets/shaders/frostedGlass.frag"
     SILENT

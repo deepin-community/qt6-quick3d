@@ -20,7 +20,9 @@ Window {
         property double modelRotation: 0
         property double modelHeight: 0
 
-        NumberAnimation on modelRotation {
+        NumberAnimation {
+            target: screenSpaceReflectionsView
+            property: "modelRotation"
             running: true
             from: 0
             to: 360
@@ -28,15 +30,19 @@ Window {
             loops: Animation.Infinite
         }
 
-        SequentialAnimation on modelHeight {
+        SequentialAnimation {
             running: true
             loops: Animation.Infinite
             NumberAnimation {
+                target: screenSpaceReflectionsView
+                property: "modelHeight"
                 from: -5
                 to: 20
                 duration: 1000
             }
             NumberAnimation {
+                target: screenSpaceReflectionsView
+                property: "modelHeight"
                 from: 20
                 to: -5
                 duration: 1000
@@ -161,12 +167,6 @@ Window {
         }
     }
 
-    DebugView {
-        anchors.right: parent.right
-        source: screenSpaceReflectionsView
-    }
-
-
     Frame {
         background: Rectangle {
             color: "#c0c0c0"
@@ -256,6 +256,29 @@ Window {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Specular: " + specularSlider.value.toFixed(2);
                 }
+            }
+        }
+    }
+
+    Item {
+        width: debugViewToggleText.implicitWidth
+        height: debugViewToggleText.implicitHeight
+        anchors.right: parent.right
+        Label {
+            id: debugViewToggleText
+            text: "Click here " + (dbg.visible ? "to hide DebugView" : "for DebugView")
+            anchors.right: parent.right
+            anchors.top: parent.top
+        }
+        MouseArea {
+            anchors.fill: parent
+            onClicked: dbg.visible = !dbg.visible
+            DebugView {
+                y: debugViewToggleText.height * 2
+                anchors.right: parent.right
+                source: screenSpaceReflectionsView
+                id: dbg
+                visible: false
             }
         }
     }

@@ -16,6 +16,7 @@
 // We mean it.
 //
 
+#include <QtQuick3DRuntimeRender/private/qtquick3druntimerenderglobal_p.h>
 #include <QtGui/QMatrix4x4>
 #include <QtGui/QVector3D>
 #include <QtQuick3DUtils/private/qssgrenderbasetypes_p.h>
@@ -74,21 +75,23 @@ struct QSSGShadowMapEntry
     QMatrix4x4 m_lightView; ///< light view transform
 };
 
-class QSSGRenderShadowMap
+class Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderShadowMap
 {
     typedef QVector<QSSGShadowMapEntry> TShadowMapEntryList;
+    Q_DISABLE_COPY(QSSGRenderShadowMap)
 
 public:
-    QAtomicInt ref;
     const QSSGRenderContextInterface &m_context;
 
-    QSSGRenderShadowMap(const QSSGRenderContextInterface &inContext);
+    explicit QSSGRenderShadowMap(const QSSGRenderContextInterface &inContext);
     ~QSSGRenderShadowMap();
+    void releaseCachedResources();
 
     void addShadowMapEntry(qint32 lightIdx,
                            qint32 width,
                            qint32 height,
-                           ShadowMapModes mode);
+                           ShadowMapModes mode,
+                           const QString &renderNodeObjName);
 
     QSSGShadowMapEntry *shadowMapEntry(int lightIdx);
 
@@ -97,6 +100,8 @@ public:
 private:
     TShadowMapEntryList m_shadowMapList;
 };
+
+using QSSGRenderShadowMapPtr = std::shared_ptr<QSSGRenderShadowMap>;
 
 QT_END_NAMESPACE
 

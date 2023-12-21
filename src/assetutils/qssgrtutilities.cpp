@@ -18,7 +18,130 @@
 
 QT_BEGIN_NAMESPACE
 
-static void setProperties(QQuick3DObject &obj, const QSSGSceneDesc::Node &node)
+
+// Actually set the property on node->obj, using QMetaProperty::write()
+void QSSGRuntimeUtils::applyPropertyValue(const QSSGSceneDesc::Node *node, QObject *o, QSSGSceneDesc::Property *property)
+{
+    auto *obj = qobject_cast<QQuick3DObject *>(o ? o : node->obj);
+    if (!obj)
+        return;
+
+    auto *metaObj = obj->metaObject();
+    int propertyIndex = metaObj->indexOfProperty(property->name);
+    if (propertyIndex < 0) {
+        qWarning() << "QSSGSceneDesc: could not find property" << property->name << "in" << obj;
+        return;
+    }
+    auto metaProp = metaObj->property(propertyIndex);
+    QVariant value;
+
+    auto metaId = property->value.metaType().id();
+    auto *scene = node->scene;
+
+    if (metaId == qMetaTypeId<QSSGSceneDesc::Node *>()) {
+        const auto *valueNode = qvariant_cast<QSSGSceneDesc::Node *>(property->value);
+        QObject *obj = valueNode ? valueNode->obj : nullptr;
+        value = QVariant::fromValue(obj);
+    } else if (metaId == qMetaTypeId<QSSGSceneDesc::Mesh *>()) { // Special handling for mesh nodes.
+        // Mesh nodes does not have an equivalent in the QtQuick3D scene, but is registered
+        // as a source property in the intermediate scene we therefore need to convert it to
+        // be a usable source url now.
+        const auto meshNode = qvariant_cast<const QSSGSceneDesc::Mesh *>(property->value);
+        const auto url = meshNode ? QUrl(QSSGBufferManager::runtimeMeshSourceName(node->scene->id, meshNode->idx)) : QUrl{};
+        value = QVariant::fromValue(url);
+    } else if (metaId == qMetaTypeId<QUrl>()) {
+        const auto url = qvariant_cast<QUrl>(property->value);
+        // TODO: Use QUrl::resolved() instead??
+        QString workingDir = scene->sourceDir;
+        const QUrl qurl = url.isValid() ? QUrl::fromUserInput(url.path(), workingDir) : QUrl{};
+        value = QVariant::fromValue(qurl);
+    } else if (metaId == qMetaTypeId<QSSGSceneDesc::Flag>() && property->call) {
+        // If we have a QSSGSceneDesc::Flag variant, then it came from setProperty(), and the setter function is defined.
+        const auto flag = qvariant_cast<QSSGSceneDesc::Flag>(property->value);
+        property->call->set(*obj, property->name, flag.value);
+        qDebug() << "Flag special case, probably shouldn't happen" << node->name << property->name << property->value << flag.value;
+        return;
+    } else {
+        value = property->value;
+    }
+
+    if (value.metaType().id() == qMetaTypeId<QString>()) {
+        auto str = value.toString();
+        auto propType = metaProp.metaType();
+        if (propType.id() == qMetaTypeId<QVector3D>()) {
+            QStringList l = str.split(u',');
+            if (l.length() != 3) {
+                qWarning() << "Wrong format for QVector3D:" << str;
+            } else {
+                QVector3D vec3(l.at(0).toFloat(), l.at(1).toFloat(), l.at(2).toFloat());
+                value = QVariant::fromValue(vec3);
+            }
+        } else if (propType.id() == qMetaTypeId<QVector2D>()) {
+            QStringList l = str.split(u',');
+            if (l.length() != 2) {
+                qWarning() << "Wrong format for QVector2D:" << str;
+            } else {
+                QVector2D vec(l.at(0).toFloat(), l.at(1).toFloat());
+                value = QVariant::fromValue(vec);
+            }
+        } else if (propType.id() == qMetaTypeId<QVector4D>()) {
+            QStringList l = str.split(u',');
+            if (l.length() != 2) {
+                qWarning() << "Wrong format for QVector4D:" << str;
+            } else {
+                QVector4D vec(l.at(0).toFloat(), l.at(1).toFloat(), l.at(2).toFloat(), l.at(3).toFloat());
+                value = QVariant::fromValue(vec);
+            }
+        } else if (propType.id() == qMetaTypeId<QQuaternion>()) {
+            QStringList l = str.split(u',');
+            if (l.length() != 4) {
+                qWarning() << "Wrong format for QQuaternion:" << str;
+            } else {
+                QQuaternion quat(l.at(0).toFloat(), l.at(1).toFloat(), l.at(2).toFloat(), l.at(3).toFloat());
+                value = QVariant::fromValue(quat);
+            }
+        } else {
+            // All other strings are supposed to be in QML-compatible format, so they can be written out directly
+        }
+    } else if (value.metaType().id() == qMetaTypeId<QSSGSceneDesc::NodeList*>()) {
+        auto qmlListVar = metaProp.read(obj);
+        // We have to write explicit code for each list property type, since metatype can't
+        // tell us if we have a QQmlListProperty (if we had known, we could have made a naughty
+        // hack and just static_cast to QQmlListProperty<QObject>
+        if (qmlListVar.metaType().id() == qMetaTypeId<QQmlListProperty<QQuick3DMaterial>>()) {
+            auto qmlList = qvariant_cast<QQmlListProperty<QQuick3DMaterial>>(qmlListVar);
+            auto nodeList = qvariant_cast<QSSGSceneDesc::NodeList*>(value);
+            auto head = reinterpret_cast<QSSGSceneDesc::Node **>(nodeList->head);
+
+            for (int i = 0, end = nodeList->count; i != end; ++i)
+                qmlList.append(&qmlList, qobject_cast<QQuick3DMaterial *>((*(head + i))->obj));
+
+        } else {
+            qWarning() << "Can't handle list property type" << qmlListVar.metaType();
+        }
+        return; //In any case, we can't send NodeList to QMetaProperty::write()
+    }
+
+    // qobject_cast doesn't work on nullptr, so we must convert the pointer manually
+    if ((metaProp.metaType().flags() & QMetaType::PointerToQObject) && value.isNull())
+        value.convert(metaProp.metaType()); //This will return false, but convert to the type anyway
+
+    // Q_ENUMS with '|' is explicitly handled, otherwise uses QVariant::convert. This means
+    // we get implicit qobject_cast and string to:
+    //    QMetaType::Bool, QMetaType::QByteArray, QMetaType::QChar, QMetaType::QColor, QMetaType::QDate, QMetaType::QDateTime,
+    //    QMetaType::Double, QMetaType::QFont, QMetaType::Int, QMetaType::QKeySequence, QMetaType::LongLong,
+    //    QMetaType::QStringList, QMetaType::QTime, QMetaType::UInt, QMetaType::ULongLong, QMetaType::QUuid
+
+    bool success = metaProp.write(obj, value);
+
+    if (!success) {
+        qWarning() << "Failure when setting property" << property->name << "to" << property->value << "maps to" << value
+                   << "property metatype:" << metaProp.typeName();
+    }
+}
+
+
+static void setProperties(QQuick3DObject &obj, const QSSGSceneDesc::Node &node, const QString &workingDir = {})
 {
     using namespace QSSGSceneDesc;
     const auto &properties = node.properties;
@@ -26,41 +149,31 @@ static void setProperties(QQuick3DObject &obj, const QSSGSceneDesc::Node &node)
     const auto end = properties.end();
     for (; it != end; ++it) {
         const auto &v = *it;
-        if (v.value.mt.id() == qMetaTypeId<Node *>()) {
-            if (const auto *node = reinterpret_cast<Node *>(v.value.dptr)) {
-                Q_ASSERT(node->obj);
-                v.call->set(obj, v.name, node->obj);
-            }
-        } else if (v.value.mt == QMetaType::fromType<Mesh>()) { // Special handling for mesh nodes.
+        if (!v->call) {
+            QSSGRuntimeUtils::applyPropertyValue(&node, &obj, v);
+            continue;
+        }
+        const auto &var = v->value;
+        if (var.metaType().id() == qMetaTypeId<Node *>()) {
+            const auto *node = qvariant_cast<Node *>(var);
+            v->call->set(obj, v->name, node ? node->obj : nullptr);
+        } else if (var.metaType() == QMetaType::fromType<Mesh *>()) { // Special handling for mesh nodes.
             // Mesh nodes does not have an equivalent in the QtQuick3D scene, but is registered
             // as a source property in the intermediate scene we therefore need to convert it to
             // be a usable source url now.
-            if (const auto meshNode = reinterpret_cast<const Mesh *>(v.value.dptr)) {
-                const auto url = QUrl(QSSGBufferManager::runtimeMeshSourceName(node.scene->id, meshNode->idx));
-                v.call->set(obj, v.name, &url);
-            }
-        } else if (v.value.mt == QMetaType::fromType<BufferView>()) {
-            if (const auto buffer = reinterpret_cast<const BufferView *>(v.value.dptr)) {
-                const QByteArray qbuffer = buffer->view.toByteArray();
-                v.call->set(obj, v.name, &qbuffer);
-            }
-        } else if (v.value.mt == QMetaType::fromType<UrlView>()) {
-            if (const auto url = reinterpret_cast<const UrlView *>(v.value.dptr)) {
-                const QUrl qurl = QUrl::fromUserInput(QString::fromUtf8(url->view));
-                v.call->set(obj, v.name, &qurl);
-            }
-        } else if (v.value.mt == QMetaType::fromType<StringView>()) {
-            if (const auto string = reinterpret_cast<const StringView *>(v.value.dptr)) {
-                const QString qstring(QString::fromUtf8(string->view));
-                v.call->set(obj, v.name, &qstring);
-            }
-        } else if (v.value.mt.id() == qMetaTypeId<QSSGSceneDesc::Flag>()) {
-            if (const auto flag = reinterpret_cast<const QSSGSceneDesc::Flag *>(v.value.dptr)) {
-                const int qflag(flag->value);
-                v.call->set(obj, v.name, &qflag);
-            }
+            const auto meshNode = qvariant_cast<const Mesh *>(var);
+            const auto url = meshNode ? QUrl(QSSGBufferManager::runtimeMeshSourceName(node.scene->id, meshNode->idx)) : QUrl{};
+            v->call->set(obj, v->name, &url);
+        } else if (var.metaType() == QMetaType::fromType<QUrl>()) {
+            const auto url = qvariant_cast<QUrl>(var);
+            // TODO: Use QUrl::resolved() instead
+            const QUrl qurl = url.isValid() ? QUrl::fromUserInput(url.toString(), workingDir) : QUrl{};
+            v->call->set(obj, v->name, &qurl);
+        } else if (var.metaType().id() == qMetaTypeId<QSSGSceneDesc::Flag>()) {
+            const auto flag = qvariant_cast<QSSGSceneDesc::Flag>(var);
+            v->call->set(obj, v->name, flag.value);
         } else {
-            v.call->set(obj, v.name, v.value.dptr);
+            v->call->set(obj, v->name, var);
         }
     }
 }
@@ -94,9 +207,9 @@ QQuick3DTextureData *createRuntimeObject<QQuick3DTextureData>(QSSGSceneDesc::Tex
         if (!texData.isEmpty()) {
             QImage image;
             if (isCompressed) {
-                QByteArray data = texData.toByteArray();
+                QByteArray data = texData;
                 QBuffer readBuffer(&data);
-                QImageReader imageReader(&readBuffer);
+                QImageReader imageReader(&readBuffer, node.fmt);
                 image = imageReader.read();
                 if (image.isNull())
                     qWarning() << imageReader.errorString();
@@ -134,16 +247,23 @@ QQuick3DTextureData *createRuntimeObject<QQuick3DTextureData>(QSSGSceneDesc::Tex
     return obj;
 }
 
+
+// Resources may refer to other resources and/or nodes, so we first generate all the resources without setting properties,
+// then all the nodes with properties, and finally we set properties for the resources
+// TODO: split this into different functions
+
 void QSSGRuntimeUtils::createGraphObject(QSSGSceneDesc::Node &node,
-                                         QList<QSSGSceneDesc::Node *> &deferredNodes,
-                                         QQuick3DObject &parent, bool traverse)
+                                         QQuick3DObject &parent, bool traverseChildrenAndSetProperties)
 {
     using namespace QSSGSceneDesc;
 
     QQuick3DObject *obj = nullptr;
     switch (node.nodeType) {
     case Node::Type::Skeleton:
-        // NOTE: The skeleton is special as it's a resource and a node, the parent is
+        // Skeleton is a resource that also needs to be in the node tree. We don't do that anymore.
+        qWarning("Skeleton runtime import not supported");
+
+        // NOTE: The skeleton is special as it's a resource and a node, the
         // hierarchical parent is therefore important here.
         if (!node.obj) {// 1st Phase : 'create Resources'
             obj = createRuntimeObject<QQuick3DSkeleton>(static_cast<Skeleton &>(node), parent);
@@ -158,9 +278,6 @@ void QSSGRuntimeUtils::createGraphObject(QSSGSceneDesc::Node &node,
         break;
     case Node::Type::Skin:
         obj = createRuntimeObject<QQuick3DSkin>(static_cast<Skin &>(node), parent);
-        // We will update it's properties later because a property, joints,
-        // is required for other nodes to be completed before
-        deferredNodes.push_back(&node);
         break;
     case Node::Type::MorphTarget:
         obj = createRuntimeObject<QQuick3DMorphTarget>(static_cast<MorphTarget &>(node), parent);
@@ -211,8 +328,6 @@ void QSSGRuntimeUtils::createGraphObject(QSSGSceneDesc::Node &node,
     {
         if (node.runtimeType == Node::RuntimeType::PrincipledMaterial)
             obj = createRuntimeObject<QQuick3DPrincipledMaterial>(static_cast<Material &>(node), parent);
-        else if (node.runtimeType == Node::RuntimeType::DefaultMaterial)
-            obj = createRuntimeObject<QQuick3DDefaultMaterial>(static_cast<Material &>(node), parent);
         else if (node.runtimeType == Node::RuntimeType::CustomMaterial)
             obj = createRuntimeObject<QQuick3DCustomMaterial>(static_cast<Material &>(node), parent);
         else if (node.runtimeType == Node::RuntimeType::SpecularGlossyMaterial)
@@ -227,33 +342,36 @@ void QSSGRuntimeUtils::createGraphObject(QSSGSceneDesc::Node &node,
         break;
     }
 
-    if (obj && traverse) {
-        if (node.nodeType != Node::Type::Skin)
-            setProperties(*obj, node);
-
+    if (obj && traverseChildrenAndSetProperties) {
+        setProperties(*obj, node);
         for (auto &chld : node.children)
-            createGraphObject(chld, deferredNodes, *obj);
+            createGraphObject(*chld, *obj);
     }
 }
 
 QQuick3DNode *QSSGRuntimeUtils::createScene(QQuick3DNode &parent, const QSSGSceneDesc::Scene &scene)
 {
-    Q_ASSERT(scene.root);
+    if (!scene.root) {
+        qWarning("Incomplete scene description (missing plugin?)");
+        return nullptr;
+    }
+
     Q_ASSERT(QQuick3DObjectPrivate::get(&parent)->sceneManager);
 
     QSSGBufferManager::registerMeshData(scene.id, scene.meshStorage);
 
-    QList<QSSGSceneDesc::Node *> deferredNodes;
     auto root = scene.root;
     for (const auto &resource : scene.resources)
-        createGraphObject(*resource, deferredNodes, parent, false);
+        createGraphObject(*resource, parent, false);
 
-    createGraphObject(*root, deferredNodes, parent);
+    createGraphObject(*root, parent);
 
     // Some resources such as Skin have properties related with the node
-    // heirarchy. They will be deferred to be set
-    for (const auto &deferred: deferredNodes)
-        setProperties(static_cast<QQuick3DObject &>(*deferred->obj), *deferred);
+    // hierarchy. Therefore, resources are handled after nodes.
+    for (const auto &resource : scene.resources) {
+        if (resource->obj != nullptr) // A mesh node has no runtime object.
+            setProperties(static_cast<QQuick3DObject &>(*resource->obj), *resource, scene.sourceDir);
+    }
 
     // Usually it makes sense to only enable 1 timeline at a time
     // so for now we just enable the first one.

@@ -1,3 +1,6 @@
+# Copyright (C) 2022 The Qt Company Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 # Generated from shadergen.pro.
 
 #####################################################################
@@ -11,7 +14,7 @@ qt_internal_add_tool(${target_name}
         genshaders.cpp genshaders.h
         main.cpp
         parser.cpp parser.h
-    PUBLIC_LIBRARIES
+    LIBRARIES
         Qt::Gui
         Qt::GuiPrivate
         Qt::Qml
@@ -19,5 +22,6 @@ qt_internal_add_tool(${target_name}
         Qt::Quick3DPrivate
         Qt::Quick3DRuntimeRender
         Qt::Quick3DRuntimeRenderPrivate
+        Qt::ShaderToolsPrivate
 )
 qt_internal_return_unless_building_tools()

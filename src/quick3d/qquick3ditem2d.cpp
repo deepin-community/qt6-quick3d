@@ -11,6 +11,8 @@
 #include <QtQuick3DRuntimeRender/private/qssgrenderitem2d_p.h>
 #include "qquick3dnode_p_p.h"
 
+#include <QtGui/rhi/qrhi.h>
+
 QT_BEGIN_NAMESPACE
 
 /*
@@ -57,7 +59,7 @@ void QQuick3DItem2D::addChildItem(QQuickItem *item)
 {
     item->setParent(m_contentItem);
     item->setParentItem(m_contentItem);
-    connect(item, SIGNAL(destroyed(QObject*)), this, SLOT(sourceItemDestroyed(QObject*)));
+    QQuickItemPrivate::get(item)->addItemChangeListener(this, QQuickItemPrivate::ChangeType::Destroyed);
     connect(item, &QQuickItem::enabledChanged, this, &QQuick3DItem2D::updatePicking);
     connect(item, &QQuickItem::visibleChanged, this, &QQuick3DItem2D::updatePicking);
     m_sourceItems.append(item);
@@ -66,6 +68,8 @@ void QQuick3DItem2D::addChildItem(QQuickItem *item)
 void QQuick3DItem2D::removeChildItem(QQuickItem *item)
 {
     m_sourceItems.removeOne(item);
+    if (item)
+        QQuickItemPrivate::get(item)->removeItemChangeListener(this, QQuickItemPrivate::ChangeType::Destroyed);
     if (m_sourceItems.isEmpty())
         emit allChildrenRemoved();
     else
@@ -77,11 +81,9 @@ QQuickItem *QQuick3DItem2D::contentItem() const
     return m_contentItem;
 }
 
-void QQuick3DItem2D::sourceItemDestroyed(QObject *item)
+void QQuick3DItem2D::itemDestroyed(QQuickItem *item)
 {
-    disconnect(item, SIGNAL(destroyed(QObject*)), this, SLOT(sourceItemDestroyed(QObject*)));
-    auto quickItem = static_cast<QQuickItem*>(item);
-    removeChildItem(quickItem);
+    removeChildItem(item);
 }
 
 void QQuick3DItem2D::invalidated()
@@ -103,11 +105,11 @@ QSSGRenderGraphObject *QQuick3DItem2D::updateSpatialNode(QSSGRenderGraphObject *
 {
     auto *sourceItemPrivate = QQuickItemPrivate::get(m_contentItem);
     QQuickWindow *window = m_contentItem->window();
+
     if (!window) {
         const auto &manager = QQuick3DObjectPrivate::get(this)->sceneManager;
         window = manager->window();
     }
-
 
     if (!node) {
         markAllDirty();
@@ -126,19 +128,9 @@ QSSGRenderGraphObject *QQuick3DItem2D::updateSpatialNode(QSSGRenderGraphObject *
 
     if (!m_renderer) {
         m_renderer = rc->createRenderer(QSGRendererInterface::RenderMode3D);
-        connect(window, SIGNAL(sceneGraphInvalidated()), this, SLOT(invalidated()), Qt::DirectConnection);
-        connect(
-                m_renderer,
-                &QSGAbstractRenderer::sceneGraphChanged,
-                this,
-                [this]() {
-                    if (m_updatingRendererNode)
-                        return;
-                    // direct connection when rendering is on the main thread, queued with
-                    // the threaded render loop
-                    QMetaObject::invokeMethod(this, &QQuick3DObject::update);
-                },
-                Qt::DirectConnection);
+        connect(window, &QQuickWindow::sceneGraphInvalidated, this, &QQuick3DItem2D::invalidated, Qt::DirectConnection);
+        connect(m_renderer, &QSGAbstractRenderer::sceneGraphChanged, this, &QQuick3DObject::update);
+
         // item2D rendernode has its own render pass descriptor and it should
         // be removed before deleting rhi context.
         // Otherwise, rhi will complain about the unreleased resource.
@@ -149,19 +141,24 @@ QSSGRenderGraphObject *QQuick3DItem2D::updateSpatialNode(QSSGRenderGraphObject *
                 [this]() {
                     auto itemNode = static_cast<QSSGRenderItem2D *>(QQuick3DObjectPrivate::get(this)->spatialNode);
                     if (itemNode) {
-                        itemNode->m_rp->deleteLater();
-                        itemNode->m_rp = nullptr;
+                        if (itemNode->m_rp) {
+                            itemNode->m_rp->deleteLater();
+                            itemNode->m_rp = nullptr;
+                        }
                     }
                 },
                 Qt::DirectConnection);
     }
-    // Do not mark this object dirty on m_renderer->nodeChanged(). Otherwise we would end up
-    // with constantly updating even when the 2D contents do not change.
-    m_updatingRendererNode = true;
-    m_renderer->setRootNode(m_rootNode);
-    m_rootNode->markDirty(QSGNode::DirtyForceUpdate); // Force matrix, clip and opacity update.
-    m_renderer->nodeChanged(m_rootNode, QSGNode::DirtyForceUpdate); // Force render list update.
-    m_updatingRendererNode = false;
+
+    {
+        // Block the sceneGraphChanged() signal. Calling nodeChanged() will emit the sceneGraphChanged()
+        // signal, which is connected to the update() slot to mark the object dirty, which could cause
+        // and constant update even if the 2D content doesn't change.
+        QSignalBlocker blocker(m_renderer);
+        m_renderer->setRootNode(m_rootNode);
+        m_rootNode->markDirty(QSGNode::DirtyForceUpdate); // Force matrix, clip and opacity update.
+        m_renderer->nodeChanged(m_rootNode, QSGNode::DirtyForceUpdate); // Force render list update.
+    }
 
     if (m_pickingDirty) {
         m_pickingDirty = false;
@@ -177,12 +174,6 @@ QSSGRenderGraphObject *QQuick3DItem2D::updateSpatialNode(QSSGRenderGraphObject *
     }
 
     itemNode->m_renderer = m_renderer;
-    if (m_sceneManagerValid) {
-        if (itemNode->m_rci != QQuick3DObjectPrivate::get(this)->sceneManager->rci)
-            itemNode->m_rci = QQuick3DObjectPrivate::get(this)->sceneManager->rci;
-    } else {
-        itemNode->m_rci = nullptr;
-    }
 
     return node;
 }
@@ -192,24 +183,13 @@ void QQuick3DItem2D::markAllDirty()
     QQuick3DNode::markAllDirty();
 }
 
-void QQuick3DItem2D::itemChange(QQuick3DObject::ItemChange change, const QQuick3DObject::ItemChangeData &value)
-{
-    QQuick3DNode::itemChange(change, value);
-    if (change == QQuick3DObject::ItemSceneChange) {
-        if (value.sceneManager)
-            m_sceneManagerValid = true;
-        else
-            m_sceneManagerValid = false;
-        markAllDirty();
-    }
-}
-
 void QQuick3DItem2D::preSync()
 {
     const auto &manager = QQuick3DObjectPrivate::get(this)->sceneManager;
     auto *sourcePrivate = QQuickItemPrivate::get(m_contentItem);
     auto *window = manager->window();
     if (m_window != window) {
+        update(); // Just schedule an upate immediately.
         if (m_window) {
             disconnect(m_window, SIGNAL(destroyed(QObject*)), this, SLOT(derefWindow(QObject*)));
             sourcePrivate->derefWindow();

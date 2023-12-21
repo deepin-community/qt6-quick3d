@@ -25,7 +25,16 @@
 
 /*!
     \qmlproperty QUrl HeightFieldGeometry::heightMap
-    This property defines the URL of the heightMap.
+    \obsolete
+
+    This property defines the URL of the height map image.
+
+    Use \l HeightFieldGeometry::source instead.
+*/
+
+/*!
+    \qmlproperty QUrl HeightFieldGeometry::source
+    This property defines the URL of the height map image.
 */
 
 /*!
@@ -33,7 +42,7 @@
     This property defines whether the height map is shown with smooth shading
     or with hard angles between the squares of the map.
 
-    The default value is \c true, meaning smooth scaling is turned on.
+    The default value is \c true, meaning smooth shading is turned on.
 */
 
 
@@ -42,21 +51,21 @@ HeightFieldGeometry::HeightFieldGeometry()
     updateData();
 }
 
-const QUrl &HeightFieldGeometry::heightMap() const
+const QUrl &HeightFieldGeometry::source() const
 {
     return m_heightMapSource;
 }
 
-void HeightFieldGeometry::setHeightMap(const QUrl &newHeightMap)
+void HeightFieldGeometry::setSource(const QUrl &newSource)
 {
-    if (m_heightMapSource == newHeightMap)
+    if (m_heightMapSource == newSource)
         return;
-    m_heightMapSource = newHeightMap;
+    m_heightMapSource = newSource;
 
     updateData();
     update();
 
-    emit heightMapChanged();
+    emit sourceChanged();
 }
 
 bool HeightFieldGeometry::smoothShading() const

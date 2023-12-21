@@ -6,11 +6,13 @@
 #include <assimputils.h>
 
 #include <QtCore/qurl.h>
+#include <QtCore/qbytearrayalgorithms.h>
 #include <QtGui/QQuaternion>
 
 #include <QtQuick3DAssetImport/private/qssgassetimporterfactory_p.h>
 #include <QtQuick3DAssetImport/private/qssgassetimporter_p.h>
 #include <QtQuick3DAssetUtils/private/qssgscenedesc_p.h>
+#include <QtQuick3DAssetUtils/private/qssgsceneedit_p.h>
 
 // ASSIMP INC
 #include <assimp/Importer.hpp>
@@ -45,17 +47,10 @@ Q_REQUIRED_RESULT static inline QColor aiColorToQColor(const aiColor4D &color)
     return QColor::fromRgbF(color.r, color.g, color.b, color.a);
 }
 
-static QByteArrayView fromAiString(QSSGSceneDesc::Scene::Allocator &allocator, const aiString &string)
+static QByteArray fromAiString(const aiString &string)
 {
     const qsizetype length = string.length;
-    if (length > 0) {
-        const qsizetype asize = length + 1;
-        char *data = reinterpret_cast<char *>(allocator.allocate(asize));
-        qstrncpy(data, string.data, length + 1);
-        return QByteArrayView{data, length};
-    }
-
-    return QByteArrayView();
+    return QByteArray(string.data, length);
 }
 
 struct NodeInfo
@@ -98,7 +93,7 @@ bool operator==(const TextureInfo &a, const TextureInfo &b)
 
 struct TextureEntry
 {
-    QByteArrayView name;
+    QByteArray name;
     TextureInfo info;
     QSSGSceneDesc::Texture *texture = nullptr;
 };
@@ -122,17 +117,22 @@ bool operator==(const TextureEntry &a, const TextureEntry &b)
 
 struct SceneInfo
 {
-    enum class GltfVersion : quint8
+    struct Options
     {
-        Unknown,
-        v1,
-        v2
-    };
+        bool gltfMode = false;
+        bool fbxMode = false;
+        bool binaryKeyframes = false;
+        bool forceMipMapGeneration = false;
+        bool useFloatJointIndices = false;
+        bool generateLightmapUV = false;
+        bool designStudioWorkarounds = false;
 
-    enum Options
-    {
-        None,
-        generateMipMaps = 0x1
+        int lightmapBaseResolution = 1024;
+        float globalScaleValue = 1.0;
+
+        bool generateMeshLODs = false;
+        float lodNormalMergeAngle = 60.0;
+        float lodNormalSplitAngle = 25.0;
     };
 
     using MaterialMap = QVarLengthArray<QPair<const aiMaterial *, QSSGSceneDesc::Material *>>;
@@ -156,19 +156,24 @@ struct SceneInfo
     SkinMap &skinMap;
     Mesh2SkinMap &mesh2skin;
     QDir workingDir;
-    GltfVersion ver;
     Options opt;
 };
 
 static void setNodeProperties(QSSGSceneDesc::Node &target,
                               const aiNode &source,
+                              const SceneInfo &sceneInfo,
                               aiMatrix4x4 *transformCorrection)
 {
     // objectName
     if (target.name.isNull())
-        target.name = fromAiString(target.scene->allocator, source.mName);
+        target.name = fromAiString(source.mName);
 
-    const aiMatrix4x4 &transformMatrix = source.mTransformation;
+    // Apply correction if necessary
+    aiMatrix4x4 transformMatrix;
+    if (transformCorrection)
+        transformMatrix = source.mTransformation * *transformCorrection;
+    else
+        transformMatrix = source.mTransformation;
 
     // Decompose Transform Matrix to get properties
     aiVector3D scaling;
@@ -176,17 +181,15 @@ static void setNodeProperties(QSSGSceneDesc::Node &target,
     aiVector3D translation;
     transformMatrix.Decompose(scaling, rotation, translation);
 
-    // Apply correction if necessary
-    // transformCorrection is just for cameras and lights
-    // and its factor just contains rotation.
-    // In this case, this rotation will replace previous rotation.
-    if (transformCorrection) {
-        aiVector3D dummyTrans;
-        transformCorrection->DecomposeNoScaling(rotation, dummyTrans);
+    // translate
+    if (!sceneInfo.opt.designStudioWorkarounds) {
+        QSSGSceneDesc::setProperty(target, "position", &QQuick3DNode::setPosition, QVector3D { translation.x, translation.y, translation.z });
+    } else {
+        QSSGSceneDesc::setProperty(target, "x", &QQuick3DNode::setX, translation.x);
+        QSSGSceneDesc::setProperty(target, "y", &QQuick3DNode::setY, translation.y);
+        QSSGSceneDesc::setProperty(target, "z", &QQuick3DNode::setZ, translation.z);
     }
 
-    // translate
-    QSSGSceneDesc::setProperty(target, "position", &QQuick3DNode::setPosition, QVector3D { translation.x, translation.y, translation.z });
 
     // rotation
     const QQuaternion rot(rotation.w, rotation.x, rotation.y, rotation.z);
@@ -203,7 +206,7 @@ static void setNodeProperties(QSSGSceneDesc::Node &target,
 
 static void setTextureProperties(QSSGSceneDesc::Texture &target, const TextureInfo &texInfo, const SceneInfo &sceneInfo)
 {
-    const bool forceMipMapGeneration = (sceneInfo.opt & SceneInfo::Options::generateMipMaps);
+    const bool forceMipMapGeneration = sceneInfo.opt.forceMipMapGeneration;
 
     if (texInfo.uvIndex > 0) {
         // Quick3D supports 2 tex coords.
@@ -242,7 +245,7 @@ static void setTextureProperties(QSSGSceneDesc::Texture &target, const TextureIn
     QSSGSceneDesc::setProperty(target, "tilingModeHorizontal", &QQuick3DTexture::setHorizontalTiling, asQtTilingMode(texInfo.modes[0]));
 
     // mapping mode V
-    QSSGSceneDesc::setProperty(target, "tilingModeVertical", &QQuick3DTexture::setHorizontalTiling, asQtTilingMode(texInfo.modes[1]));
+    QSSGSceneDesc::setProperty(target, "tilingModeVertical", &QQuick3DTexture::setVerticalTiling, asQtTilingMode(texInfo.modes[1]));
 
     const bool applyUvTransform = !isEqual(texInfo.transform, aiUVTransform());
     if (applyUvTransform) {
@@ -257,12 +260,15 @@ static void setTextureProperties(QSSGSceneDesc::Texture &target, const TextureIn
         float rotationUV = qRadiansToDegrees(rotation);
         float posU = transform.mTranslation.x;
         float posV = transform.mTranslation.y;
-        {
+        if (sceneInfo.opt.gltfMode) {
             const float rcos = std::cos(rotation);
             const float rsin = std::sin(rotation);
             posU -= 0.5f * transform.mScaling.x * (-rcos + rsin + 1.0f);
             posV -= (0.5f * transform.mScaling.y * (rcos + rsin - 1.0f) + 1.0f - transform.mScaling.y);
             QSSGSceneDesc::setProperty(target, "pivotV", &QQuick3DTexture::setPivotV, 1.0f);
+        } else {
+            QSSGSceneDesc::setProperty(target, "pivotU", &QQuick3DTexture::setPivotV, 0.5f);
+            QSSGSceneDesc::setProperty(target, "pivotV", &QQuick3DTexture::setPivotV, 0.5f);
         }
 
         QSSGSceneDesc::setProperty(target, "positionU", &QQuick3DTexture::setPositionU, posU);
@@ -281,30 +287,32 @@ static void setTextureProperties(QSSGSceneDesc::Texture &target, const TextureIn
     bool generateMipMaps = forceMipMapGeneration;
     auto mipFilter = forceMipMapGeneration ? QQuick3DTexture::Filter::Linear : QQuick3DTexture::Filter::None;
 
-    if (sceneInfo.ver == SceneInfo::GltfVersion::v2) {
-        // magFilter
-        auto filter = (texInfo.magFilter == AI_GLTF_FILTER_NEAREST) ? QQuick3DTexture::Filter::Nearest : QQuick3DTexture::Filter::Linear;
-        QSSGSceneDesc::setProperty(target, "magFilter", &QQuick3DTexture::setMagFilter, filter);
+    // magFilter
+    auto filter = (texInfo.magFilter == AI_GLTF_FILTER_NEAREST) ? QQuick3DTexture::Filter::Nearest : QQuick3DTexture::Filter::Linear;
+    QSSGSceneDesc::setProperty(target, "magFilter", &QQuick3DTexture::setMagFilter, filter);
 
-        // minFilter
-        if (texInfo.magFilter == AI_GLTF_FILTER_NEAREST) {
-            filter = QQuick3DTexture::Filter::Nearest;
-        } else if (texInfo.magFilter == AI_GLTF_FILTER_NEAREST_MIPMAP_NEAREST) {
-            filter = QQuick3DTexture::Filter::Nearest;
-            mipFilter = QQuick3DTexture::Filter::Nearest;
-        } else if (texInfo.magFilter == AI_GLTF_FILTER_LINEAR_MIPMAP_NEAREST) {
-            mipFilter = QQuick3DTexture::Filter::Nearest;
-        } else if (texInfo.magFilter == AI_GLTF_FILTER_NEAREST_MIPMAP_LINEAR) {
-            filter = QQuick3DTexture::Filter::Nearest;
-            mipFilter = QQuick3DTexture::Filter::Linear;
-        } else if (texInfo.magFilter == AI_GLTF_FILTER_LINEAR_MIPMAP_LINEAR) {
-            mipFilter = QQuick3DTexture::Filter::Linear;
-        }
-        QSSGSceneDesc::setProperty(target, "minFilter", &QQuick3DTexture::setMinFilter, filter);
-
-        // mipFilter
-        generateMipMaps = (mipFilter != QQuick3DTexture::Filter::None);
+    // minFilter
+    if (texInfo.minFilter == AI_GLTF_FILTER_NEAREST) {
+        filter = QQuick3DTexture::Filter::Nearest;
+    } else if (texInfo.minFilter == AI_GLTF_FILTER_LINEAR) {
+        filter = QQuick3DTexture::Filter::Linear;
+    } else if (texInfo.minFilter == AI_GLTF_FILTER_NEAREST_MIPMAP_NEAREST) {
+        filter = QQuick3DTexture::Filter::Nearest;
+        mipFilter = QQuick3DTexture::Filter::Nearest;
+    } else if (texInfo.minFilter == AI_GLTF_FILTER_LINEAR_MIPMAP_NEAREST) {
+        filter = QQuick3DTexture::Filter::Linear;
+        mipFilter = QQuick3DTexture::Filter::Nearest;
+    } else if (texInfo.minFilter == AI_GLTF_FILTER_NEAREST_MIPMAP_LINEAR) {
+        filter = QQuick3DTexture::Filter::Nearest;
+        mipFilter = QQuick3DTexture::Filter::Linear;
+    } else if (texInfo.minFilter == AI_GLTF_FILTER_LINEAR_MIPMAP_LINEAR) {
+        filter = QQuick3DTexture::Filter::Linear;
+        mipFilter = QQuick3DTexture::Filter::Linear;
     }
+    QSSGSceneDesc::setProperty(target, "minFilter", &QQuick3DTexture::setMinFilter, filter);
+
+    // mipFilter
+    generateMipMaps = (mipFilter != QQuick3DTexture::Filter::None);
 
     if (generateMipMaps) {
         QSSGSceneDesc::setProperty(target, "generateMipmaps", &QQuick3DTexture::setGenerateMipmaps, true);
@@ -316,7 +324,7 @@ static void setMaterialProperties(QSSGSceneDesc::Material &target, const aiMater
 {
     if (target.name.isNull()) {
         aiString materialName = source.GetName();
-        target.name = fromAiString(target.scene->allocator, materialName);
+        target.name = fromAiString(materialName);
     }
 
     const auto createTextureNode = [&sceneInfo, &target](const aiMaterial &material, aiTextureType textureType, unsigned int index) {
@@ -325,73 +333,64 @@ static void setMaterialProperties(QSSGSceneDesc::Material &target, const aiMater
         aiString texturePath;
         TextureInfo texInfo;
 
-        auto &scene = target.scene;
-
         if (material.GetTexture(textureType, index, &texturePath, &texInfo.mapping, &texInfo.uvIndex, nullptr, nullptr, texInfo.modes) == aiReturn_SUCCESS) {
             if (texturePath.length > 0) {
                 aiUVTransform transform;
                 if (material.Get(AI_MATKEY_UVTRANSFORM(textureType, index), transform) == aiReturn_SUCCESS)
                     texInfo.transform = transform;
 
-                if (sceneInfo.ver == SceneInfo::GltfVersion::v2) {
-                    material.Get(AI_MATKEY_UVWSRC(textureType, index), texInfo.uvIndex);
-                    material.Get(AI_MATKEY_GLTF_MAPPINGFILTER_MIN(textureType, index), texInfo.minFilter);
-                    material.Get(AI_MATKEY_GLTF_MAPPINGFILTER_MAG(textureType, index), texInfo.magFilter);
-                }
+                material.Get(AI_MATKEY_UVWSRC(textureType, index), texInfo.uvIndex);
+                material.Get(AI_MATKEY_GLTF_MAPPINGFILTER_MIN(textureType, index), texInfo.minFilter);
+                material.Get(AI_MATKEY_GLTF_MAPPINGFILTER_MAG(textureType, index), texInfo.magFilter);
 
                 auto &textureMap = sceneInfo.textureMap;
 
+                QByteArray texName = QByteArray(texturePath.C_Str(), texturePath.length);
                 // Check if we already processed this texture
-                const auto it = textureMap.constFind(TextureEntry{QByteArrayView{texturePath.C_Str(), qsizetype(texturePath.length)}, texInfo});
+                const auto it = textureMap.constFind(TextureEntry{texName, texInfo});
                 if (it != textureMap.cend()) {
                     Q_ASSERT(it->texture);
                     tex = it->texture;
                 } else {
                     // Two types, externally referenced or embedded
-                    tex = scene->create<QSSGSceneDesc::Texture>(QSSGSceneDesc::Texture::RuntimeType::Image2D);
-                    // NOTE: We need a persistent zero terminated string!
-                    textureMap.insert(TextureEntry{fromAiString(scene->allocator, texturePath), texInfo, tex});
-
+                    // Use the source file name as the identifier, since that will hopefully be fairly stable for re-import.
+                    tex = new QSSGSceneDesc::Texture(QSSGSceneDesc::Texture::RuntimeType::Image2D, texName);
+                    textureMap.insert(TextureEntry{fromAiString(texturePath), texInfo, tex});
                     QSSGSceneDesc::addNode(target, *tex);
                     setTextureProperties(*tex, texInfo, sceneInfo); // both
-                    const bool isEmbedded = (*texturePath.C_Str() == '*');
-                    if (isEmbedded) {
+
+                    auto aEmbeddedTex = srcScene.GetEmbeddedTextureAndIndex(texturePath.C_Str());
+                    const auto &embeddedTexId = aEmbeddedTex.second;
+                    if (embeddedTexId > -1) {
                         QSSGSceneDesc::TextureData *textureData = nullptr;
                         auto &embeddedTextures = sceneInfo.embeddedTextureMap;
-                        const auto textureCount = embeddedTextures.size();
-                        const auto &filename = texturePath.data;
-                        const auto idx = qsizetype(std::atoi(filename + 1));
-                        if (idx >= 0 && idx < textureCount)
-                            textureData = embeddedTextures[idx];
-
+                        textureData = embeddedTextures[embeddedTexId];
                         if (!textureData) {
-                            if (auto sourceTexture = srcScene.GetEmbeddedTexture(texturePath.C_Str())) {
-                                Q_ASSERT(sourceTexture->pcData);
-                                // Two cases of embedded textures, uncompress and compressed.
-                                const bool isCompressed = (sourceTexture->mHeight == 0);
+                            const auto *sourceTexture = aEmbeddedTex.first;
+                            Q_ASSERT(sourceTexture->pcData);
+                            // Two cases of embedded textures, uncompress and compressed.
+                            const bool isCompressed = (sourceTexture->mHeight == 0);
 
-                                // For compressed textures this is the size of the image buffer (in bytes)
-                                const qsizetype asize = (isCompressed) ? sourceTexture->mWidth : (sourceTexture->mHeight * sourceTexture->mWidth) * sizeof(aiTexel);
-                                auto *data = scene->allocator.allocate(asize);
-                                ::memcpy(data, sourceTexture->pcData, asize);
-                                const QSize size = (!isCompressed) ? QSize(int(sourceTexture->mWidth), int(sourceTexture->mHeight)) : QSize();
-                                QByteArrayView imageData { reinterpret_cast<const char *>(data), asize };
-                                const auto format = QSSGSceneDesc::TextureData::Format::RGBA8;
-                                const quint8 flags = isCompressed ? quint8(QSSGSceneDesc::TextureData::Flags::Compressed) : 0;
-                                textureData = scene->create<QSSGSceneDesc::TextureData>(imageData, size, format, flags);
-                                QSSGSceneDesc::addNode(*tex, *textureData);
-                                Q_ASSERT(idx >= 0 && idx < textureCount);
-                                embeddedTextures[idx] = textureData;
-                            }
+                            // For compressed textures this is the size of the image buffer (in bytes)
+                            const qsizetype asize = (isCompressed) ? sourceTexture->mWidth : (sourceTexture->mHeight * sourceTexture->mWidth) * sizeof(aiTexel);
+                            const QSize size = (!isCompressed) ? QSize(int(sourceTexture->mWidth), int(sourceTexture->mHeight)) : QSize();
+                            QByteArray imageData { reinterpret_cast<const char *>(sourceTexture->pcData), asize };
+                            const auto format = (isCompressed) ? QByteArray(sourceTexture->achFormatHint) : QByteArrayLiteral("rgba8888");
+                            const quint8 flags = isCompressed ? quint8(QSSGSceneDesc::TextureData::Flags::Compressed) : 0;
+                            textureData = new QSSGSceneDesc::TextureData(imageData, size, format, flags);
+                            QSSGSceneDesc::addNode(*tex, *textureData);
+                            embeddedTextures[embeddedTexId] = textureData;
                         }
 
                         if (textureData)
                             QSSGSceneDesc::setProperty(*tex, "textureData", &QQuick3DTexture::setTextureData, textureData);
                     } else {
-                        const auto path = sceneInfo.workingDir.absoluteFilePath(QString::fromUtf8(texturePath.C_Str())).toUtf8();
-                        char *data = reinterpret_cast<char *>(scene->allocator.allocate(path.size() + 1));
-                        qstrncpy(data, path.constData(), path.size() + 1);
-                        QSSGSceneDesc::setProperty(*tex, "source", &QQuick3DTexture::setSource, QSSGSceneDesc::UrlView{ { QByteArrayView{data, path.size()} } });
+                        auto relativePath = QString::fromUtf8(texturePath.C_Str());
+                        // Replace Windows separator to Unix separator
+                        // so that assets including Windows relative path can be converted on Unix.
+                        relativePath.replace("\\","/");
+                        const auto path = sceneInfo.workingDir.absoluteFilePath(relativePath);
+                        QSSGSceneDesc::setProperty(*tex, "source", &QQuick3DTexture::setSource, QUrl{ path });
                     }
                 }
             }
@@ -406,13 +405,24 @@ static void setMaterialProperties(QSSGSceneDesc::Material &target, const aiMater
         {
             aiColor4D baseColorFactor;
             result = source.Get(AI_MATKEY_BASE_COLOR, baseColorFactor);
-            if (result == aiReturn_SUCCESS)
+            if (result == aiReturn_SUCCESS) {
                 QSSGSceneDesc::setProperty(target, "baseColor", &QQuick3DPrincipledMaterial::setBaseColor, aiColorToQColor(baseColorFactor));
+
+            } else {
+                // Also try diffuse color as a fallback
+                aiColor3D diffuseColor;
+                result = source.Get(AI_MATKEY_COLOR_DIFFUSE, diffuseColor);
+                if (result == aiReturn_SUCCESS)
+                    QSSGSceneDesc::setProperty(target, "baseColor", &QQuick3DPrincipledMaterial::setBaseColor, aiColorToQColor(diffuseColor));
+            }
         }
 
         if (auto baseColorTexture = createTextureNode(source, AI_MATKEY_BASE_COLOR_TEXTURE)) {
             QSSGSceneDesc::setProperty(target, "baseColorMap", &QQuick3DPrincipledMaterial::setBaseColorMap, baseColorTexture);
             QSSGSceneDesc::setProperty(target, "opacityChannel", &QQuick3DPrincipledMaterial::setOpacityChannel, QQuick3DPrincipledMaterial::TextureChannelMapping::A);
+        } else if (auto diffuseMapTexture = createTextureNode(source, aiTextureType_DIFFUSE, 0)) {
+            // Also try to legacy diffuse texture as an alternative
+            QSSGSceneDesc::setProperty(target, "baseColorMap", &QQuick3DPrincipledMaterial::setBaseColorMap, diffuseMapTexture);
         }
 
         if (auto metalicRoughnessTexture = createTextureNode(source, AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE)) {
@@ -487,8 +497,12 @@ static void setMaterialProperties(QSSGSceneDesc::Material &target, const aiMater
                 else if (QByteArrayView(alphaMode.C_Str()) == "BLEND")
                     mode = QQuick3DPrincipledMaterial::AlphaMode::Blend;
 
-                if (mode != QQuick3DPrincipledMaterial::AlphaMode::Default)
+                if (mode != QQuick3DPrincipledMaterial::AlphaMode::Default) {
                     QSSGSceneDesc::setProperty(target, "alphaMode", &QQuick3DPrincipledMaterial::setAlphaMode, mode);
+                    // If the mode is mask, we also need to force OpaquePrePassDepthDraw mode
+                    if (mode == QQuick3DPrincipledMaterial::AlphaMode::Mask)
+                        QSSGSceneDesc::setProperty(target, "depthDrawMode", &QQuick3DPrincipledMaterial::setDepthDrawMode, QQuick3DMaterial::OpaquePrePassDepthDraw);
+                }
             }
         }
 
@@ -755,8 +769,12 @@ static void setMaterialProperties(QSSGSceneDesc::Material &target, const aiMater
                 else if (QByteArrayView(alphaMode.C_Str()) == "BLEND")
                     mode = QQuick3DSpecularGlossyMaterial::AlphaMode::Blend;
 
-                if (mode != QQuick3DSpecularGlossyMaterial::AlphaMode::Default)
+                if (mode != QQuick3DSpecularGlossyMaterial::AlphaMode::Default) {
                     QSSGSceneDesc::setProperty(target, "alphaMode", &QQuick3DSpecularGlossyMaterial::setAlphaMode, mode);
+                    // If the mode is mask, we also need to force OpaquePrePassDepthDraw mode
+                    if (mode == QQuick3DSpecularGlossyMaterial::AlphaMode::Mask)
+                    QSSGSceneDesc::setProperty(target, "depthDrawMode", &QQuick3DSpecularGlossyMaterial::setDepthDrawMode, QQuick3DMaterial::OpaquePrePassDepthDraw);
+                }
             }
         }
 
@@ -880,7 +898,7 @@ static void setMaterialProperties(QSSGSceneDesc::Material &target, const aiMater
     }
 }
 
-static void setCameraProperties(QSSGSceneDesc::Camera &target, const aiCamera &source, const aiNode &sourceNode)
+static void setCameraProperties(QSSGSceneDesc::Camera &target, const aiCamera &source, const aiNode &sourceNode, const SceneInfo &sceneInfo)
 {
     using namespace QSSGSceneDesc;
 
@@ -892,20 +910,33 @@ static void setCameraProperties(QSSGSceneDesc::Camera &target, const aiCamera &s
     // the case we have to do additional transform
     aiMatrix4x4 correctionMatrix;
     bool needsCorrection = false;
-    if (source.mLookAt != aiVector3D(0, 0, -1)) {
-        aiMatrix4x4 lookAtCorrection;
-        aiMatrix4x4::FromToMatrix(aiVector3D(0, 0, -1), source.mLookAt, lookAtCorrection);
-        correctionMatrix *= lookAtCorrection;
+
+    // Workaround For FBX,
+    // assimp has a problem to set properties, mLookAt ans mUp
+    // and it takes too much time for correction.
+    // Quick3D will ignore these value and just use
+    // the initial differences between FBX and Quick3D.
+    if (sceneInfo.opt.fbxMode) {
+        aiMatrix4x4::RotationY(ai_real(M_PI / 2), correctionMatrix);
         needsCorrection = true;
-    }
-    if (source.mUp != aiVector3D(0, 1, 0)) {
-        aiMatrix4x4 upCorrection;
-        aiMatrix4x4::FromToMatrix(aiVector3D(0, 1, 0), source.mUp, upCorrection);
-        correctionMatrix *= upCorrection;
-        needsCorrection = true;
+    } else {
+        aiVector3D upQuick3D = aiVector3D(0, 1, 0);
+        if (source.mLookAt != aiVector3D(0, 0, -1)) {
+            aiMatrix4x4 lookAtCorrection;
+            aiMatrix4x4::FromToMatrix(aiVector3D(0, 0, -1), source.mLookAt, lookAtCorrection);
+            correctionMatrix *= lookAtCorrection;
+            needsCorrection = true;
+            upQuick3D *= lookAtCorrection;
+        }
+        if (source.mUp != upQuick3D) {
+            aiMatrix4x4 upCorrection;
+            aiMatrix4x4::FromToMatrix(upQuick3D, source.mUp, upCorrection);
+            correctionMatrix = upCorrection * correctionMatrix;
+            needsCorrection = true;
+        }
     }
 
-    setNodeProperties(target, sourceNode, needsCorrection ? &correctionMatrix : nullptr);
+    setNodeProperties(target, sourceNode, sceneInfo, needsCorrection ? &correctionMatrix : nullptr);
 
     // clipNear and clipFar
     if (target.runtimeType == Node::RuntimeType::PerspectiveCamera) {
@@ -943,7 +974,7 @@ static void setCameraProperties(QSSGSceneDesc::Camera &target, const aiCamera &s
     // frustomScaleY
 }
 
-static void setLightProperties(QSSGSceneDesc::Light &target, const aiLight &source, const aiNode &sourceNode)
+static void setLightProperties(QSSGSceneDesc::Light &target, const aiLight &source, const aiNode &sourceNode, const SceneInfo &sceneInfo)
 {
     // We assume that the direction vector for a light is (0, 0, -1)
     // so if the direction vector is non-null, but not (0, 0, -1) we
@@ -975,7 +1006,7 @@ static void setLightProperties(QSSGSceneDesc::Light &target, const aiLight &sour
 
     target.runtimeType = asQtLightType(source.mType);
 
-    setNodeProperties(target, sourceNode, needsCorrection ? &correctionMatrix : nullptr);
+    setNodeProperties(target, sourceNode, sceneInfo, needsCorrection ? &correctionMatrix : nullptr);
 
     // brightness
     // Assimp has no property related to brightness or intensity.
@@ -1075,7 +1106,7 @@ static void setModelProperties(QSSGSceneDesc::Model &target, const aiNode &sourc
     auto &targetScene = target.scene;
     const auto &srcScene = sceneInfo.scene;
     // TODO: Correction and scale
-    setNodeProperties(target, source, nullptr);
+    setNodeProperties(target, source, sceneInfo, nullptr);
 
     auto &meshStorage = targetScene->meshStorage;
     auto &materialMap = sceneInfo.materialMap;
@@ -1085,9 +1116,6 @@ static void setModelProperties(QSSGSceneDesc::Model &target, const aiNode &sourc
 
     QVarLengthArray<QSSGSceneDesc::Material *> materials;
     materials.reserve(source.mNumMeshes); // Assumig there's max one material per mesh.
-
-    const auto materialType = (sceneInfo.ver == SceneInfo::GltfVersion::v1) ? QSSGSceneDesc::Material::RuntimeType::DefaultMaterial
-                                                                            : QSSGSceneDesc::Material::RuntimeType::PrincipledMaterial;
 
     QString errorString;
 
@@ -1099,15 +1127,13 @@ static void setModelProperties(QSSGSceneDesc::Model &target, const aiNode &sourc
         if (targetMat == nullptr) {
             const aiMaterial *sourceMat = material.first;
 
-            auto currentMaterialType = materialType;
-            if (currentMaterialType == QSSGSceneDesc::Material::RuntimeType::PrincipledMaterial) {
-                ai_real glossinessFactor;
-                aiReturn result = sourceMat->Get(AI_MATKEY_GLOSSINESS_FACTOR, glossinessFactor);
-                if (result == aiReturn_SUCCESS)
-                    currentMaterialType = QSSGSceneDesc::Material::RuntimeType::SpecularGlossyMaterial;
-            }
+            auto currentMaterialType = QSSGSceneDesc::Material::RuntimeType::PrincipledMaterial;
+            ai_real glossinessFactor;
+            aiReturn result = sourceMat->Get(AI_MATKEY_GLOSSINESS_FACTOR, glossinessFactor);
+            if (result == aiReturn_SUCCESS)
+                currentMaterialType = QSSGSceneDesc::Material::RuntimeType::SpecularGlossyMaterial;
 
-            targetMat = targetScene->create<QSSGSceneDesc::Material>(currentMaterialType);
+            targetMat = new QSSGSceneDesc::Material(currentMaterialType);
             QSSGSceneDesc::addNode(target, *targetMat);
             setMaterialProperties(*targetMat, *sourceMat, sceneInfo, currentMaterialType);
             material.second = targetMat;
@@ -1142,12 +1168,18 @@ static void setModelProperties(QSSGSceneDesc::Model &target, const aiNode &sourc
     };
 
     const auto createMeshNode = [&](const aiString &name) {
-        auto meshData = AssimpUtils::generateMeshData(srcScene, meshes, false, errorString);
+        auto meshData = AssimpUtils::generateMeshData(srcScene,
+                                                      meshes,
+                                                      sceneInfo.opt.useFloatJointIndices,
+                                                      sceneInfo.opt.generateMeshLODs,
+                                                      sceneInfo.opt.lodNormalMergeAngle,
+                                                      sceneInfo.opt.lodNormalSplitAngle,
+                                                      errorString);
         meshStorage.push_back(std::move(meshData));
 
         const auto idx = meshStorage.size() - 1;
         // For multimeshes we'll use the model name, but for single meshes we'll use the mesh name.
-        return targetScene->create<QSSGSceneDesc::Mesh>(fromAiString(targetScene->allocator, name), idx);
+        return new QSSGSceneDesc::Mesh(fromAiString(name), idx);
     };
 
     QSSGSceneDesc::Mesh *meshNode = nullptr;
@@ -1175,11 +1207,11 @@ static void setModelProperties(QSSGSceneDesc::Model &target, const aiNode &sourc
     }
 
     if (meshNode)
-        QSSGSceneDesc::setProperty(target, "source", &QQuick3DModel::setSource, QSSGSceneDesc::Value{ QMetaType::fromType<QSSGSceneDesc::Mesh>(), meshNode });
+        QSSGSceneDesc::setProperty(target, "source", &QQuick3DModel::setSource, QVariant::fromValue(meshNode));
 
     if (skinIdx != -1) {
         auto &skin = skinMap[skinIdx];
-        skin.node = targetScene->create<QSSGSceneDesc::Skin>();
+        skin.node = new QSSGSceneDesc::Skin;
         QSSGSceneDesc::setProperty(target, "skin", &QQuick3DModel::setSkin, skin.node);
         QSSGSceneDesc::addNode(target, *skin.node);
         // Skins' properties wil be set after all the nodes are processed
@@ -1197,7 +1229,6 @@ static QSSGSceneDesc::Node *createSceneNode(const NodeInfo &nodeInfo,
                                             QSSGSceneDesc::Node &parent,
                                             const SceneInfo &sceneInfo)
 {
-    auto &targetScene = parent.scene;
     QSSGSceneDesc::Node *node = nullptr;
     const auto &srcScene = sceneInfo.scene;
     switch (nodeInfo.type) {
@@ -1205,9 +1236,9 @@ static QSSGSceneDesc::Node *createSceneNode(const NodeInfo &nodeInfo,
     {
         const auto &srcType = *srcScene.mCameras[nodeInfo.index];
         // We set the initial rt-type to 'Custom', but we'll change it when updateing the properties.
-        auto targetType = targetScene->create<QSSGSceneDesc::Camera>(QSSGSceneDesc::Node::RuntimeType::CustomCamera);
+        auto targetType = new QSSGSceneDesc::Camera(QSSGSceneDesc::Node::RuntimeType::CustomCamera);
         QSSGSceneDesc::addNode(parent, *targetType);
-        setCameraProperties(*targetType, srcType, srcNode);
+        setCameraProperties(*targetType, srcType, srcNode, sceneInfo);
         node = targetType;
     }
         break;
@@ -1215,15 +1246,15 @@ static QSSGSceneDesc::Node *createSceneNode(const NodeInfo &nodeInfo,
     {
         const auto &srcType = *srcScene.mLights[nodeInfo.index];
         // Initial type is DirectonalLight, but will be change (if needed) when setting the properties.
-        auto targetType = targetScene->create<QSSGSceneDesc::Light>(QSSGSceneDesc::Node::RuntimeType::DirectionalLight);
+        auto targetType = new QSSGSceneDesc::Light(QSSGSceneDesc::Node::RuntimeType::DirectionalLight);
         QSSGSceneDesc::addNode(parent, *targetType);
-        setLightProperties(*targetType, srcType, srcNode);
+        setLightProperties(*targetType, srcType, srcNode, sceneInfo);
         node = targetType;
     }
         break;
     case QSSGSceneDesc::Node::Type::Model:
     {
-        auto target = targetScene->create<QSSGSceneDesc::Model>();
+        auto target = new QSSGSceneDesc::Model;
         QSSGSceneDesc::addNode(parent, *target);
         setModelProperties(*target, srcNode, sceneInfo);
         node = target;
@@ -1231,19 +1262,19 @@ static QSSGSceneDesc::Node *createSceneNode(const NodeInfo &nodeInfo,
         break;
     case QSSGSceneDesc::Node::Type::Joint:
     {
-        auto target = targetScene->create<QSSGSceneDesc::Joint>();
+        auto target = new QSSGSceneDesc::Joint;
         QSSGSceneDesc::addNode(parent, *target);
-        setNodeProperties(*target, srcNode, nullptr);
+        setNodeProperties(*target, srcNode, sceneInfo, nullptr);
         QSSGSceneDesc::setProperty(*target, "index", &QQuick3DJoint::setIndex, qint32(nodeInfo.index));
         node = target;
     }
         break;
     case QSSGSceneDesc::Node::Type::Transform:
     {
-        node = targetScene->create<QSSGSceneDesc::Node>(QSSGSceneDesc::Node::Type::Transform, QSSGSceneDesc::Node::RuntimeType::Node);
+        node = new QSSGSceneDesc::Node(QSSGSceneDesc::Node::Type::Transform, QSSGSceneDesc::Node::RuntimeType::Node);
         QSSGSceneDesc::addNode(parent, *node);
         // TODO: arguments for correction
-        setNodeProperties(*node, srcNode, nullptr);
+        setNodeProperties(*node, srcNode, sceneInfo, nullptr);
     }
         break;
     default:
@@ -1270,14 +1301,13 @@ static void processNode(const SceneInfo &sceneInfo, const aiNode &source, QSSGSc
         }
         node = createSceneNode(NodeInfo { 0, QSSGSceneDesc::Node::Type::Model }, source, parent, sceneInfo);
         if (!morphProps.isEmpty()) {
-            auto &targetScene = parent.scene;
             const QString nodeName(source.mName.C_Str());
             QVarLengthArray<QSSGSceneDesc::MorphTarget *> morphTargets;
             morphTargets.reserve(morphProps.size());
             for (int i = 0, end = morphProps.size(); i != end; ++i) {
                 const auto morphProp = morphProps.at(i);
 
-                auto morphNode = targetScene->create<QSSGSceneDesc::MorphTarget>();
+                auto morphNode = new QSSGSceneDesc::MorphTarget;
                 QSSGSceneDesc::addNode(*node, *morphNode);
                 QSSGSceneDesc::setProperty(*morphNode, "weight", &QQuick3DMorphTarget::setWeight, morphProp.second);
                 QSSGSceneDesc::setProperty(*morphNode, "attributes", &QQuick3DMorphTarget::setAttributes, morphProp.first);
@@ -1335,10 +1365,196 @@ static QSSGSceneDesc::Animation::KeyPosition toAnimationKey(const aiMeshMorphKey
     return QSSGSceneDesc::Animation::KeyPosition { QVector4D{ float(key.mWeights[morphId]), 0.0f, 0.0f, 0.0f }, float(key.mTime * freq), flag };
 }
 
-static QString importImp(const QUrl &url, const QVariantMap &options, QSSGSceneDesc::Scene &targetScene)
+static bool checkBooleanOption(const QString &optionName, const QJsonObject &options)
 {
-    Q_UNUSED(options);
+    const auto it = options.constFind(optionName);
+    const auto end = options.constEnd();
+    QJsonValue value;
+    if (it != end) {
+        if (it->isObject())
+            value = it->toObject().value("value");
+        else
+            value = it.value();
+    }
+    return value.toBool();
+}
 
+static qreal getRealOption(const QString &optionName, const QJsonObject &options)
+{
+    const auto it = options.constFind(optionName);
+    const auto end = options.constEnd();
+    QJsonValue value;
+    if (it != end) {
+        if (it->isObject())
+            value = it->toObject().value("value");
+        else
+            value = it.value();
+    }
+
+    return value.toDouble();
+}
+
+#define demonPostProcessPresets ( \
+    aiProcess_CalcTangentSpace              |  \
+    aiProcess_GenSmoothNormals              |  \
+    aiProcess_JoinIdenticalVertices         |  \
+    aiProcess_ImproveCacheLocality          |  \
+    aiProcess_RemoveRedundantMaterials      |  \
+    aiProcess_SplitLargeMeshes              |  \
+    aiProcess_Triangulate                   |  \
+    aiProcess_GenUVCoords                   |  \
+    aiProcess_SortByPType                   |  \
+    aiProcess_FindDegenerates               |  \
+    aiProcess_FindInvalidData               |  \
+    0 )
+
+static aiPostProcessSteps processOptions(const QJsonObject &optionsObject, std::unique_ptr<Assimp::Importer> &importer) {
+    aiPostProcessSteps postProcessSteps = aiPostProcessSteps(aiProcess_Triangulate | aiProcess_SortByPType);;
+
+    // Setup import settings based given options
+    // You can either pass the whole options object, or just the "options" object
+    // so get the right scope.
+    QJsonObject options = optionsObject;
+
+    if (auto it = options.constFind("options"), end = options.constEnd(); it != end)
+        options = it->toObject();
+
+    if (options.isEmpty())
+        return postProcessSteps;
+
+    // parse the options list for values
+
+    if (checkBooleanOption(QStringLiteral("calculateTangentSpace"), options))
+        postProcessSteps = aiPostProcessSteps(postProcessSteps | aiProcess_CalcTangentSpace);
+
+    if (checkBooleanOption(QStringLiteral("joinIdenticalVertices"), options))
+        postProcessSteps = aiPostProcessSteps(postProcessSteps | aiProcess_JoinIdenticalVertices);
+
+    if (checkBooleanOption(QStringLiteral("generateNormals"), options))
+        postProcessSteps = aiPostProcessSteps(postProcessSteps | aiProcess_GenNormals);
+
+    if (checkBooleanOption(QStringLiteral("generateSmoothNormals"), options))
+        postProcessSteps = aiPostProcessSteps(postProcessSteps | aiProcess_GenSmoothNormals);
+
+    if (checkBooleanOption(QStringLiteral("splitLargeMeshes"), options))
+        postProcessSteps = aiPostProcessSteps(postProcessSteps | aiProcess_SplitLargeMeshes);
+
+    if (checkBooleanOption(QStringLiteral("preTransformVertices"), options))
+        postProcessSteps = aiPostProcessSteps(postProcessSteps | aiProcess_PreTransformVertices);
+
+    if (checkBooleanOption(QStringLiteral("improveCacheLocality"), options))
+        postProcessSteps = aiPostProcessSteps(postProcessSteps | aiProcess_ImproveCacheLocality);
+
+    if (checkBooleanOption(QStringLiteral("removeRedundantMaterials"), options))
+        postProcessSteps = aiPostProcessSteps(postProcessSteps | aiProcess_RemoveRedundantMaterials);
+
+    if (checkBooleanOption(QStringLiteral("fixInfacingNormals"), options))
+        postProcessSteps = aiPostProcessSteps(postProcessSteps | aiProcess_FixInfacingNormals);
+
+    if (checkBooleanOption(QStringLiteral("findDegenerates"), options))
+        postProcessSteps = aiPostProcessSteps(postProcessSteps | aiProcess_FindDegenerates);
+
+    if (checkBooleanOption(QStringLiteral("findInvalidData"), options))
+        postProcessSteps = aiPostProcessSteps(postProcessSteps | aiProcess_FindInvalidData);
+
+    if (checkBooleanOption(QStringLiteral("transformUVCoordinates"), options))
+        postProcessSteps = aiPostProcessSteps(postProcessSteps | aiProcess_TransformUVCoords);
+
+    if (checkBooleanOption(QStringLiteral("findInstances"), options))
+        postProcessSteps = aiPostProcessSteps(postProcessSteps | aiProcess_FindInstances);
+
+    if (checkBooleanOption(QStringLiteral("optimizeMeshes"), options))
+        postProcessSteps = aiPostProcessSteps(postProcessSteps | aiProcess_OptimizeMeshes);
+
+    if (checkBooleanOption(QStringLiteral("optimizeGraph"), options))
+        postProcessSteps = aiPostProcessSteps(postProcessSteps | aiProcess_OptimizeGraph);
+
+    if (checkBooleanOption(QStringLiteral("dropNormals"), options))
+        postProcessSteps = aiPostProcessSteps(postProcessSteps | aiProcess_DropNormals);
+
+    aiComponent removeComponents = aiComponent(0);
+
+    if (checkBooleanOption(QStringLiteral("removeComponentNormals"), options))
+        removeComponents = aiComponent(removeComponents | aiComponent_NORMALS);
+
+    if (checkBooleanOption(QStringLiteral("removeComponentTangentsAndBitangents"), options))
+        removeComponents = aiComponent(removeComponents | aiComponent_TANGENTS_AND_BITANGENTS);
+
+    if (checkBooleanOption(QStringLiteral("removeComponentColors"), options))
+        removeComponents = aiComponent(removeComponents | aiComponent_COLORS);
+
+    if (checkBooleanOption(QStringLiteral("removeComponentUVs"), options))
+        removeComponents = aiComponent(removeComponents | aiComponent_TEXCOORDS);
+
+    if (checkBooleanOption(QStringLiteral("removeComponentBoneWeights"), options))
+        removeComponents = aiComponent(removeComponents | aiComponent_BONEWEIGHTS);
+
+    if (checkBooleanOption(QStringLiteral("removeComponentAnimations"), options))
+        removeComponents = aiComponent(removeComponents | aiComponent_ANIMATIONS);
+
+    if (checkBooleanOption(QStringLiteral("removeComponentTextures"), options))
+        removeComponents = aiComponent(removeComponents | aiComponent_TEXTURES);
+
+    if (removeComponents != aiComponent(0)) {
+        postProcessSteps = aiPostProcessSteps(postProcessSteps | aiProcess_RemoveComponent);
+        importer->SetPropertyInteger(AI_CONFIG_PP_RVC_FLAGS, removeComponents);
+    }
+
+    bool preservePivots = checkBooleanOption(QStringLiteral("fbxPreservePivots"), options);
+    importer->SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, preservePivots);
+
+    return postProcessSteps;
+}
+
+static SceneInfo::Options processSceneOptions(const QJsonObject &optionsObject) {
+    SceneInfo::Options sceneOptions;
+
+    // Setup import settings based given options
+    // You can either pass the whole options object, or just the "options" object
+    // so get the right scope.
+    QJsonObject options = optionsObject;
+
+    if (auto it = options.constFind("options"), end = options.constEnd(); it != end)
+        options = it->toObject();
+
+    if (options.isEmpty())
+        return sceneOptions;
+
+    if (checkBooleanOption(QStringLiteral("globalScale"), options)) {
+        sceneOptions.globalScaleValue = getRealOption(QStringLiteral("globalScaleValue"), options);
+        if (sceneOptions.globalScaleValue == 0.0)
+            sceneOptions.globalScaleValue = 1.0;
+    }
+
+    sceneOptions.designStudioWorkarounds = checkBooleanOption(QStringLiteral("designStudioWorkarounds"), options);
+    sceneOptions.useFloatJointIndices = checkBooleanOption(QStringLiteral("useFloatJointIndices"), options);
+    sceneOptions.forceMipMapGeneration = checkBooleanOption(QStringLiteral("generateMipMaps"), options);
+    sceneOptions.binaryKeyframes = checkBooleanOption(QStringLiteral("useBinaryKeyframes"), options);
+
+    sceneOptions.generateLightmapUV = checkBooleanOption(QStringLiteral("generateLightmapUV"), options);
+    if (sceneOptions.generateLightmapUV) {
+        qreal v = getRealOption(QStringLiteral("lightmapBaseResolution"), options);
+        sceneOptions.lightmapBaseResolution = v == 0.0 ? 1024 : int(v);
+    }
+
+    sceneOptions.generateMeshLODs = checkBooleanOption(QStringLiteral("generateMeshLevelsOfDetail"), options);
+    if (sceneOptions.generateMeshLODs) {
+        bool recalculateLODNormals = checkBooleanOption(QStringLiteral("recalculateLodNormals"), options);
+        if (recalculateLODNormals) {
+            qreal mergeAngle = getRealOption(QStringLiteral("recalculateLodNormalsMergeAngle"), options);
+            sceneOptions.lodNormalMergeAngle = qBound(0.0, mergeAngle, 270.0);
+            qreal splitAngle = getRealOption(QStringLiteral("recalculateLodNormalsSplitAngle"), options);
+            sceneOptions.lodNormalSplitAngle = qBound(0.0, splitAngle, 270.0);
+        } else {
+            sceneOptions.lodNormalMergeAngle = 0.0;
+            sceneOptions.lodNormalSplitAngle = 0.0;
+        }
+    }
+    return sceneOptions;
+}
+
+static QString importImp(const QUrl &url, const QJsonObject &options, QSSGSceneDesc::Scene &targetScene)
+{
     auto filePath = url.path();
 
     const bool maybeLocalFile = (url.scheme().isEmpty() || url.isLocalFile());
@@ -1348,49 +1564,26 @@ static QString importImp(const QUrl &url, const QVariantMap &options, QSSGSceneD
     auto sourceFile = QFileInfo(filePath);
     if (!sourceFile.exists())
         return QLatin1String("File not found");
-
-    const auto extension = sourceFile.suffix().toLower();
-
-    if (extension != QLatin1String("gltf") && extension != QLatin1String("glb"))
-        return QLatin1String("Extension \'%1\' is not supported!").arg(extension);
+    targetScene.sourceDir = sourceFile.path();
 
     std::unique_ptr<Assimp::Importer> importer(new Assimp::Importer());
+
+    // Setup import from Options
+    aiPostProcessSteps postProcessSteps;
+    if (options.isEmpty())
+        postProcessSteps = aiPostProcessSteps(demonPostProcessPresets);
+    else
+        postProcessSteps = processOptions(options, importer);
+
     // Remove primitives that are not Triangles
     importer->SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_POINT | aiPrimitiveType_LINE);
-
-    // Note: We do not do any post processing for runtime assets...
-    const auto postProcessSteps = aiPostProcessSteps(0);
+    importer->SetPropertyInteger(AI_CONFIG_IMPORT_COLLADA_USE_COLLADA_NAMES, 1);
 
     auto sourceScene = importer->ReadFile(filePath.toStdString(), postProcessSteps);
     if (!sourceScene) {
         // Scene failed to load, use logger to get the reason
         return QString::fromLocal8Bit(importer->GetErrorString());
     }
-
-    SceneInfo::GltfVersion gltfVersion = SceneInfo::GltfVersion::Unknown;
-
-    // gltf 1.x version's material will use DefaultMaterial
-    int impIndex = importer->GetPropertyInteger("importerIndex");
-    if (const aiImporterDesc *impInfo = importer->GetImporterInfo(impIndex)) {
-        // The name must be either "glTF Importer" or "glTF2 Importer"
-        if (impInfo->mName) {
-            // We're only interested in the 5 first letters
-            if (qstrnlen(impInfo->mName, 5) > 0) {
-                if (qstrncmp(impInfo->mName, "glTF", 4) == 0) {
-                    if (impInfo->mName[4] == '2')
-                        gltfVersion = SceneInfo::GltfVersion::v2;
-                    else
-                        gltfVersion = SceneInfo::GltfVersion::v1;
-                }
-            }
-        }
-    }
-
-    if (gltfVersion == SceneInfo::GltfVersion::v1)
-        return QLatin1String("Unsupported version");
-
-    if (gltfVersion == SceneInfo::GltfVersion::Unknown)
-        return QLatin1String("Unknown format version!");
 
     // For simplicity, and convenience, we'll just use the file path as the id.
     // DO NOT USE it for anything else, once the scene is created there's no
@@ -1506,12 +1699,26 @@ static QString importImp(const QUrl &url, const QVariantMap &options, QSSGSceneD
     SceneInfo::TextureMap textureMap;
 
     if (!targetScene.root) {
-        auto root = targetScene.create<QSSGSceneDesc::Node>(QSSGSceneDesc::Node::Type::Transform, QSSGSceneDesc::Node::RuntimeType::Node);
+        auto root = new QSSGSceneDesc::Node(QSSGSceneDesc::Node::Type::Transform, QSSGSceneDesc::Node::RuntimeType::Node);
         QSSGSceneDesc::addNode(targetScene, *root);
     }
 
-    const auto opt = SceneInfo::Options::None;
-    SceneInfo sceneInfo { *sourceScene, materials, meshes, embeddedTextures, textureMap, skins, mesh2skin, sourceFile.dir(), gltfVersion, opt };
+    // Get Options
+    auto opt = processSceneOptions(options);
+    // check if the asset is GLTF format
+    const auto extension = sourceFile.suffix().toLower();
+    if (extension == QStringLiteral("gltf") || extension == QStringLiteral("glb"))
+        opt.gltfMode = true;
+    else if (extension == QStringLiteral("fbx"))
+        opt.fbxMode = true;
+
+    SceneInfo sceneInfo { *sourceScene, materials, meshes, embeddedTextures,
+                          textureMap, skins, mesh2skin, sourceFile.dir(), opt };
+
+    if (!qFuzzyCompare(opt.globalScaleValue, 1.0f) && !qFuzzyCompare(opt.globalScaleValue, 0.0f)) {
+        const auto gscale = opt.globalScaleValue;
+        QSSGSceneDesc::setProperty(*targetScene.root, "scale", &QQuick3DNode::setScale, QVector3D { gscale, gscale, gscale });
+    }
 
     // Now lets go through the scene
     if (sourceScene->mRootNode)
@@ -1545,12 +1752,31 @@ static QString importImp(const QUrl &url, const QVariantMap &options, QSSGSceneD
         QSSGSceneDesc::setProperty(*skin.node, "inverseBindPoses", &QQuick3DSkin::setInverseBindPoses, inverseBindPoses);
     }
 
+    static const auto fuzzyComparePos = [](const aiVectorKey *pos, const aiVectorKey *prev){
+        if (!prev)
+            return false;
+        return qFuzzyCompare(pos->mValue.x, prev->mValue.x)
+                && qFuzzyCompare(pos->mValue.y, prev->mValue.y)
+                && qFuzzyCompare(pos->mValue.z, prev->mValue.z);
+    };
+
+    static const auto fuzzyCompareRot = [](const aiQuatKey *rot, const aiQuatKey *prev){
+        if (!prev)
+            return false;
+        return qFuzzyCompare(rot->mValue.x, prev->mValue.x)
+                && qFuzzyCompare(rot->mValue.y, prev->mValue.y)
+                && qFuzzyCompare(rot->mValue.z, prev->mValue.z)
+                && qFuzzyCompare(rot->mValue.w, prev->mValue.w);
+    };
+
     static const auto createAnimation = [](QSSGSceneDesc::Scene &targetScene, const aiAnimation &srcAnim, const AnimationNodeMap &animatingNodes) {
         using namespace QSSGSceneDesc;
         Animation targetAnimation;
         auto &channels = targetAnimation.channels;
         qreal freq = qFuzzyIsNull(srcAnim.mTicksPerSecond) ? 1.0
                                         : 1000.0 / srcAnim.mTicksPerSecond;
+        targetAnimation.framesPerSecond = srcAnim.mTicksPerSecond;
+        targetAnimation.name = fromAiString(srcAnim.mName);
         // Process property channels
         for (It i = 0, end = srcAnim.mNumChannels; i != end; ++i) {
             const auto &srcChannel = *srcAnim.mChannels[i];
@@ -1561,24 +1787,46 @@ static QString importImp(const QUrl &url, const QVariantMap &options, QSSGSceneD
                 const auto aNodeIt = animatingNodes.constFind(QByteArray{ nodeName.C_Str(), qsizetype(nodeName.length) });
                 if (aNodeIt != aNodeEnd && aNodeIt.value() != nullptr) {
                     auto targetNode = aNodeIt.value();
-                    // Target property(s)
+                    // Target propert[y|ies]
+
+                    const auto currentPropertyValue = [targetNode](const char *propertyName) -> QVariant {
+                        for (auto *p : targetNode->properties) {
+                            if (!qstrcmp(propertyName, p->name))
+                                return p->value;
+                        }
+                        return {};
+                    };
 
                     { // Position
                         const auto posKeyEnd = srcChannel.mNumPositionKeys;
                         Animation::Channel targetChannel;
                         targetChannel.targetProperty = Animation::Channel::TargetProperty::Position;
                         targetChannel.target = targetNode;
+                        const aiVectorKey *prevPos = nullptr;
                         for (It posKeyIdx = 0; posKeyIdx != posKeyEnd; ++posKeyIdx) {
                             const auto &posKey = srcChannel.mPositionKeys[posKeyIdx];
-                            const auto animationKey = targetScene.create<Animation::KeyPosition>(toAnimationKey(posKey, freq));
-                            targetChannel.keys.push_back(*animationKey);
+                            if (fuzzyComparePos(&posKey, prevPos))
+                                continue;
+                            targetChannel.keys.push_back(new Animation::KeyPosition(toAnimationKey(posKey, freq)));
+                            prevPos = &posKey;
                         }
 
+                        const auto isUnchanged = [&targetChannel, currentPropertyValue]() {
+                            if (targetChannel.keys.count() != 1)
+                                return false;
+                            auto currentPos = currentPropertyValue("position").value<QVector3D>();
+                            return qFuzzyCompare(targetChannel.keys[0]->value.toVector3D(), currentPos);
+                        };
                         if (!targetChannel.keys.isEmpty()) {
-                            channels.push_back(*targetScene.create<Animation::Channel>(targetChannel));
-                            float endTime = float(srcChannel.mPositionKeys[posKeyEnd - 1].mTime);
-                            if (targetAnimation.length < endTime)
-                                targetAnimation.length = endTime;
+                            if (!isUnchanged()) {
+                                channels.push_back(new Animation::Channel(targetChannel));
+                                float endTime = float(srcChannel.mPositionKeys[posKeyEnd - 1].mTime) * freq;
+                                if (targetAnimation.length < endTime)
+                                    targetAnimation.length = endTime;
+                            } else {
+                                // the keys will not be used.
+                                qDeleteAll(targetChannel.keys);
+                            }
                         }
                     }
 
@@ -1587,17 +1835,32 @@ static QString importImp(const QUrl &url, const QVariantMap &options, QSSGSceneD
                         Animation::Channel targetChannel;
                         targetChannel.targetProperty = Animation::Channel::TargetProperty::Rotation;
                         targetChannel.target = targetNode;
+                        const aiQuatKey *prevRot = nullptr;
                         for (It rotKeyIdx = 0; rotKeyIdx != rotKeyEnd; ++rotKeyIdx) {
                             const auto &rotKey = srcChannel.mRotationKeys[rotKeyIdx];
-                            const auto animationKey = targetScene.create<Animation::KeyPosition>(toAnimationKey(rotKey, freq));
-                            targetChannel.keys.push_back(*animationKey);
+                            if (fuzzyCompareRot(&rotKey, prevRot))
+                                continue;
+                            targetChannel.keys.push_back(new Animation::KeyPosition(toAnimationKey(rotKey, freq)));
+                            prevRot = &rotKey;
                         }
 
+                        const auto isUnchanged = [&targetChannel, currentPropertyValue]() {
+                            if (targetChannel.keys.count() != 1)
+                                return false;
+                            auto currentVal = currentPropertyValue("rotation");
+                            QQuaternion rot = currentVal.isValid() ? currentVal.value<QQuaternion>() : QQuaternion{};
+                            return qFuzzyCompare(QQuaternion(targetChannel.keys[0]->value), rot);
+                        };
                         if (!targetChannel.keys.isEmpty()) {
-                            channels.push_back(*targetScene.create<Animation::Channel>(targetChannel));
-                            float endTime = float(srcChannel.mRotationKeys[rotKeyEnd - 1].mTime);
-                            if (targetAnimation.length < endTime)
-                                targetAnimation.length = endTime;
+                            if (!isUnchanged()) {
+                                channels.push_back(new Animation::Channel(targetChannel));
+                                float endTime = float(srcChannel.mRotationKeys[rotKeyEnd - 1].mTime) * freq;
+                                if (targetAnimation.length < endTime)
+                                    targetAnimation.length = endTime;
+                            } else {
+                                // the keys will not be used.
+                                qDeleteAll(targetChannel.keys);
+                            }
                         }
                     }
 
@@ -1606,17 +1869,33 @@ static QString importImp(const QUrl &url, const QVariantMap &options, QSSGSceneD
                         Animation::Channel targetChannel;
                         targetChannel.targetProperty = Animation::Channel::TargetProperty::Scale;
                         targetChannel.target = targetNode;
+                        const aiVectorKey *prevScale = nullptr;
                         for (It scaleKeyIdx = 0; scaleKeyIdx != scaleKeyEnd; ++scaleKeyIdx) {
                             const auto &scaleKey = srcChannel.mScalingKeys[scaleKeyIdx];
-                            const auto animationKey = targetScene.create<Animation::KeyPosition>(toAnimationKey(scaleKey, freq));
-                            targetChannel.keys.push_back(*animationKey);
+                            if (fuzzyComparePos(&scaleKey, prevScale))
+                                continue;
+                            targetChannel.keys.push_back(new Animation::KeyPosition(toAnimationKey(scaleKey, freq)));
+                            prevScale = &scaleKey;
                         }
 
+                        const auto isUnchanged = [&targetChannel, currentPropertyValue]() {
+                            if (targetChannel.keys.count() != 1)
+                                return false;
+                            auto currentVal = currentPropertyValue("scale");
+                            QVector3D scale = currentVal.isValid() ? currentVal.value<QVector3D>() : QVector3D{ 1, 1, 1 };
+                            return qFuzzyCompare(targetChannel.keys[0]->value.toVector3D(), scale);
+                        };
+
                         if (!targetChannel.keys.isEmpty()) {
-                            channels.push_back(*targetScene.create<Animation::Channel>(targetChannel));
-                            float endTime = float(srcChannel.mScalingKeys[scaleKeyEnd - 1].mTime);
-                            if (targetAnimation.length < endTime)
-                                targetAnimation.length = endTime;
+                            if (!isUnchanged()) {
+                                channels.push_back(new Animation::Channel(targetChannel));
+                                float endTime = float(srcChannel.mScalingKeys[scaleKeyEnd - 1].mTime) * freq;
+                                if (targetAnimation.length < endTime)
+                                    targetAnimation.length = endTime;
+                            } else {
+                                // the keys will not be used.
+                                qDeleteAll(targetChannel.keys);
+                            }
                         }
                     }
                 }
@@ -1640,12 +1919,12 @@ static QString importImp(const QUrl &url, const QVariantMap &options, QSSGSceneD
                     targetChannel.target = targetNode;
                     for (It wId = 0; wId != weightKeyEnd; ++wId) {
                         const auto &weightKey = srcMorphChannel.mKeys[wId];
-                        const auto animationKey = targetScene.create<Animation::KeyPosition>(toAnimationKey(weightKey, freq, targetId));
-                        targetChannel.keys.push_back(*animationKey);
+                        const auto animationKey = new Animation::KeyPosition(toAnimationKey(weightKey, freq, targetId));
+                        targetChannel.keys.push_back(animationKey);
                     }
                     if (!targetChannel.keys.isEmpty()) {
-                        channels.push_back(*targetScene.create<Animation::Channel>(targetChannel));
-                        float endTime = float(srcMorphChannel.mKeys[weightKeyEnd - 1].mTime);
+                        channels.push_back(new Animation::Channel(targetChannel));
+                        float endTime = float(srcMorphChannel.mKeys[weightKeyEnd - 1].mTime) * freq;
                         if (targetAnimation.length < endTime)
                             targetAnimation.length = endTime;
                     }
@@ -1655,7 +1934,7 @@ static QString importImp(const QUrl &url, const QVariantMap &options, QSSGSceneD
 
         // If we have data we need to make it persistent.
         if (!targetAnimation.channels.isEmpty())
-            targetScene.animations.push_back(targetScene.create<Animation>(targetAnimation));
+            targetScene.animations.push_back(new Animation(targetAnimation));
     };
 
     // All scene nodes should now be created (and ready), so let's go through the animation data.
@@ -1668,16 +1947,56 @@ static QString importImp(const QUrl &url, const QVariantMap &options, QSSGSceneD
         }
     }
 
+    // TODO, FIX: Editing the scene after the import ought to be done by QSSGAssetImportManager
+    // and not by the asset import plugin. However, the asset import module cannot use
+    // the asset utils module because that would cause a circular dependency. This
+    // needs a deeper architectural fix.
+
+    QSSGQmlUtilities::applyEdit(&targetScene, options);
+
     return QString();
 }
 
 ////////////////////////
 
-QString AssimpImporter::import(const QUrl &url, const QJsonObject &, QSSGSceneDesc::Scene &scene)
+QString AssimpImporter::import(const QUrl &url, const QJsonObject &options, QSSGSceneDesc::Scene &scene)
 {
     // We'll simply use assimp to load the scene and then translate the Aassimp scene
     // into our own format.
-    return importImp(url, {}, scene);
+    return importImp(url, options, scene);
+}
+
+QString AssimpImporter::import(const QString &sourceFile, const QDir &savePath, const QJsonObject &options, QStringList *generatedFiles)
+{
+    QString errorString;
+
+    QSSGSceneDesc::Scene scene;
+
+    // Load scene data
+    auto sourceUrl = QUrl::fromLocalFile(sourceFile);
+    errorString = importImp(sourceUrl, options, scene);
+
+    if (!errorString.isEmpty())
+        return errorString;
+
+    // Write out QML + Resources
+    QFileInfo sourceFileInfo(sourceFile);
+
+    QString targetFileName = savePath.absolutePath() + QDir::separator() +
+            QSSGQmlUtilities::qmlComponentName(sourceFileInfo.completeBaseName()) +
+            QStringLiteral(".qml");
+    QFile targetFile(targetFileName);
+    if (!targetFile.open(QIODevice::WriteOnly)) {
+        errorString += QString("Could not write to file: ") + targetFileName;
+    } else {
+        QTextStream output(&targetFile);
+        QSSGQmlUtilities::writeQml(scene, output, savePath, options);
+        if (generatedFiles)
+            generatedFiles->append(targetFileName);
+    }
+    scene.cleanup();
+
+    return errorString;
 }
 
 QT_END_NAMESPACE

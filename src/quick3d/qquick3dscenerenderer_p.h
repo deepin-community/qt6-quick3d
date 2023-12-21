@@ -26,6 +26,8 @@
 #include <QtQuick3DRuntimeRender/private/qssgrhieffectsystem_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderer_p.h>
 
+#include <optional>
+
 #include "qquick3dsceneenvironment_p.h"
 
 QT_BEGIN_NAMESPACE
@@ -39,8 +41,14 @@ class QQuick3DSceneRenderer
 {
     using PickResultList = QVarLengthArray<QSSGRenderPickResult, 20>;
 public:
-    QQuick3DSceneRenderer(const QSSGRef<QSSGRenderContextInterface> &rci);
+    explicit QQuick3DSceneRenderer(const std::shared_ptr<QSSGRenderContextInterface> &rci);
     ~QQuick3DSceneRenderer();
+
+    static QSSGRenderLayer::TonemapMode getTonemapMode(const QQuick3DSceneEnvironment &environment)
+    {
+        return environment.useBuiltinTonemapper() ? QSSGRenderLayer::TonemapMode(environment.tonemapMode())
+                                                  : QSSGRenderLayer::TonemapMode::None;
+    }
 
 protected:
     QRhiTexture *renderToRhiTexture(QQuickWindow *qw);
@@ -51,8 +59,9 @@ protected:
     void synchronize(QQuick3DViewport *view3D, const QSize &size, float dpr);
     void invalidateFramebufferObject();
     QSize surfaceSize() const { return m_surfaceSize; }
+    void releaseCachedResources();
 
-    QSSGOption<QSSGRenderRay> getRayFromViewportPos(const QPointF &pos);
+    std::optional<QSSGRenderRay> getRayFromViewportPos(const QPointF &pos);
     QSSGRenderPickResult syncPick(const QSSGRenderRay &ray);
     QSSGRenderPickResult syncPickOne(const QSSGRenderRay &ray, QSSGRenderNode *node);
     PickResultList syncPickAll(const QSSGRenderRay &ray);
@@ -66,7 +75,7 @@ private:
     void updateLayerNode(QQuick3DViewport *view3D, const QList<QSSGRenderGraphObject *> &resourceLoaders);
     void addNodeToLayer(QSSGRenderNode *node);
     void removeNodeFromLayer(QSSGRenderNode *node);
-    QSSGRef<QSSGRenderContextInterface> m_sgContext;
+    std::shared_ptr<QSSGRenderContextInterface> m_sgContext;
     QSSGRenderLayer *m_layer = nullptr;
     QPointer<QQuick3DWindowAttachment> winAttacment;
     QSize m_surfaceSize;
@@ -90,7 +99,9 @@ private:
     QRhiRenderBuffer *m_depthStencilBuffer = nullptr;
     bool m_textureNeedsFlip = true;
     QSSGRenderLayer::Background m_backgroundMode;
-    QColor m_backgroundColor;
+    QColor m_userBackgroundColor = Qt::black;
+    QColor m_linearBackgroundColor = Qt::black;
+    QColor m_tonemappedBackgroundColor = Qt::black;
     int m_samples = 1;
     QSSGRhiEffectSystem *m_effectSystem = nullptr;
 
@@ -105,6 +116,7 @@ private:
 
     int requestedFramesCount = 0;
     bool m_postProcessingStack = false;
+    Q_QUICK3D_PROFILE_ID
 
     friend class SGFramebufferObjectNode;
     friend class QQuick3DSGRenderNode;

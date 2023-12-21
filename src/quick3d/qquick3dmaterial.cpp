@@ -7,6 +7,7 @@
 
 #include <QtQuick3DRuntimeRender/private/qssgrenderdefaultmaterial_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendercustommaterial_p.h>
+#include <QtQuick3DUtils/private/qssgutils_p.h>
 
 QT_BEGIN_NAMESPACE
 
@@ -83,8 +84,6 @@ QQuick3DMaterial::QQuick3DMaterial(QQuick3DObjectPrivate &dd, QQuick3DObject *pa
 
 QQuick3DMaterial::~QQuick3DMaterial()
 {
-    for (const auto &connection : std::as_const(m_connections))
-        disconnect(connection);
 }
 
 QQuick3DTexture *QQuick3DMaterial::lightProbe() const
@@ -107,9 +106,7 @@ void QQuick3DMaterial::setLightProbe(QQuick3DTexture *iblProbe)
     if (m_iblProbe == iblProbe)
         return;
 
-    QQuick3DObjectPrivate::updatePropertyListener(iblProbe, m_iblProbe, QQuick3DObjectPrivate::get(this)->sceneManager, QByteArrayLiteral("lightProbe"), m_connections, [this](QQuick3DObject *n) {
-        setLightProbe(qobject_cast<QQuick3DTexture *>(n));
-    });
+    QQuick3DObjectPrivate::attachWatcher(this, &QQuick3DMaterial::setLightProbe, iblProbe, m_iblProbe);
 
     m_iblProbe = iblProbe;
     emit lightProbeChanged(m_iblProbe);
@@ -141,6 +138,8 @@ QSSGRenderGraphObject *QQuick3DMaterial::updateSpatialNode(QSSGRenderGraphObject
     if (!node)
         return nullptr;
 
+    QQuick3DObject::updateSpatialNode(node);
+
     // Set the common properties
     if (node->type == QSSGRenderGraphObject::Type::DefaultMaterial ||
         node->type == QSSGRenderGraphObject::Type::PrincipledMaterial ||
@@ -154,8 +153,10 @@ QSSGRenderGraphObject *QQuick3DMaterial::updateSpatialNode(QSSGRenderGraphObject
 
         defaultMaterial->cullMode = QSSGCullFaceMode(m_cullMode);
         defaultMaterial->depthDrawMode = QSSGDepthDrawMode(m_depthDrawMode);
-        node = defaultMaterial;
 
+        DebugViewHelpers::ensureDebugObjectName(defaultMaterial, this);
+
+        node = defaultMaterial;
     } else if (node->type == QSSGRenderGraphObject::Type::CustomMaterial) {
         auto customMaterial = static_cast<QSSGRenderCustomMaterial *>(node);
 
@@ -166,6 +167,9 @@ QSSGRenderGraphObject *QQuick3DMaterial::updateSpatialNode(QSSGRenderGraphObject
 
         customMaterial->m_cullMode = QSSGCullFaceMode(m_cullMode);
         customMaterial->m_depthDrawMode = QSSGDepthDrawMode(m_depthDrawMode);
+
+        DebugViewHelpers::ensureDebugObjectName(customMaterial, this);
+
         node = customMaterial;
     }
 

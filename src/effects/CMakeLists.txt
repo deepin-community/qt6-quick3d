@@ -1,3 +1,6 @@
+# Copyright (C) 2022 The Qt Company Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 #####################################################################
 ## qtquick3deffectplugin Plugin:
 #####################################################################
@@ -30,7 +33,7 @@ qt_internal_add_qml_module(Quick3DEffects
     URI "QtQuick3D.Effects"
     VERSION "${PROJECT_VERSION}"
     DESIGNER_SUPPORTED
-    CLASSNAME QtQuick3DEffectPlugin
+    CLASS_NAME QtQuick3DEffectPlugin
     PLUGIN_TARGET qtquick3deffectplugin
     DEPENDENCIES
         QtQuick3D/auto

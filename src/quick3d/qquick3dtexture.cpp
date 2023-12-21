@@ -84,7 +84,7 @@ QT_BEGIN_NAMESPACE
     \li \image spheremap.png
     \endtable
 
-    \sa {Qt Quick 3D - Dynamic Texture Example}, {Qt Quick 3D - Procedural Texture Example}
+    \sa {Qt Quick 3D - Procedural Texture Example}
 */
 
 QQuick3DTexture::QQuick3DTexture(QQuick3DObject *parent)
@@ -115,9 +115,6 @@ QQuick3DTexture::~QQuick3DTexture()
         QQuickItemPrivate *sourcePrivate = QQuickItemPrivate::get(m_sourceItem);
         sourcePrivate->removeItemChangeListener(this, QQuickItemPrivate::Geometry);
     }
-
-    for (const auto &connection : std::as_const(m_connections))
-        disconnect(connection);
 }
 
 /*!
@@ -495,8 +492,8 @@ int QQuick3DTexture::indexUV() const
 /*!
     \qmlproperty enumeration QtQuick3D::Texture::magFilter
 
-    This property determines how the texture is sampled when a texel covers
-    more than one pixel.
+    This property determines how the texture is sampled when it is "magnified",
+    i.e. a texel covers \e more than one pixel in screen space.
 
     The default value is \c{Texture.Linear}.
 
@@ -515,8 +512,8 @@ QQuick3DTexture::Filter QQuick3DTexture::magFilter() const
 /*!
     \qmlproperty enumeration QtQuick3D::Texture::minFilter
 
-    This property determines how the texture is sampled when a texel covers
-    more than one pixel.
+    This property determines how the texture is sampled when it is "minimized",
+    i.e. a texel covers \e less than one pixel in screen space.
 
     The default value is \c{Texture.Linear}.
 
@@ -878,9 +875,7 @@ void QQuick3DTexture::setTextureData(QQuick3DTextureData *textureData)
         return;
 
     // Make sure to disconnect if the geometry gets deleted out from under us
-    QQuick3DObjectPrivate::updatePropertyListener(textureData, m_textureData, QQuick3DObjectPrivate::get(this)->sceneManager, QByteArrayLiteral("textureData"), m_connections, [this](QQuick3DObject *n) {
-        setTextureData(qobject_cast<QQuick3DTextureData *>(n));
-    });
+    QQuick3DObjectPrivate::attachWatcher(this, &QQuick3DTexture::setTextureData, textureData, m_textureData);
 
     if (m_textureData)
         QObject::disconnect(m_textureDataConnection);
@@ -1000,13 +995,35 @@ bool QQuick3DTexture::effectiveFlipV(const QSSGRenderImage &imageNode) const
     return m_flipV;
 }
 
+static QSSGRenderPath resolveImagePath(const QUrl &url, const QQmlContext *context)
+{
+    if (context && url.isRelative()) {
+        QString path = url.path();
+        QChar separator = QChar::fromLatin1(';');
+        if (path.contains(separator)) {
+            QString resolvedPath;
+            const QStringList paths = path.split(separator);
+            bool first = true;
+            for (auto &s : paths) {
+                auto mapped =  QQmlFile::urlToLocalFileOrQrc(context->resolvedUrl(s));
+                if (!first)
+                    resolvedPath.append(separator);
+                resolvedPath.append(mapped);
+                first = false;
+            }
+            return QSSGRenderPath(resolvedPath);
+        }
+    }
+    return QSSGRenderPath(QQmlFile::urlToLocalFileOrQrc(context ? context->resolvedUrl(url) : url));
+}
+
 QSSGRenderGraphObject *QQuick3DTexture::updateSpatialNode(QSSGRenderGraphObject *node)
 {
     if (!node) {
         markAllDirty();
         node = new QSSGRenderImage(QQuick3DObjectPrivate::get(this)->type);
     }
-
+    QQuick3DObject::updateSpatialNode(node);
     auto imageNode = static_cast<QSSGRenderImage *>(node);
 
     if (m_dirtyFlags.testFlag(DirtyFlag::TransformDirty)) {
@@ -1028,7 +1045,7 @@ QSSGRenderGraphObject *QQuick3DTexture::updateSpatialNode(QSSGRenderGraphObject 
         m_dirtyFlags.setFlag(DirtyFlag::FlipVDirty, true);
         if (!m_source.isEmpty()) {
             const QQmlContext *context = qmlContext(this);
-            imageNode->m_imagePath = QSSGRenderPath(QQmlFile::urlToLocalFileOrQrc(context ? context->resolvedUrl(m_source) : m_source));
+            imageNode->m_imagePath = resolveImagePath(m_source, context);
         } else {
             imageNode->m_imagePath = QSSGRenderPath();
         }

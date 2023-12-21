@@ -3,6 +3,7 @@
 
 import QtQuick
 import QtQuick3D
+import QtQuick3D.Helpers
 import QtQuick.Controls
 import QtQuick.Layouts
 
@@ -194,6 +195,29 @@ Window {
                 onClicked: {
                     modelAnimation.restart();
                 }
+            }
+        }
+    }
+
+    Item {
+        width: debugViewToggleText.implicitWidth
+        height: debugViewToggleText.implicitHeight
+        anchors.right: parent.right
+        Label {
+            id: debugViewToggleText
+            text: "Click here " + (dbg.visible ? "to hide DebugView" : "for DebugView")
+            anchors.right: parent.right
+            anchors.top: parent.top
+        }
+        MouseArea {
+            anchors.fill: parent
+            onClicked: dbg.visible = !dbg.visible
+            DebugView {
+                y: debugViewToggleText.height * 2
+                anchors.right: parent.right
+                source: view3D
+                id: dbg
+                visible: false
             }
         }
     }

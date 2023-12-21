@@ -1,3 +1,6 @@
+# Copyright (C) 2022 The Qt Company Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 # Generated from quick3d_visual.pro.
 if(QT_BUILD_MINIMAL_STATIC_TESTS)
     add_subdirectory(smoketest)
@@ -9,8 +12,7 @@ else()
     endif()
     add_subdirectory(buffermanager)
     if(QT_FEATURE_private_tests)
-        # QTBUG-107841
-        #add_subdirectory(input)
+        add_subdirectory(input)
         add_subdirectory(picking)
     endif()
 endif()

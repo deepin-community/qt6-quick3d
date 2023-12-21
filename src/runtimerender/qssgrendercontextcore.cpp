@@ -14,14 +14,11 @@
 #include <QtQuick3DRuntimeRender/private/qssgperframeallocator_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderer_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendererutil_p.h>
+#include <QtQuick3DRuntimeRender/private/qssgdebugdrawsystem_p.h>
 
-#include <QtQuick/QQuickWindow>
+#include <QtQuick/private/qquickwindow_p.h>
 
 QT_BEGIN_NAMESPACE
-
-using Binding = QPair<const QQuickWindow *, QSSGRenderContextInterface *>;
-using Bindings = QVarLengthArray<Binding, 32>;
-Q_GLOBAL_STATIC(Bindings, g_windowReg)
 
 static bool loadPregenratedShaders()
 {
@@ -39,107 +36,112 @@ void QSSGRenderContextInterface::init()
         m_shaderLibraryManager->loadPregeneratedShaderInfo();
 }
 
-QSSGRenderContextInterface *QSSGRenderContextInterface::renderContextForWindow(const QQuickWindow &window)
+void QSSGRenderContextInterface::releaseCachedResources()
 {
-    auto it = g_windowReg->cbegin();
-    const auto end = g_windowReg->cend();
-    for (; it != end; ++it) {
-        if (it->first == &window)
-            break;
-    }
-
-    return (it != end) ? it->second : nullptr;
+    m_renderer->releaseCachedResources();
+    m_shaderCache->releaseCachedResources();
+    m_customMaterialSystem->releaseCachedResources();
+    m_bufferManager->releaseCachedResources();
+    m_rhiContext->releaseCachedResources();
 }
 
-QSSGRenderContextInterface::QSSGRenderContextInterface(const QSSGRef<QSSGRhiContext> &ctx,
-                                                       const QSSGRef<QSSGBufferManager> &bufferManager,
-                                                       const QSSGRef<QSSGRenderer> &renderer,
-                                                       const QSSGRef<QSSGShaderLibraryManager> &shaderLibraryManager,
-                                                       const QSSGRef<QSSGShaderCache> &shaderCache,
-                                                       const QSSGRef<QSSGCustomMaterialSystem> &customMaterialSystem,
-                                                       const QSSGRef<QSSGProgramGenerator> &shaderProgramGenerator)
-    : m_rhiContext(ctx)
-    , m_shaderCache(shaderCache)
-    , m_bufferManager(bufferManager)
-    , m_renderer(renderer)
-    , m_shaderLibraryManager(shaderLibraryManager)
-    , m_customMaterialSystem(customMaterialSystem)
-    , m_shaderProgramGenerator(shaderProgramGenerator)
+QSSGRenderContextInterface::QSSGRenderContextInterface(std::unique_ptr<QSSGBufferManager> &&bufferManager,
+                                                       std::unique_ptr<QSSGRenderer> renderer,
+                                                       std::shared_ptr<QSSGShaderLibraryManager> shaderLibraryManager,
+                                                       std::unique_ptr<QSSGShaderCache> shaderCache,
+                                                       std::unique_ptr<QSSGCustomMaterialSystem> customMaterialSystem,
+                                                       std::unique_ptr<QSSGProgramGenerator> shaderProgramGenerator,
+                                                       std::unique_ptr<QSSGRhiContext> ctx,
+                                                       std::unique_ptr<QSSGDebugDrawSystem> debugDrawSystem)
+    : m_rhiContext(std::move(ctx))
+    , m_shaderCache(std::move(shaderCache))
+    , m_bufferManager(std::move(bufferManager))
+    , m_renderer(std::move(renderer))
+    , m_shaderLibraryManager(std::move(shaderLibraryManager))
+    , m_customMaterialSystem(std::move(customMaterialSystem))
+    , m_shaderProgramGenerator(std::move(shaderProgramGenerator))
+    , m_debugDrawSystem(std::move(debugDrawSystem))
 {
     init();
 }
 
 // The shader library is a global object, not per-QQuickWindow, hence not owned
 // by the QSSGRenderContextInterface.
-static const QSSGRef<QSSGShaderLibraryManager> &q3ds_shaderLibraryManager()
+static const std::shared_ptr<QSSGShaderLibraryManager> &q3ds_shaderLibraryManager()
 {
-    static QSSGRef<QSSGShaderLibraryManager> shaderLibraryManager;
-    if (!shaderLibraryManager)
-        shaderLibraryManager = new QSSGShaderLibraryManager;
+    static auto shaderLibraryManager = std::make_shared<QSSGShaderLibraryManager>();
     return shaderLibraryManager;
 }
 
-QSSGRenderContextInterface::QSSGRenderContextInterface(QQuickWindow *window,
-                                                       const QSSGRef<QSSGRhiContext> &ctx)
-    : m_rhiContext(ctx)
-    , m_shaderCache(new QSSGShaderCache(ctx))
-    , m_bufferManager(new QSSGBufferManager)
-    , m_renderer(new QSSGRenderer)
+QSSGRenderContextInterface::QSSGRenderContextInterface(QRhi *rhi)
+    : m_rhiContext(new QSSGRhiContext(rhi))
+    , m_shaderCache(new QSSGShaderCache(*m_rhiContext))
+    , m_bufferManager(new QSSGBufferManager())
+    , m_renderer(new QSSGRenderer())
     , m_shaderLibraryManager(q3ds_shaderLibraryManager())
-    , m_customMaterialSystem(new QSSGCustomMaterialSystem)
-    , m_shaderProgramGenerator(new QSSGProgramGenerator)
+    , m_customMaterialSystem(new QSSGCustomMaterialSystem())
+    , m_shaderProgramGenerator(new QSSGProgramGenerator())
+    , m_debugDrawSystem(new QSSGDebugDrawSystem())
 {
     init();
-    if (window) {
-        g_windowReg->append({ window, this });
-        QObject::connect(window, &QWindow::destroyed, [&](QObject *o){
-            g_windowReg->removeIf([o](const Binding &b) { return (b.first == o); });
-        });
-    }
 }
 
 QSSGRenderContextInterface::~QSSGRenderContextInterface()
 {
-    m_renderer->releaseResources();
-    g_windowReg->removeIf([this](const Binding &b) { return (b.second == this); });
+    m_renderer->releaseCachedResources();
 }
 
-const QSSGRef<QSSGRenderer> &QSSGRenderContextInterface::renderer() const
+const std::unique_ptr<QSSGRenderer> &QSSGRenderContextInterface::renderer() const
 {
     return m_renderer;
 }
 
-const QSSGRef<QSSGBufferManager> &QSSGRenderContextInterface::bufferManager() const
+const std::unique_ptr<QSSGBufferManager> &QSSGRenderContextInterface::bufferManager() const
 {
     return m_bufferManager;
 }
 
-const QSSGRef<QSSGRhiContext> &QSSGRenderContextInterface::rhiContext() const
+const std::unique_ptr<QSSGRhiContext> &QSSGRenderContextInterface::rhiContext() const
 {
     return m_rhiContext;
 }
 
-const QSSGRef<QSSGShaderCache> &QSSGRenderContextInterface::shaderCache() const
+const std::unique_ptr<QSSGShaderCache> &QSSGRenderContextInterface::shaderCache() const
 {
     return m_shaderCache;
 }
 
-const QSSGRef<QSSGShaderLibraryManager> &QSSGRenderContextInterface::shaderLibraryManager() const
+const std::shared_ptr<QSSGShaderLibraryManager> &QSSGRenderContextInterface::shaderLibraryManager() const
 {
     return m_shaderLibraryManager;
 }
 
-const QSSGRef<QSSGCustomMaterialSystem> &QSSGRenderContextInterface::customMaterialSystem() const
+const std::unique_ptr<QSSGCustomMaterialSystem> &QSSGRenderContextInterface::customMaterialSystem() const
 {
     return m_customMaterialSystem;
 }
 
-const QSSGRef<QSSGProgramGenerator> &QSSGRenderContextInterface::shaderProgramGenerator() const
+const std::unique_ptr<QSSGProgramGenerator> &QSSGRenderContextInterface::shaderProgramGenerator() const
 {
     return m_shaderProgramGenerator;
 }
 
+const std::unique_ptr<QSSGDebugDrawSystem> &QSSGRenderContextInterface::debugDrawSystem() const
+{
+    return m_debugDrawSystem;
+}
+
+QRhi *QSSGRenderContextInterface::rhi() const
+{
+    return m_rhiContext->rhi();
+}
+
 void QSSGRenderContextInterface::cleanupResources(QList<QSSGRenderGraphObject *> &resources)
+{
+    m_renderer->cleanupResources(resources);
+}
+
+void QSSGRenderContextInterface::cleanupResources(QSet<QSSGRenderGraphObject *> &resources)
 {
     m_renderer->cleanupResources(resources);
 }
@@ -164,7 +166,7 @@ void QSSGRenderContextInterface::beginFrame(QSSGRenderLayer *layer, bool allowRe
     }
 
     m_perFrameAllocator.reset();
-    m_renderer->beginFrame();
+    m_renderer->beginFrame(layer);
     resetResourceCounters(layer);
 }
 
@@ -192,7 +194,7 @@ bool QSSGRenderContextInterface::endFrame(QSSGRenderLayer *layer, bool allowRecu
 
     cleanupUnreferencedBuffers(layer);
 
-    m_renderer->endFrame();
+    m_renderer->endFrame(layer);
     ++m_frameCount;
 
     return true;

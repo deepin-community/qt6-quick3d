@@ -3,6 +3,7 @@
 
 #include "qquick3dgeometry_p.h"
 #include "qquick3dscenemanager_p.h"
+#include <QtQuick3DUtils/private/qssgutils_p.h>
 
 /*!
     \qmltype Geometry
@@ -248,6 +249,17 @@ QByteArray QQuick3DGeometry::vertexData() const
 }
 
 /*!
+    \since 6.6
+
+    Returns the target buffer data set by setTargetData.
+*/
+QByteArray QQuick3DGeometry::targetData() const
+{
+    const Q_D(QQuick3DGeometry);
+    return d->m_targetBuffer;
+}
+
+/*!
     Returns the index buffer data.
 */
 QByteArray QQuick3DGeometry::indexData() const
@@ -276,6 +288,31 @@ QQuick3DGeometry::Attribute QQuick3DGeometry::attribute(int index) const
 {
     const Q_D(QQuick3DGeometry);
     return d->m_attributes[index];
+}
+
+/*!
+    \since 6.6
+    Returns the number of morph target attributes defined for this geometry.
+
+    \sa targetAttribute
+*/
+int QQuick3DGeometry::targetAttributeCount() const
+{
+    const Q_D(QQuick3DGeometry);
+    return d->m_targetAttributeCount;
+}
+
+/*!
+    \since 6.6
+
+    Returns morph target attribute definition number \a index
+
+    The attribute definitions are numbered from 0 to \c {attributeCount() - 1}
+*/
+QQuick3DGeometry::TargetAttribute QQuick3DGeometry::targetAttribute(int index) const
+{
+    const Q_D(QQuick3DGeometry);
+    return d->m_targetAttributes[index];
 }
 
 /*!
@@ -351,10 +388,10 @@ void QQuick3DGeometry::setVertexData(const QByteArray &data)
     greater than the current size of the buffer, the overshooting data will
     be ignored.
 
-    \note The partial update functions for vertex and index data do not offer
-    any guarantee on how such changes are implemented internally. Depending on
-    the underlying implementation, even partial changes may lead to updating
-    the entire graphics resource.
+    \note The partial update functions for vertex, index and morph target data
+    do not offer any guarantee on how such changes are implemented internally.
+    depending on the underlying implementation, even partial changes may lead
+    to updating the entire graphics resource.
 */
 void QQuick3DGeometry::setVertexData(int offset, const QByteArray &data)
 {
@@ -366,6 +403,49 @@ void QQuick3DGeometry::setVertexData(int offset, const QByteArray &data)
     memcpy(d->m_vertexBuffer.data() + offset, data.data(), len);
 
     d->m_geometryChanged = true;
+}
+
+/*!
+    \since 6.6
+
+    Sets the morph target buffer \a data. The buffer should hold all the
+    morph target data.
+
+    \sa addTargetAttribute
+*/
+void QQuick3DGeometry::setTargetData(const QByteArray &data)
+{
+    Q_D(QQuick3DGeometry);
+    d->m_targetBuffer = data;
+    d->m_targetChanged = true;
+}
+
+/*!
+    \since 6.6
+    \overload
+
+    Updates a subset of the morph target buffer. \a offset specifies the offset in
+    bytes, \a data specifies the size and the data.
+
+    This function will not resize the buffer. If \c {offset + data.size()} is
+    greater than the current size of the buffer, the overshooting data will
+    be ignored.
+
+    \note The partial update functions for vertex, index and morph target data
+    do not offer any guarantee on how such changes are implemented internally.
+    Depending on the underlying implementation, even partial changes may lead
+    to updating the entire graphics resource.
+*/
+void QQuick3DGeometry::setTargetData(int offset, const QByteArray &data)
+{
+    Q_D(QQuick3DGeometry);
+    if (offset >= d->m_targetBuffer.size())
+        return;
+
+    const size_t len = qMin(d->m_targetBuffer.size() - offset, data.size());
+    memcpy(d->m_targetBuffer.data() + offset, data.data(), len);
+
+    d->m_targetChanged = true;
 }
 
 /*!
@@ -389,10 +469,10 @@ void QQuick3DGeometry::setIndexData(const QByteArray &data)
     greater than the current size of the buffer, the overshooting data will
     be ignored.
 
-    \note The partial update functions for vertex and index data do not offer
-    any guarantee on how such changes are implemented internally. Depending on
-    the underlying implementation, even partial changes may lead to updating
-    the entire graphics resource.
+    \note The partial update functions for vertex, index and morph target data
+    do not offer any guarantee on how such changes are implemented internally.
+    Depending on the underlying implementation, even partial changes may lead
+    to updating the entire graphics resource.
 */
 void QQuick3DGeometry::setIndexData(int offset, const QByteArray &data)
 {
@@ -520,18 +600,37 @@ void QQuick3DGeometry::setPrimitiveType(PrimitiveType type)
 
     \note For index data (\c IndexSemantic) only U16Type and U32Type are
     sensible and supported.
+
+    \note TargetXXXSemantics will be deprecated. \l addTargetAttribute can be used for the morph targets.
+    Now these semantics are just supported for backward compatibility. If they are mixed-used with
+    addTargetAttribute and setTargetData, the result cannot be quaranteed.
 */
 void QQuick3DGeometry::addAttribute(Attribute::Semantic semantic, int offset,
                   Attribute::ComponentType componentType)
 {
     Q_D(QQuick3DGeometry);
-    if (d->m_attributeCount >= QQuick3DGeometryPrivate::MAX_ATTRIBUTE_COUNT)
-        return;
-    d->m_attributes[d->m_attributeCount].semantic = semantic;
-    d->m_attributes[d->m_attributeCount].offset = offset;
-    d->m_attributes[d->m_attributeCount].componentType = componentType;
-    d->m_attributeCount++;
-    d->m_geometryChanged = true;
+    if (semantic != Attribute::TargetPositionSemantic
+            && semantic != Attribute::TargetNormalSemantic
+            && semantic != Attribute::TargetTangentSemantic
+            && semantic != Attribute::TargetBinormalSemantic) {
+        if (d->m_attributeCount >= QQuick3DGeometryPrivate::MAX_ATTRIBUTE_COUNT)
+            return;
+        d->m_attributes[d->m_attributeCount].semantic = semantic;
+        d->m_attributes[d->m_attributeCount].offset = offset;
+        d->m_attributes[d->m_attributeCount].componentType = componentType;
+        d->m_attributeCount++;
+        d->m_geometryChanged = true;
+    } else {
+        if (d->m_targetAttributeCount >= QQuick3DGeometryPrivate::MAX_TARGET_ATTRIBUTE_COUNT)
+            return;
+        d->m_targetAttributes[d->m_targetAttributeCount].targetId = 0;
+        d->m_targetAttributes[d->m_targetAttributeCount].attr.semantic = semantic;
+        d->m_targetAttributes[d->m_targetAttributeCount].attr.offset = offset;
+        // m_stride and m_vertexBuffer will be used for targetBuffer.
+        d->m_targetAttributeCount++;
+        d->m_targetChanged = true;
+        d->m_usesOldTargetSemantics = true;
+    }
 }
 
 /*!
@@ -552,17 +651,82 @@ void QQuick3DGeometry::addAttribute(const Attribute &attribute)
 }
 
 /*!
+    \since 6.6
+
+    Adds morph target attribute description. Each attribute has a \a targetId which the
+    attribute belongs to, a \a semantic, which specifies the usage of the attribute and the
+    number of components it has, an \a offset from the beginning to the vertex to the attribute
+    location inside a vertex, and a \a stride which is a byte size between the elements.
+
+    \note The targetId should be increased from 0 without skipping any number and all the
+    targets should have the same attributes.
+
+    \note The semantic is the same as the vertex attribute but IndexSemantic, JointSementic
+    and WeightSemantic are not allowed for target attributes.
+
+    \note The componentTypes of all the target attributes must be F32Type.
+
+    \note If the stride is not given or less than or equal to zero, the attribute is
+    considered to be tightly packed.
+
+    \sa addAttribute
+*/
+void QQuick3DGeometry::addTargetAttribute(quint32 targetId,
+                                          Attribute::Semantic semantic, int offset,
+                                          int stride)
+{
+    Q_D(QQuick3DGeometry);
+    if (d->m_targetAttributeCount >= QQuick3DGeometryPrivate::MAX_TARGET_ATTRIBUTE_COUNT)
+        return;
+    if (semantic == Attribute::IndexSemantic
+            || semantic == Attribute::JointSemantic
+            || semantic == Attribute::WeightSemantic)
+        return;
+    d->m_targetAttributes[d->m_targetAttributeCount].targetId = targetId;
+    d->m_targetAttributes[d->m_targetAttributeCount].attr.semantic = semantic;
+    d->m_targetAttributes[d->m_targetAttributeCount].attr.offset = offset;
+    d->m_targetAttributes[d->m_targetAttributeCount].stride = stride;
+    d->m_targetAttributeCount++;
+    d->m_targetChanged = true;
+}
+
+/*!
+    \since 6.6
+    \overload
+
+    Adds morph target attribute description. Each attribute has a targetId which the
+    attribute belongs to, a semantic, which specifies the usage of the attribute and the
+    number of components it has, an offset from the beginning to the vertex to the attribute
+    location inside a vertex, and a stride which is a byte size between the elements.
+*/
+void QQuick3DGeometry::addTargetAttribute(const TargetAttribute &attribute)
+{
+    Q_D(QQuick3DGeometry);
+    if (d->m_targetAttributeCount >= QQuick3DGeometryPrivate::MAX_TARGET_ATTRIBUTE_COUNT)
+        return;
+    if (attribute.attr.semantic == Attribute::IndexSemantic ||
+            attribute.attr.semantic == Attribute::JointSemantic ||
+            attribute.attr.semantic == Attribute::WeightSemantic)
+        return;
+    d->m_targetAttributes[d->m_targetAttributeCount++] = attribute;
+    d->m_targetChanged = true;
+}
+
+/*!
     Resets the geometry to its initial state, clearing previously set vertex and index data as well as attributes.
 */
 void QQuick3DGeometry::clear()
 {
     Q_D(QQuick3DGeometry);
     d->m_vertexBuffer.clear();
+    d->m_targetBuffer.clear();
     d->m_indexBuffer.clear();
     d->m_attributeCount = 0;
+    d->m_targetAttributeCount = 0;
     d->m_subsets.clear();
     d->m_primitiveType = PrimitiveType::Triangles;
     d->m_geometryChanged = true;
+    d->m_targetChanged = true;
     d->m_min = {};
     d->m_max = {};
 }
@@ -672,10 +836,9 @@ static inline QSSGMesh::Mesh::DrawMode mapPrimitiveType(QQuick3DGeometry::Primit
         return QSSGMesh::Mesh::DrawMode::TriangleFan;
     case QQuick3DGeometry::PrimitiveType::Triangles:
         return QSSGMesh::Mesh::DrawMode::Triangles;
-    default:
-        Q_ASSERT(false);
-        return QSSGMesh::Mesh::DrawMode::Triangles;
     }
+
+    Q_UNREACHABLE_RETURN(QSSGMesh::Mesh::DrawMode::Triangles);
 }
 
 static inline QSSGMesh::RuntimeMeshData::Attribute::Semantic mapSemantic(QQuick3DGeometry::Attribute::Semantic s)
@@ -702,17 +865,16 @@ static inline QSSGMesh::RuntimeMeshData::Attribute::Semantic mapSemantic(QQuick3
     case QQuick3DGeometry::Attribute::ColorSemantic:
         return QSSGMesh::RuntimeMeshData::Attribute::ColorSemantic;
     case QQuick3DGeometry::Attribute::TargetPositionSemantic:
-        return QSSGMesh::RuntimeMeshData::Attribute::TargetPositionSemantic;
-    case QQuick3DGeometry::Attribute::TargetNormalSemantic:
-        return QSSGMesh::RuntimeMeshData::Attribute::TargetNormalSemantic;
-    case QQuick3DGeometry::Attribute::TargetTangentSemantic:
-        return QSSGMesh::RuntimeMeshData::Attribute::TargetTangentSemantic;
-    case QQuick3DGeometry::Attribute::TargetBinormalSemantic:
-        return QSSGMesh::RuntimeMeshData::Attribute::TargetBinormalSemantic;
-    default:
-        Q_ASSERT(false);
         return QSSGMesh::RuntimeMeshData::Attribute::PositionSemantic;
+    case QQuick3DGeometry::Attribute::TargetNormalSemantic:
+        return QSSGMesh::RuntimeMeshData::Attribute::NormalSemantic;
+    case QQuick3DGeometry::Attribute::TargetTangentSemantic:
+        return QSSGMesh::RuntimeMeshData::Attribute::TangentSemantic;
+    case QQuick3DGeometry::Attribute::TargetBinormalSemantic:
+        return QSSGMesh::RuntimeMeshData::Attribute::BinormalSemantic;
     }
+
+    Q_UNREACHABLE_RETURN(QSSGMesh::RuntimeMeshData::Attribute::PositionSemantic);
 }
 
 static inline QSSGMesh::Mesh::ComponentType mapComponentType(QQuick3DGeometry::Attribute::ComponentType t)
@@ -726,10 +888,9 @@ static inline QSSGMesh::Mesh::ComponentType mapComponentType(QQuick3DGeometry::A
         return QSSGMesh::Mesh::ComponentType::Int32;
     case QQuick3DGeometry::Attribute::F32Type:
         return QSSGMesh::Mesh::ComponentType::Float32;
-    default:
-        Q_ASSERT(false);
-        return QSSGMesh::Mesh::ComponentType::Float32;
     }
+
+    Q_UNREACHABLE_RETURN(QSSGMesh::Mesh::ComponentType::Float32);
 }
 
 /*!
@@ -743,13 +904,14 @@ QSSGRenderGraphObject *QQuick3DGeometry::updateSpatialNode(QSSGRenderGraphObject
         node = new QSSGRenderGeometry();
         emit geometryNodeDirty();
     }
-
+    QQuick3DObject::updateSpatialNode(node);
     QSSGRenderGeometry *geometry = static_cast<QSSGRenderGeometry *>(node);
     if (d->m_geometryChanged) {
-        geometry->clear();
+        geometry->clearVertexAndIndex();
         geometry->setBounds(d->m_min, d->m_max);
         geometry->setStride(d->m_stride);
-        if (d->m_stride < 1)
+        // If there is vertex data but no stride is set, the user likely forgot to set the stride.
+        if (d->m_stride < 1 && !d->m_vertexBuffer.isEmpty())
             qWarning("%d is an invalid stride, was QQuick3DGeometry::setStride() called?", d->m_stride);
         geometry->setIndexData(d->m_indexBuffer);
         geometry->setVertexData(d->m_vertexBuffer);
@@ -781,7 +943,7 @@ QSSGRenderGraphObject *QQuick3DGeometry::updateSpatialNode(QSSGRenderGraphObject
             quint32 count = 0;
             if (!d->m_indexBuffer.isEmpty() && indexBufferComponentSize)
                 count = d->m_indexBuffer.size() / indexBufferComponentSize;
-            else
+            else if (d->m_stride)
                 count = d->m_vertexBuffer.size() / d->m_stride;
             geometry->addSubset(offset, count, d->m_min, d->m_max);
         } else {
@@ -795,6 +957,19 @@ QSSGRenderGraphObject *QQuick3DGeometry::updateSpatialNode(QSSGRenderGraphObject
         emit geometryNodeDirty();
         d->m_geometryBoundsChanged = false;
     }
+    if (d->m_targetChanged) {
+        geometry->clearTarget();
+        geometry->setTargetData(d->m_usesOldTargetSemantics ? d->m_vertexBuffer : d->m_targetBuffer);
+        for (int i = 0; i < d->m_targetAttributeCount; ++i) {
+            geometry->addTargetAttribute(d->m_targetAttributes[i].targetId,
+                                         mapSemantic(d->m_targetAttributes[i].attr.semantic),
+                                         d->m_targetAttributes[i].attr.offset,
+                                         d->m_usesOldTargetSemantics ? d->m_stride : d->m_targetAttributes[i].stride);
+        }
+        d->m_targetChanged = false;
+    }
+
+    DebugViewHelpers::ensureDebugObjectName(geometry, this);
 
     return node;
 }
@@ -812,14 +987,6 @@ QQuick3DGeometry::Attribute::Semantic QQuick3DGeometryPrivate::semanticFromName(
         semanticMap[QSSGMesh::MeshInternal::getColorAttrName()] = QQuick3DGeometry::Attribute::ColorSemantic;
         semanticMap[QSSGMesh::MeshInternal::getWeightAttrName()] = QQuick3DGeometry::Attribute::WeightSemantic;
         semanticMap[QSSGMesh::MeshInternal::getJointAttrName()] = QQuick3DGeometry::Attribute::JointSemantic;
-        for (int i = 0; i < 8; i++)
-            semanticMap[QSSGMesh::MeshInternal::getTargetPositionAttrName(i)] = QQuick3DGeometry::Attribute::TargetPositionSemantic;
-        for (int i = 0; i < 4; i++)
-            semanticMap[QSSGMesh::MeshInternal::getTargetNormalAttrName(i)] = QQuick3DGeometry::Attribute::TargetNormalSemantic;
-        for (int i = 0; i < 2; i++)
-            semanticMap[QSSGMesh::MeshInternal::getTargetTangentAttrName(i)] = QQuick3DGeometry::Attribute::TargetTangentSemantic;
-        for (int i = 0; i < 2; i++)
-            semanticMap[QSSGMesh::MeshInternal::getTargetBinormalAttrName(i)] = QQuick3DGeometry::Attribute::TargetBinormalSemantic;
     }
     return semanticMap[name];
 }

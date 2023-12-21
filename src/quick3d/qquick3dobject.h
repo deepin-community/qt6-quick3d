@@ -16,7 +16,7 @@ QT_BEGIN_NAMESPACE
 
 class QQuick3DObjectPrivate;
 class QQuick3DSceneManager;
-struct QSSGRenderGraphObject;
+class QSSGRenderGraphObject;
 
 class Q_QUICK3D_EXPORT QQuick3DObject : public QObject, public QQmlParserStatus
 {
@@ -88,7 +88,7 @@ Q_SIGNALS:
     void stateChanged();
 
 protected:
-    virtual QSSGRenderGraphObject *updateSpatialNode(QSSGRenderGraphObject *node) = 0;
+    virtual QSSGRenderGraphObject *updateSpatialNode(QSSGRenderGraphObject *node);
     virtual void markAllDirty();
     virtual void itemChange(ItemChange, const ItemChangeData &);
     explicit QQuick3DObject(QQuick3DObjectPrivate &dd, QQuick3DObject *parent = nullptr);

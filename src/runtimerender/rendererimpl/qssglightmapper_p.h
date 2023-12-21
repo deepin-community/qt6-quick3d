@@ -17,6 +17,8 @@
 
 #include <QtQuick3DRuntimeRender/private/qtquick3druntimerenderglobal_p.h>
 
+#include <QString>
+
 QT_BEGIN_NAMESPACE
 
 struct QSSGLightmapperPrivate;
@@ -40,10 +42,26 @@ struct QSSGLightmapperOptions
 class QSSGLightmapper
 {
 public:
+    enum class BakingStatus {
+        None,
+        Progress,
+        Warning,
+        Error,
+        Cancelled,
+        Complete
+    };
+
+    struct BakingControl {
+        bool cancelled = false;
+    };
+
+    typedef std::function<void(BakingStatus, std::optional<QString>, BakingControl*)> Callback;
+
     QSSGLightmapper(QSSGRhiContext *rhiCtx, QSSGRenderer *renderer);
     ~QSSGLightmapper();
     void reset();
     void setOptions(const QSSGLightmapperOptions &options);
+    void setOutputCallback(Callback callback);
     qsizetype add(const QSSGBakedLightingModel &model);
     bool bake();
 
@@ -53,8 +71,8 @@ public:
         LightmapImageList
     };
     static QString lightmapAssetPathForLoad(const QSSGRenderModel &model, LightmapAsset asset);
-    static QString lightmapAssetPathForSave(const QSSGRenderModel &model, LightmapAsset asset);
-    static QString lightmapAssetPathForSave(LightmapAsset asset);
+    static QString lightmapAssetPathForSave(const QSSGRenderModel &model, LightmapAsset asset, const QString& outputFolder = {});
+    static QString lightmapAssetPathForSave(LightmapAsset asset, const QString& outputFolder = {});
 
 private:
 #ifdef QT_QUICK3D_HAS_LIGHTMAPPER

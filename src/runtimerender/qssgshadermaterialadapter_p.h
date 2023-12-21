@@ -39,6 +39,7 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGShaderMaterialAdapter
     virtual bool isTransmissionEnabled() = 0;
     virtual bool hasLighting() = 0;
     virtual bool usesCustomSkinning() = 0;
+    virtual bool usesCustomMorphing() = 0;
     virtual QSSGRenderDefaultMaterial::MaterialSpecularModel specularModel() = 0;
     virtual QSSGRenderDefaultMaterial::MaterialAlphaMode alphaMode() = 0;
 
@@ -71,12 +72,12 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGShaderMaterialAdapter
     virtual bool isUnshaded();
     virtual bool hasCustomShaderSnippet(QSSGShaderCache::ShaderType type);
     virtual QByteArray customShaderSnippet(QSSGShaderCache::ShaderType type,
-                                           const QSSGRef<QSSGShaderLibraryManager> &shaderLibraryManager);
+                                           QSSGShaderLibraryManager &shaderLibraryManager);
     virtual bool hasCustomShaderFunction(QSSGShaderCache::ShaderType shaderType,
                                          const QByteArray &funcName,
-                                         const QSSGRef<QSSGShaderLibraryManager> &shaderLibraryManager);
+                                         QSSGShaderLibraryManager &shaderLibraryManager);
     virtual void setCustomPropertyUniforms(char *ubufData,
-                                           QSSGRef<QSSGRhiShaderPipeline> &shaderPipeline,
+                                           QSSGRhiShaderPipeline &shaderPipeline,
                                            const QSSGRenderContextInterface &context);
     virtual bool usesSharedVariables();
 };
@@ -94,6 +95,7 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGShaderDefaultMaterialAdapter final : pu
     bool isTransmissionEnabled() override;
     bool hasLighting() override;
     bool usesCustomSkinning() override;
+    bool usesCustomMorphing() override;
     QSSGRenderDefaultMaterial::MaterialSpecularModel specularModel() override;
     QSSGRenderDefaultMaterial::MaterialAlphaMode alphaMode() override;
 
@@ -140,6 +142,7 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGShaderCustomMaterialAdapter final : pub
     bool isTransmissionEnabled() override;
     bool hasLighting() override;
     bool usesCustomSkinning() override;
+    bool usesCustomMorphing() override;
     QSSGRenderDefaultMaterial::MaterialSpecularModel specularModel() override;
     QSSGRenderDefaultMaterial::MaterialAlphaMode alphaMode() override;
 
@@ -172,12 +175,12 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGShaderCustomMaterialAdapter final : pub
     bool isUnshaded() override;
     bool hasCustomShaderSnippet(QSSGShaderCache::ShaderType type) override;
     QByteArray customShaderSnippet(QSSGShaderCache::ShaderType type,
-                                   const QSSGRef<QSSGShaderLibraryManager> &shaderLibraryManager) override;
+                                   QSSGShaderLibraryManager &shaderLibraryManager) override;
     bool hasCustomShaderFunction(QSSGShaderCache::ShaderType shaderType,
                                  const QByteArray &funcName,
-                                 const QSSGRef<QSSGShaderLibraryManager> &shaderLibraryManager) override;
+                                 QSSGShaderLibraryManager &shaderLibraryManager) override;
     void setCustomPropertyUniforms(char *ubufData,
-                                   QSSGRef<QSSGRhiShaderPipeline> &shaderPipeline,
+                                   QSSGRhiShaderPipeline &shaderPipeline,
                                    const QSSGRenderContextInterface &context) override;
     bool usesSharedVariables() override;
 

@@ -105,7 +105,7 @@ void tst_QQuick3DMaterials::testDefaultProperties()
     QCOMPARE(material.vertexColorsEnabled(), node->vertexColorsEnabled);
 
     QColor color1("#12345678");
-    QVector4D color1Vec4 = color::sRGBToLinear(color1);
+    QVector4D color1Vec4 = QSSGUtils::color::sRGBToLinear(color1);
     material.setDiffuseColor(color1);
     material.setEmissiveFactor(color1Vec4.toVector3D());
     node = static_cast<QSSGRenderDefaultMaterial *>(material.updateSpatialNode(node));
@@ -129,8 +129,8 @@ void tst_QQuick3DMaterials::testDefaultTextures()
     texture2.setSource(QUrl(":/Built_with_Qt_2.png"));
 
     QQuick3DSceneManager sceneManager;
-    sceneManager.updateDirtyNode(&texture1);
-    sceneManager.updateDirtyNode(&texture2);
+    sceneManager.updateDirtyResource(&texture1);
+    sceneManager.updateDirtyResource(&texture2);
 
     // Diffusemaps
     material.setDiffuseMap(&texture1);
@@ -281,9 +281,9 @@ void tst_QQuick3DMaterials::testPrincipledProperties()
     QCOMPARE(alphaCutoff, node->alphaCutoff);
 
     QColor color1("#12345678");
-    QVector4D color1Vec4 = color::sRGBToLinear(color1);
+    QVector4D color1Vec4 = QSSGUtils::color::sRGBToLinear(color1);
     QColor color2("#cccccccc");
-    QVector3D color2Vec3 = color::sRGBToLinear(color2).toVector3D();
+    QVector3D color2Vec3 = QSSGUtils::color::sRGBToLinear(color2).toVector3D();
     material.setBaseColor(color1);
     material.setEmissiveFactor(color2Vec3);
     node = static_cast<QSSGRenderDefaultMaterial *>(material.updateSpatialNode(node));
@@ -352,7 +352,7 @@ void tst_QQuick3DMaterials::testPrincipledProperties()
     QCOMPARE(attenuationDistance, material.attenuationDistance());
     QCOMPARE(attenuationDistance, node->attenuationDistance);
     const QColor attenuationColor = QColor(Qt::green);
-    const QVector3D attenuationColorVector = color::sRGBToLinear(attenuationColor).toVector3D();
+    const QVector3D attenuationColorVector = QSSGUtils::color::sRGBToLinear(attenuationColor).toVector3D();
     material.setAttenuationColor(attenuationColor);
     node = static_cast<QSSGRenderDefaultMaterial *>(material.updateSpatialNode(node));
     QCOMPARE(attenuationColor, material.attenuationColor());
@@ -378,8 +378,8 @@ void tst_QQuick3DMaterials::testPrincipledTextures()
     texture2.setSource(QUrl(":/Built_with_Qt_2.png"));
 
     QQuick3DSceneManager sceneManager;
-    sceneManager.updateDirtyNode(&texture1);
-    sceneManager.updateDirtyNode(&texture2);
+    sceneManager.updateDirtyResource(&texture1);
+    sceneManager.updateDirtyResource(&texture2);
 
     // BasecolorMap
     QVERIFY(!material.baseColorMap());
@@ -577,7 +577,7 @@ void tst_QQuick3DMaterials::testSpecularGlossyProperties()
     QVERIFY(node);
 
     const QColor specularColor = QColor::fromRgbF(0.3f, 0.3f, 0.3f, 1.0f);
-    const QVector3D specular = color::sRGBToLinear(specularColor).toVector3D();
+    const QVector3D specular = QSSGUtils::color::sRGBToLinear(specularColor).toVector3D();
     material.setSpecularColor(specularColor);
     node = static_cast<QSSGRenderDefaultMaterial *>(material.updateSpatialNode(node));
     QCOMPARE(specularColor, material.specularColor());
@@ -614,9 +614,9 @@ void tst_QQuick3DMaterials::testSpecularGlossyProperties()
     QCOMPARE(alphaCutoff, node->alphaCutoff);
 
     QColor color1("#12345678");
-    QVector4D color1Vec4 = color::sRGBToLinear(color1);
+    QVector4D color1Vec4 = QSSGUtils::color::sRGBToLinear(color1);
     QColor color2("#cccccccc");
-    QVector3D color2Vec3 = color::sRGBToLinear(color2).toVector3D();
+    QVector3D color2Vec3 = QSSGUtils::color::sRGBToLinear(color2).toVector3D();
     material.setAlbedoColor(color1);
     material.setEmissiveFactor(color2Vec3);
     node = static_cast<QSSGRenderDefaultMaterial *>(material.updateSpatialNode(node));
@@ -683,7 +683,7 @@ void tst_QQuick3DMaterials::testSpecularGlossyProperties()
     QCOMPARE(attenuationDistance, material.attenuationDistance());
     QCOMPARE(attenuationDistance, node->attenuationDistance);
     const QColor attenuationColor = QColor(Qt::green);
-    const QVector3D attenuationColorVector = color::sRGBToLinear(attenuationColor).toVector3D();
+    const QVector3D attenuationColorVector = QSSGUtils::color::sRGBToLinear(attenuationColor).toVector3D();
     material.setAttenuationColor(attenuationColor);
     node = static_cast<QSSGRenderDefaultMaterial *>(material.updateSpatialNode(node));
     QCOMPARE(attenuationColor, material.attenuationColor());
@@ -703,8 +703,8 @@ void tst_QQuick3DMaterials::testSpecularGlossyTextures()
     texture2.setSource(QUrl(":/Built_with_Qt_2.png"));
 
     QQuick3DSceneManager sceneManager;
-    sceneManager.updateDirtyNode(&texture1);
-    sceneManager.updateDirtyNode(&texture2);
+    sceneManager.updateDirtyResource(&texture1);
+    sceneManager.updateDirtyResource(&texture2);
 
     // Albedo
     QVERIFY(!material.albedoMap());

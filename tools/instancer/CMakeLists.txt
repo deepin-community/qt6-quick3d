@@ -1,3 +1,6 @@
+# Copyright (C) 2022 The Qt Company Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 #####################################################################
 ## instancer Tool:
 #####################################################################
@@ -7,7 +10,7 @@ qt_internal_add_tool(${target_name}
     TOOLS_TARGET Quick3D
     SOURCES
         main.cpp
-    PUBLIC_LIBRARIES
+    LIBRARIES
         Qt::Qml # special case
         Qt::Gui
         Qt::Quick3DPrivate

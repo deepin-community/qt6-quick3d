@@ -38,9 +38,9 @@ public:
     void addChildItem(QQuickItem *item);
     void removeChildItem(QQuickItem *item);
     QQuickItem *contentItem() const;
+    void itemDestroyed(QQuickItem *item) override;
 
 private Q_SLOTS:
-    void sourceItemDestroyed(QObject *item);
     void invalidated();
     void updatePicking();
     void derefWindow(QObject *win);
@@ -50,7 +50,7 @@ Q_SIGNALS:
 
 protected:
     void preSync() override;
-    void itemChange(QQuick3DObject::ItemChange change, const QQuick3DObject::ItemChangeData &value) override;
+
 private:
     QSSGRenderGraphObject *updateSpatialNode(QSSGRenderGraphObject *node) override;
     void markAllDirty() override;
@@ -60,9 +60,7 @@ private:
     QSGRootNode *m_rootNode = nullptr;
     QQuickWindow *m_window = nullptr;
     QQuickItem *m_contentItem = nullptr;
-    bool m_sceneManagerValid = false;
     bool m_pickingDirty = true;
-    bool m_updatingRendererNode = false;
     QPointer<QQuick3DSceneManager> m_sceneManagerForLayer;
 };
 

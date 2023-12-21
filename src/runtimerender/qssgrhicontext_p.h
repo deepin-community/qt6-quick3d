@@ -26,9 +26,11 @@ QT_BEGIN_NAMESPACE
 class QSSGRhiContext;
 class QSSGRhiBuffer;
 struct QSSGShaderLightProperties;
+struct QSSGRenderMesh;
 struct QSSGRenderModel;
 class QSSGRhiShaderPipeline;
 struct QSSGRenderInstanceTable;
+struct QSSGRenderLayer;
 
 struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRhiInputAssemblerState
 {
@@ -37,33 +39,22 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRhiInputAssemblerState
         NormalSemantic,             // attr_norm
         TexCoord0Semantic,          // attr_uv0
         TexCoord1Semantic,          // attr_uv1
-        TexCoordLightmapSemantic,   // attr_lightmapuv
         TangentSemantic,            // attr_textan
         BinormalSemantic,           // attr_binormal
+        ColorSemantic,              // attr_color
+        MaxTargetSemantic = ColorSemantic,
         JointSemantic,              // attr_joints
         WeightSemantic,             // attr_weights
-        ColorSemantic,              // attr_color
-        TargetPosition0Semantic,    // attr_tpos0
-        TargetPosition1Semantic,    // attr_tpos1
-        TargetPosition2Semantic,    // attr_tpos2
-        TargetPosition3Semantic,    // attr_tpos3
-        TargetPosition4Semantic,    // attr_tpos4
-        TargetPosition5Semantic,    // attr_tpos5
-        TargetPosition6Semantic,    // attr_tpos6
-        TargetPosition7Semantic,    // attr_tpos7
-        TargetNormal0Semantic,      // attr_tnorm0
-        TargetNormal1Semantic,      // attr_tnorm1
-        TargetNormal2Semantic,      // attr_tnorm2
-        TargetNormal3Semantic,      // attr_tnorm3
-        TargetTangent0Semantic,     // attr_ttan0
-        TargetTangent1Semantic,     // attr_ttan1
-        TargetBinormal0Semantic,    // attr_tbinorm0
-        TargetBinormal1Semantic     // attr_tbinorm1
+        TexCoordLightmapSemantic    // attr_lightmapuv
     };
 
     QRhiVertexInputLayout inputLayout;
     QVarLengthArray<InputSemantic, 8> inputs;
     QRhiGraphicsPipeline::Topology topology;
+
+    std::array<quint8, MaxTargetSemantic + 1> targetOffsets = { UINT8_MAX, UINT8_MAX, UINT8_MAX, UINT8_MAX,
+                                                                     UINT8_MAX, UINT8_MAX, UINT8_MAX };
+    quint8 targetCount = 0;
 
     static QRhiVertexInputAttribute::Format toVertexInputFormat(QSSGRenderComponentType compType, quint32 numComps);
     static QRhiGraphicsPipeline::Topology toTopology(QSSGRenderDrawMode drawMode);
@@ -77,13 +68,11 @@ class Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRhiBuffer
 {
     Q_DISABLE_COPY(QSSGRhiBuffer)
 public:
-    QAtomicInt ref;
-
     QSSGRhiBuffer(QSSGRhiContext &context,
                   QRhiBuffer::Type type,
                   QRhiBuffer::UsageFlags usageMask,
                   quint32 stride,
-                  int size,
+                  qsizetype size,
                   QRhiCommandBuffer::IndexFormat indexFormat = QRhiCommandBuffer::IndexUInt16);
 
     virtual ~QSSGRhiBuffer();
@@ -127,6 +116,8 @@ private:
     bool maybeExists = true;
     friend class QSSGRhiShaderPipeline;
 };
+
+using QSSGRhiBufferPtr = std::shared_ptr<QSSGRhiBuffer>;
 
 QRhiSampler::Filter toRhi(QSSGRenderTextureFilterOp op);
 QRhiSampler::AddressMode toRhi(QSSGRenderTextureCoordOp tiling);
@@ -211,9 +202,7 @@ class Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRhiShaderPipeline
 {
     Q_DISABLE_COPY(QSSGRhiShaderPipeline)
 public:
-    QAtomicInt ref;
-
-    QSSGRhiShaderPipeline(QSSGRhiContext &context) : m_context(context) { }
+    explicit QSSGRhiShaderPipeline(QSSGRhiContext &context) : m_context(context) { }
 
     QSSGRhiContext &context() const { return m_context; }
     bool isNull() const { return m_stages.isEmpty(); }
@@ -294,6 +283,11 @@ public:
         int reflectionProbeBoxMin = -1;
         int reflectionProbeCorrection = -1;
         int specularAAIdx = -1;
+        int fogColorIdx = -1;
+        int fogSunColorIdx = -1;
+        int fogDepthPropertiesIdx = -1;
+        int fogHeightPropertiesIdx = -1;
+        int fogTransmitPropertiesIdx = -1;
 
         struct ImageIndices
         {
@@ -316,9 +310,9 @@ public:
     };
     Q_DECLARE_FLAGS(UniformFlags, UniformFlag)
 
-    void setUniformValue(char *ubufData, const char *name, const QVariant &value, QSSGRenderShaderDataType type);
+    void setUniformValue(char *ubufData, const char *name, const QVariant &value, QSSGRenderShaderValue::Type type);
     void setUniform(char *ubufData, const char *name, const void *data, size_t size, int *storeIndex = nullptr, UniformFlags flags = {});
-    void setUniformArray(char *ubufData, const char *name, const void *data, size_t itemCount, QSSGRenderShaderDataType type, int *storeIndex = nullptr);
+    void setUniformArray(char *ubufData, const char *name, const void *data, size_t itemCount, QSSGRenderShaderValue::Type type, int *storeIndex = nullptr);
     int bindingForTexture(const char *name, int hint = -1);
 
     void setLightsEnabled(bool enable) { m_lightsEnabled = enable; }
@@ -399,6 +393,8 @@ private:
 Q_DECLARE_OPERATORS_FOR_FLAGS(QSSGRhiShaderPipeline::StageFlags)
 Q_DECLARE_OPERATORS_FOR_FLAGS(QSSGRhiShaderPipeline::UniformFlags)
 
+using QSSGRhiShaderPipelinePtr = std::shared_ptr<QSSGRhiShaderPipeline>;
+
 struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRhiGraphicsPipelineState
 {
     const QSSGRhiShaderPipeline *shaderPipeline;
@@ -406,8 +402,12 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRhiGraphicsPipelineState
 
     bool depthTestEnable = false;
     bool depthWriteEnable = false;
+    bool usesStencilRef = false;
     QRhiGraphicsPipeline::CompareOp depthFunc = QRhiGraphicsPipeline::LessOrEqual;
     QRhiGraphicsPipeline::CullMode cullMode = QRhiGraphicsPipeline::None;
+    QRhiGraphicsPipeline::StencilOpState stencilOpFrontState {};
+    quint32 stencilWriteMask = 0xFF;
+    quint32 stencilRef = 0;
     int depthBias = 0;
     float slopeScaledDepthBias = 0.0f;
     bool blendEnable = false;
@@ -421,6 +421,8 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRhiGraphicsPipelineState
     QSSGRhiInputAssemblerState ia;
     float lineWidth = 1.0f;
 
+    QRhiGraphicsPipeline::PolygonMode polygonMode = QRhiGraphicsPipeline::Fill;
+
     static QRhiGraphicsPipeline::CullMode toCullMode(QSSGCullFaceMode cullFaceMode);
 };
 
@@ -430,6 +432,10 @@ inline bool operator==(const QSSGRhiGraphicsPipelineState &a, const QSSGRhiGraph
             && a.samples == b.samples
             && a.depthTestEnable == b.depthTestEnable
             && a.depthWriteEnable == b.depthWriteEnable
+            && a.usesStencilRef == b.usesStencilRef
+            && a.stencilRef == b.stencilRef
+            && (std::memcmp(&a.stencilOpFrontState, &b.stencilOpFrontState, sizeof(QRhiGraphicsPipeline::StencilOpState)) == 0)
+            && a.stencilWriteMask == b.stencilWriteMask
             && a.depthFunc == b.depthFunc
             && a.cullMode == b.cullMode
             && a.depthBias == b.depthBias
@@ -448,7 +454,8 @@ inline bool operator==(const QSSGRhiGraphicsPipelineState &a, const QSSGRhiGraph
             && a.targetBlend.dstAlpha == b.targetBlend.dstAlpha
             && a.targetBlend.opAlpha == b.targetBlend.opAlpha
             && a.colorAttachmentCount == b.colorAttachmentCount
-            && a.lineWidth == b.lineWidth;
+            && a.lineWidth == b.lineWidth
+            && a.polygonMode == b.polygonMode;
 }
 
 inline bool operator!=(const QSSGRhiGraphicsPipelineState &a, const QSSGRhiGraphicsPipelineState &b) Q_DECL_NOTHROW
@@ -466,10 +473,15 @@ inline size_t qHash(const QSSGRhiGraphicsPipelineState &s, size_t seed) Q_DECL_N
             ^ qHash(s.cullMode)
             ^ qHash(s.colorAttachmentCount)
             ^ qHash(s.lineWidth)
+            ^ qHash(s.polygonMode)
+            ^ qHashBits(&s.stencilOpFrontState, sizeof(QRhiGraphicsPipeline::StencilOpState))
             ^ (s.depthTestEnable << 1)
             ^ (s.depthWriteEnable << 2)
             ^ (s.blendEnable << 3)
-            ^ (s.scissorEnable << 4);
+            ^ (s.scissorEnable << 4)
+            ^ (s.usesStencilRef << 5)
+            ^ (s.stencilRef << 6)
+            ^ (s.stencilWriteMask << 7);
 }
 
 struct QSSGGraphicsPipelineStateKey
@@ -607,7 +619,7 @@ inline void QSSGRhiShaderResourceBindingList::addUniformBuffer(int binding, QRhi
         return;
     }
 #endif
-    QRhiShaderResourceBinding::Data *d = v[p++].data();
+    QRhiShaderResourceBinding::Data *d = QRhiImplementation::shaderResourceBindingData(v[p++]);
     h ^= qintptr(buf);
     d->binding = binding;
     d->stage = stage;
@@ -627,7 +639,7 @@ inline void QSSGRhiShaderResourceBindingList::addTexture(int binding, QRhiShader
         return;
     }
 #endif
-    QRhiShaderResourceBinding::Data *d = v[p++].data();
+    QRhiShaderResourceBinding::Data *d = QRhiImplementation::shaderResourceBindingData(v[p++]);
     h ^= qintptr(tex) ^ qintptr(sampler);
     d->binding = binding;
     d->stage = stage;
@@ -639,38 +651,23 @@ inline void QSSGRhiShaderResourceBindingList::addTexture(int binding, QRhiShader
 
 // The lookup keys can be somewhat complicated due to having to handle cases
 // like "render a model in a shared scene between multiple View3Ds" (here both
-// the View3D ('layer') and the model ('model') act as the lookup key since
+// the View3D ('layer/cid') and the model ('model') act as the lookup key since
 // while the model is the same, we still want different uniform buffers per
 // View3D), or the case of shadow maps where the shadow map (there can be as
-// many as lights) is taken into account too ('entry').
+// many as lights) is taken into account too ('entry') together with an entry index
+// where more resolution is needed (e.g., cube maps).
 //
 struct QSSGRhiDrawCallDataKey
 {
-    enum Selector {
-        Main,
-        Shadow,
-        ShadowBlur,
-        ZPrePass,
-        DepthTexture,
-        AoTexture,
-        ComputeMipmap,
-        SkyBox,
-        ProgressiveAA,
-        Effects,
-        Item2D,
-        Reflection,
-        Lightmap
-    };
-    const void *layer;
-    const void *model;
-    const void *entry;
-    int index;
-    Selector selector;
+    const void *cid = nullptr; // Usually the sub-pass (see usage of QSSGPassKey)
+    const void *model = nullptr;
+    const void *entry = nullptr;
+    quintptr entryIdx = 0;
 };
 
 inline bool operator==(const QSSGRhiDrawCallDataKey &a, const QSSGRhiDrawCallDataKey &b) Q_DECL_NOTHROW
 {
-    return a.selector == b.selector && a.layer == b.layer && a.model == b.model && a.entry == b.entry && a.index == b.index;
+    return a.cid == b.cid && a.model == b.model && a.entry == b.entry && a.entryIdx == b.entryIdx;
 }
 
 inline bool operator!=(const QSSGRhiDrawCallDataKey &a, const QSSGRhiDrawCallDataKey &b) Q_DECL_NOTHROW
@@ -680,11 +677,10 @@ inline bool operator!=(const QSSGRhiDrawCallDataKey &a, const QSSGRhiDrawCallDat
 
 inline size_t qHash(const QSSGRhiDrawCallDataKey &k, size_t seed = 0) Q_DECL_NOTHROW
 {
-    return qHash(quintptr(k.layer)
+    return qHash(quintptr(k.cid)
                  ^ quintptr(k.model)
                  ^ quintptr(k.entry)
-                 ^ quintptr(k.selector)
-                 ^ quintptr(k.index), seed);
+                 ^ quintptr(k.entryIdx), seed);
 }
 
 struct QSSGRhiDrawCallData
@@ -697,11 +693,33 @@ struct QSSGRhiDrawCallData
     QVector<quint32> renderTargetDescription;
     QSSGRhiGraphicsPipelineState ps;
 
-    void reset() {
+    void reset()
+    {
         delete ubuf;
         ubuf = nullptr;
         srb = nullptr;
         pipeline = nullptr;
+    }
+};
+
+struct QSSGRhiRenderableTexture
+{
+    QRhiTexture *texture = nullptr;
+    QRhiRenderBuffer *depthStencil = nullptr;
+    QRhiRenderPassDescriptor *rpDesc = nullptr;
+    QRhiTextureRenderTarget *rt = nullptr;
+    bool isValid() const { return texture && rpDesc && rt; }
+    void resetRenderTarget() {
+        delete rt;
+        rt = nullptr;
+        delete rpDesc;
+        rpDesc = nullptr;
+    }
+    void reset() {
+        resetRenderTarget();
+        delete texture;
+        delete depthStencil;
+        *this = QSSGRhiRenderableTexture();
     }
 };
 
@@ -717,6 +735,8 @@ struct QSSGRhiInstanceBufferData
     QByteArray sortedData;
     QList<QSSGRhiSortData> sortData;
     QVector3D sortedCameraDirection;
+    QVector3D cameraPosition;
+    QByteArray lodData;
     int serial = -1;
     bool owned = true;
     bool sorting = false;
@@ -757,127 +777,144 @@ inline bool operator!=(const QSSGRhiDummyTextureKey &a, const QSSGRhiDummyTextur
     return !(a == b);
 }
 
-#define QSSGRHICTX_STAT(ctx, f) for (bool qssgrhictxlog_enabled = QSSGRhiContextStats::isEnabled(); qssgrhictxlog_enabled; qssgrhictxlog_enabled = false) ctx->stats().f
+#define QSSGRHICTX_STAT(ctx, f) for (bool qssgrhictxlog_enabled = ctx->stats().isEnabled(); qssgrhictxlog_enabled; qssgrhictxlog_enabled = false) ctx->stats().f
 
-class QSSGRhiContextStats
+class Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRhiContextStats
 {
 public:
-    static bool isEnabled()
+    struct DrawInfo {
+        quint64 callCount = 0;
+        quint64 vertexOrIndexCount = 0;
+    };
+    struct InstancedDrawInfo {
+        quint64 callCount = 0;
+        quint64 vertexOrIndexCount = 0;
+        quint64 instanceCount = 0;
+    };
+    struct RenderPassInfo {
+        QByteArray rtName;
+        QSize pixelSize;
+        DrawInfo indexedDraws;
+        DrawInfo draws;
+        InstancedDrawInfo instancedIndexedDraws;
+        InstancedDrawInfo instancedDraws;
+    };
+    struct PerLayerInfo {
+        PerLayerInfo()
+        {
+            externalRenderPass.rtName = QByteArrayLiteral("Qt Quick");
+        }
+
+        // The main render pass if renderMode==Offscreen, plus render passes
+        // for shadow maps, postprocessing effects, etc.
+        QVector<RenderPassInfo> renderPasses;
+
+        // An Underlay/Overlay/Inline renderMode will make the View3D add stuff
+        // to a render pass managed by Qt Quick. (external == not under the
+        // control of Qt Quick 3D)
+        RenderPassInfo externalRenderPass;
+
+        int currentRenderPassIndex = -1;
+    };
+    struct GlobalInfo { // global as in per QSSGRhiContext which is per-QQuickWindow
+        quint64 meshDataSize = 0;
+        quint64 imageDataSize = 0;
+        qint64 materialGenerationTime = 0;
+        qint64 effectGenerationTime = 0;
+    };
+
+    QHash<QSSGRenderLayer *, PerLayerInfo> perLayerInfo;
+    GlobalInfo globalInfo;
+
+    QSSGRhiContextStats(QSSGRhiContext &context)
+        : context(context)
     {
-        static bool enabled = Q_QUICK3D_PROFILING_ENABLED || qgetenv("QSG_RENDERER_DEBUG").contains(QByteArrayLiteral("render"));
+    }
+
+    // The data collected have four consumers:
+    //
+    // - Printed on debug output when QSG_RENDERER_DEBUG has the relevant key.
+    //   (this way the debug output from the 2D scenegraph renderer and these 3D
+    //   statistics appear nicely intermixed)
+    // - Passed on to the QML profiler when profiling is enabled.
+    // - DebugView via QQuick3DRenderStats.
+    // - When tracing is enabled
+    //
+    // The first two are enabled globally, but DebugView needs a dynamic
+    // enable/disable since we want to collect data when a DebugView item
+    // becomes visible, but not otherwise.
+
+    static bool profilingEnabled()
+    {
+        static bool enabled = Q_QUICK3D_PROFILING_ENABLED;
         return enabled;
     }
 
-    void start(const void *key)
+    static bool rendererDebugEnabled()
     {
-        renderPasses.clear();
-        externalRenderPass = {};
-        currentRenderPassIndex = -1;
-        rendererPtr = key;
+        static bool enabled = qgetenv("QSG_RENDERER_DEBUG").contains(QByteArrayLiteral("render"));
+        return enabled;
     }
 
-    void stop()
+    bool isEnabled() const;
+    void drawIndexed(quint32 indexCount, quint32 instanceCount);
+    void draw(quint32 vertexCount, quint32 instanceCount);
+
+    void meshDataSizeChanges(quint64 newSize) // can be called outside start-stop
     {
-        const int rpCount = renderPasses.size();
-        qDebug("%d render passes in 3D renderer %p", rpCount, rendererPtr);
-        for (int i = 0; i < rpCount; ++i) {
-            const RenderPassInfo &rp(renderPasses[i]);
-            qDebug("Render pass %d: target size %dx%d pixels",
-                   i, rp.pixelSize.width(), rp.pixelSize.height());
-            printRenderPass(rp);
-        }
-        if (externalRenderPass.indexedDraws.callCount || externalRenderPass.indexedDraws.instancedCallCount
-                || externalRenderPass.draws.callCount || externalRenderPass.draws.instancedCallCount)
-        {
-            qDebug("Within external render passes:");
-            printRenderPass(externalRenderPass);
-        }
+        globalInfo.meshDataSize = newSize;
     }
 
-    void beginRenderPass(QRhiTextureRenderTarget *rt)
+    void imageDataSizeChanges(quint64 newSize) // can be called outside start-stop
     {
-        renderPasses.append({ rt->pixelSize(), {}, {} });
-        currentRenderPassIndex = renderPasses.size() - 1;
+        globalInfo.imageDataSize = newSize;
     }
 
-    void endRenderPass()
+    void registerMaterialShaderGenerationTime(qint64 ms)
     {
-        currentRenderPassIndex = -1;
+        globalInfo.materialGenerationTime += ms;
     }
 
-    void drawIndexed(quint32 indexCount, quint32 instanceCount)
+    void registerEffectShaderGenerationTime(qint64 ms)
     {
-        RenderPassInfo &rp(currentRenderPassIndex >= 0 ? renderPasses[currentRenderPassIndex] : externalRenderPass);
-        if (instanceCount > 1) {
-            rp.indexedDraws.instancedCallCount += 1;
-            rp.indexedDraws.instancedIndexCount += indexCount;
-            rp.indexedDraws.instanceCount += instanceCount;
-        } else {
-            rp.indexedDraws.callCount += 1;
-            rp.indexedDraws.indexCount += indexCount;
-        }
+        globalInfo.effectGenerationTime += ms;
     }
 
-    void draw(quint32 vertexCount, quint32 instanceCount)
+    static quint64 totalDrawCallCountForPass(const QSSGRhiContextStats::RenderPassInfo &pass)
     {
-        RenderPassInfo &rp(currentRenderPassIndex >= 0 ? renderPasses[currentRenderPassIndex] : externalRenderPass);
-        if (instanceCount > 1) {
-            rp.draws.instancedCallCount += 1;
-            rp.draws.instancedVertexCount += vertexCount;
-            rp.draws.instanceCount += instanceCount;
-        } else {
-            rp.draws.callCount += 1;
-            rp.draws.vertexCount += vertexCount;
-        }
+        return pass.draws.callCount
+                + pass.indexedDraws.callCount
+                + pass.instancedDraws.callCount
+                + pass.instancedIndexedDraws.callCount;
     }
 
-    struct IndexedDrawInfo {
-        quint32 callCount = 0;
-        quint32 instancedCallCount = 0;
-        quint32 indexCount = 0;
-        quint32 instancedIndexCount = 0;
-        quint32 instanceCount = 0;
-    };
-    struct DrawInfo {
-        quint32 callCount = 0;
-        quint32 instancedCallCount = 0;
-        quint32 vertexCount = 0;
-        quint32 instancedVertexCount = 0;
-        quint32 instanceCount = 0;
-    };
-    struct RenderPassInfo {
-        QSize pixelSize;
-        IndexedDrawInfo indexedDraws;
-        DrawInfo draws;
-    };
-    QVector<RenderPassInfo> renderPasses;
-    RenderPassInfo externalRenderPass;
-    int currentRenderPassIndex = -1;
-    const void *rendererPtr = nullptr;
-
-    void printRenderPass(const RenderPassInfo &rp)
+    static quint64 totalVertexCountForPass(const QSSGRhiContextStats::RenderPassInfo &pass)
     {
-        qDebug("%u indexed draw calls with %u indices in total, "
-               "%u non-indexed draw calls with %u vertices in total",
-               rp.indexedDraws.callCount, rp.indexedDraws.indexCount,
-               rp.draws.callCount, rp.draws.vertexCount);
-        if (rp.indexedDraws.instancedCallCount || rp.draws.instancedCallCount) {
-            qDebug("%u instanced indexed draw calls with %u indices and %u instances in total, "
-                   "%u instanced non-indexed draw calls with %u indices and %u instances in total",
-                   rp.indexedDraws.instancedCallCount, rp.indexedDraws.instancedIndexCount, rp.indexedDraws.instanceCount,
-                   rp.draws.instancedCallCount, rp.draws.instancedVertexCount, rp.draws.instanceCount);
-        }
+        return pass.draws.vertexOrIndexCount
+                + pass.indexedDraws.vertexOrIndexCount
+                + pass.instancedDraws.vertexOrIndexCount
+                + pass.instancedIndexedDraws.vertexOrIndexCount;
     }
+
+    void start(QSSGRenderLayer *layer);
+    void stop(QSSGRenderLayer *layer);
+    void beginRenderPass(QRhiTextureRenderTarget *rt);
+    void endRenderPass();
+    void printRenderPass(const RenderPassInfo &rp);
+    void cleanupLayerInfo(QSSGRenderLayer *layer);
+
+    QSSGRhiContext &context;
+    QSSGRenderLayer *layerKey = nullptr;
+    QSet<QSSGRenderLayer *> dynamicDataSources;
 };
 
-struct QSSGRenderGraphObject;
+class QSSGRenderGraphObject;
 
 class Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRhiContext
 {
     Q_DISABLE_COPY(QSSGRhiContext)
 public:
-    QAtomicInt ref;
-    QSSGRhiContext();
+    explicit QSSGRhiContext(QRhi *rhi = nullptr);
     ~QSSGRhiContext();
 
     void initialize(QRhi *rhi);
@@ -896,18 +933,8 @@ public:
     void setMainPassSampleCount(int samples) { m_mainSamples = samples; }
     int mainPassSampleCount() const { return m_mainSamples; }
 
-    QSSGRhiGraphicsPipelineState *graphicsPipelineState(const void *key)
-    {
-        return &m_gfxPs[key];
-    }
-
-    QSSGRhiGraphicsPipelineState *resetGraphicsPipelineState(const void *key)
-    {
-        m_gfxPs[key] = QSSGRhiGraphicsPipelineState();
-        return &m_gfxPs[key];
-    }
-
     QRhiShaderResourceBindings *srb(const QSSGRhiShaderResourceBindingList &bindings);
+    void releaseDrawCallData(QSSGRhiDrawCallData &dcd);
     QRhiGraphicsPipeline *pipeline(const QSSGGraphicsPipelineStateKey &key,
                                    QRhiRenderPassDescriptor *rpDesc,
                                    QRhiShaderResourceBindings *srb);
@@ -924,6 +951,13 @@ public:
 
     void registerTexture(QRhiTexture *texture);
     void releaseTexture(QRhiTexture *texture);
+    QSet<QRhiTexture *> registeredTextures() const { return m_textures; }
+
+    void registerMesh(QSSGRenderMesh *mesh);
+    void releaseMesh(QSSGRenderMesh *mesh);
+    QSet<QSSGRenderMesh *> registeredMeshes() const { return m_meshes; }
+
+    QHash<QSSGGraphicsPipelineStateKey, QRhiGraphicsPipeline *> pipelines() const { return m_pipelines; }
 
     void cleanupDrawCallData(const QSSGRenderModel *model);
 
@@ -944,6 +978,12 @@ public:
     {
         return m_instanceBuffers[instanceTable];
     }
+
+    QSSGRhiInstanceBufferData &instanceBufferData(const QSSGRenderModel *model)
+    {
+        return m_instanceBuffersLod[model];
+    }
+
     QSSGRhiParticleData &particleData(const QSSGRenderGraphObject *particlesOrModel)
     {
         return m_particleData[particlesOrModel];
@@ -953,21 +993,24 @@ public:
 
     int maxUniformBufferRange() const { return m_rhi->resourceLimit(QRhi::MaxUniformBufferRange); }
 
+    void releaseCachedResources();
+
 private:
     QRhi *m_rhi = nullptr;
     QRhiRenderPassDescriptor *m_mainRpDesc = nullptr;
     QRhiCommandBuffer *m_cb = nullptr;
     QRhiRenderTarget *m_rt = nullptr;
     int m_mainSamples = 1;
-    QHash<const void *, QSSGRhiGraphicsPipelineState> m_gfxPs;
     QHash<QSSGRhiShaderResourceBindingList, QRhiShaderResourceBindings *> m_srbCache;
     QHash<QSSGGraphicsPipelineStateKey, QRhiGraphicsPipeline *> m_pipelines;
     QHash<QSSGComputePipelineStateKey, QRhiComputePipeline *> m_computePipelines;
     QHash<QSSGRhiDrawCallDataKey, QSSGRhiDrawCallData> m_drawCallData;
     QVector<QPair<QSSGRhiSamplerDescription, QRhiSampler*>> m_samplers;
     QSet<QRhiTexture *> m_textures;
+    QSet<QSSGRenderMesh *> m_meshes;
     QHash<QSSGRhiDummyTextureKey, QRhiTexture *> m_dummyTextures;
     QHash<QSSGRenderInstanceTable *, QSSGRhiInstanceBufferData> m_instanceBuffers;
+    QHash<const QSSGRenderModel *, QSSGRhiInstanceBufferData> m_instanceBuffersLod;
     QHash<const QSSGRenderGraphObject *, QSSGRhiParticleData> m_particleData;
     QSSGRhiContextStats m_stats;
 };

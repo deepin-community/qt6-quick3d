@@ -18,6 +18,7 @@
 #include <QtGui/qimagereader.h>
 
 #include <QtQuick3DUtils/private/qssgmesh_p.h>
+#include <QtQuick3DUtils/private/qssgassert_p.h>
 
 #include <QtQuick3DRuntimeRender/private/qssgrenderbuffermanager_p.h>
 
@@ -26,18 +27,29 @@
 #include <QtQuickTimeline/private/qquicktimeline_p.h>
 #endif // QT_QUICK3D_ENABLE_RT_ANIMATIONS
 
-
 QT_BEGIN_NAMESPACE
+
+using namespace Qt::StringLiterals;
 
 namespace QSSGQmlUtilities {
 
-QString insertTabs(int n)
+class PropertyMap
 {
-    QString tabs;
-    for (int i = 0; i < n; ++i)
-        tabs += QLatin1String("    ");
-    return tabs;
-}
+public:
+    typedef QHash<QByteArray, QVariant> PropertiesMap;
+
+    static PropertyMap *instance();
+
+    PropertiesMap propertiesForType(QSSGSceneDesc::Node::RuntimeType type);
+    QVariant getDefaultValue(QSSGSceneDesc::Node::RuntimeType type, const char *property);
+    bool isDefaultValue(QSSGSceneDesc::Node::RuntimeType type, const char *property, const QVariant &value);
+
+private:
+    PropertyMap();
+
+    QHash<QSSGSceneDesc::Node::RuntimeType, PropertiesMap> m_properties;
+
+};
 
 QString qmlComponentName(const QString &name) {
     QString nameCopy = name;
@@ -118,8 +130,16 @@ QString sanitizeQmlId(const QString &id)
     idCopy.replace(regExp, QStringLiteral("_"));
 
     // first letter of id can not be upper case
-    if (!idCopy.isEmpty() && idCopy[0].isUpper())
-        idCopy[0] = idCopy[0].toLower();
+    // to make it look nicer, lower-case the initial run of all-upper-case characters
+    if (!idCopy.isEmpty() && idCopy[0].isUpper()) {
+
+        int i = 0;
+        int len = idCopy.length();
+        while (i < len && idCopy[i].isUpper()) {
+            idCopy[i] = idCopy[i].toLower();
+            ++i;
+        }
+    }
 
     // ### qml keywords as names
     static QSet<QByteArray> keywords {
@@ -248,226 +268,129 @@ PropertyMap *PropertyMap::instance()
     return &p;
 }
 
-PropertyMap::PropertiesMap *PropertyMap::propertiesForType(PropertyMap::Type type)
+PropertyMap::PropertiesMap PropertyMap::propertiesForType(QSSGSceneDesc::Node::RuntimeType type)
 {
-    if (m_properties.contains(type))
-        return m_properties[type];
-
-    return nullptr;
+    return m_properties[type];
 }
 
-QVariant PropertyMap::getDefaultValue(PropertyMap::Type type, const QString &property)
+QVariant PropertyMap::getDefaultValue(QSSGSceneDesc::Node::RuntimeType type, const char *property)
 {
     QVariant value;
 
     if (m_properties.contains(type)) {
         auto properties = m_properties[type];
-        if (properties->contains(property))
-            value = properties->value(property);
+        value = properties.value(property);
     }
 
     return value;
 }
 
-bool PropertyMap::isDefaultValue(PropertyMap::Type type, const QString &property, const QVariant &value)
+bool PropertyMap::isDefaultValue(QSSGSceneDesc::Node::RuntimeType type, const char *property, const QVariant &value)
 {
     bool isTheSame = value == getDefaultValue(type, property);
     return isTheSame;
 }
 
-PropertyMap::PropertyMap()
-{
-    // Node
-    PropertiesMap *node = new PropertiesMap;
-    node->insert(QStringLiteral("x"), 0);
-    node->insert(QStringLiteral("y"), 0);
-    node->insert(QStringLiteral("z"), 0);
-    node->insert(QStringLiteral("position"), QVector3D(0, 0, 0));
-    node->insert(QStringLiteral("position.x"), 0);
-    node->insert(QStringLiteral("position.y"), 0);
-    node->insert(QStringLiteral("position.z"), 0);
-    node->insert(QStringLiteral("rotation"), QQuaternion(1, 0, 0, 0));
-    node->insert(QStringLiteral("eulerRotation.x"), 0);
-    node->insert(QStringLiteral("eulerRotation.y"), 0);
-    node->insert(QStringLiteral("eulerRotation.z"), 0);
-    node->insert(QStringLiteral("eulerRotation"), QVector3D(0, 0, 0));
-    node->insert(QStringLiteral("scale"), QVector3D(1, 1, 1));
-    node->insert(QStringLiteral("scale.x"), 1);
-    node->insert(QStringLiteral("scale.y"), 1);
-    node->insert(QStringLiteral("scale.z"), 1);
-    node->insert(QStringLiteral("pivot"), QVector3D(0, 0, 0));
-    node->insert(QStringLiteral("pivot.x"), 0);
-    node->insert(QStringLiteral("pivot.y"), 0);
-    node->insert(QStringLiteral("pivot.z"), 0);
-    node->insert(QStringLiteral("opacity"), 1.0);
-    node->insert(QStringLiteral("visible"), true);
-    m_properties.insert(Type::Node, node);
-
-    // Model
-    PropertiesMap *model = new PropertiesMap;
-    m_properties.insert(Type::Model, model);
-
-    // PerspectiveCamera
-    PropertiesMap *perspectiveCamera = new PropertiesMap;
-    perspectiveCamera->insert(QStringLiteral("clipNear"), 10.0f);
-    perspectiveCamera->insert(QStringLiteral("clipFar"), 10000.0f);
-    perspectiveCamera->insert(QStringLiteral("fieldOfView"), 60.0f);
-    perspectiveCamera->insert(QStringLiteral("fieldOfViewOrientation"), QStringLiteral("PerspectiveCamera.Vertical"));
-    m_properties.insert(Type::PerspectiveCamera, perspectiveCamera);
-
-    // OrthographicCamera
-    PropertiesMap *orthographicCamera = new PropertiesMap;
-    orthographicCamera->insert(QStringLiteral("clipNear"), 10.0f);
-    orthographicCamera->insert(QStringLiteral("clipFar"), 10000.0f);
-    orthographicCamera->insert(QStringLiteral("horizontalMagnification"), 1.0f);
-    orthographicCamera->insert(QStringLiteral("verticalMagnification"), 1.0f);
-    m_properties.insert(Type::OrthographicCamera, orthographicCamera);
-
-    // Directional Light
-    PropertiesMap *directionalLight = new PropertiesMap;
-    directionalLight->insert(QStringLiteral("color"), QColor(Qt::white));
-    directionalLight->insert(QStringLiteral("ambientColor"), QColor(Qt::black));
-    directionalLight->insert(QStringLiteral("brightness"), 1.0f);
-    directionalLight->insert(QStringLiteral("castShadow"), false);
-    directionalLight->insert(QStringLiteral("shadowBias"), 0.0f);
-    directionalLight->insert(QStringLiteral("shadowFactor"), 5.0f);
-    directionalLight->insert(QStringLiteral("shadowMapResolution"), 9);
-    directionalLight->insert(QStringLiteral("shadowMapFar"), 5000.0f);
-    directionalLight->insert(QStringLiteral("shadowFilter"), 5.0f);
-    m_properties.insert(Type::DirectionalLight, directionalLight);
-
-    // Point Light
-    PropertiesMap *pointLight = new PropertiesMap;
-    pointLight->insert(QStringLiteral("color"), QColor(Qt::white));
-    pointLight->insert(QStringLiteral("ambientColor"), QColor(Qt::black));
-    pointLight->insert(QStringLiteral("brightness"), 1.0f);
-    pointLight->insert(QStringLiteral("castShadow"), false);
-    pointLight->insert(QStringLiteral("shadowBias"), 0.0f);
-    pointLight->insert(QStringLiteral("shadowFactor"), 5.0f);
-    pointLight->insert(QStringLiteral("shadowMapResolution"), 9);
-    pointLight->insert(QStringLiteral("shadowMapFar"), 5000.0f);
-    pointLight->insert(QStringLiteral("shadowFilter"), 5.0f);
-    pointLight->insert(QStringLiteral("constantFade"), 1.0f);
-    pointLight->insert(QStringLiteral("linearFade"), 0.0f);
-    pointLight->insert(QStringLiteral("quadraticFade"), 1.0f);
-    m_properties.insert(Type::PointLight, pointLight);
-
-    // Spot Light
-    PropertiesMap *spotLight = new PropertiesMap;
-    spotLight->insert(QStringLiteral("color"), QColor(Qt::white));
-    spotLight->insert(QStringLiteral("ambientColor"), QColor(Qt::black));
-    spotLight->insert(QStringLiteral("brightness"), 1.0f);
-    spotLight->insert(QStringLiteral("castShadow"), false);
-    spotLight->insert(QStringLiteral("shadowBias"), 0.0f);
-    spotLight->insert(QStringLiteral("shadowFactor"), 5.0f);
-    spotLight->insert(QStringLiteral("shadowMapResolution"), 9);
-    spotLight->insert(QStringLiteral("shadowMapFar"), 5000.0f);
-    spotLight->insert(QStringLiteral("shadowFilter"), 5.0f);
-    spotLight->insert(QStringLiteral("constantFade"), 1.0f);
-    spotLight->insert(QStringLiteral("linearFade"), 0.0f);
-    spotLight->insert(QStringLiteral("quadraticFade"), 1.0f);
-    spotLight->insert(QStringLiteral("coneAngle"), 40.0f);
-    spotLight->insert(QStringLiteral("innerConeAngle"), 30.0f);
-    m_properties.insert(Type::SpotLight, spotLight);
-
-    // DefaultMaterial
-    PropertiesMap *defaultMaterial = new PropertiesMap;
-    defaultMaterial->insert(QStringLiteral("lighting"), QStringLiteral("DefaultMaterial.FragmentLighting"));
-    defaultMaterial->insert(QStringLiteral("blendMode"), QStringLiteral("DefaultMaterial.SourceOver"));
-    defaultMaterial->insert(QStringLiteral("diffuseColor"), QColor(Qt::white));
-    defaultMaterial->insert(QStringLiteral("emissiveFactor"), QVector3D(0.0, 0.0, 0.0));
-    defaultMaterial->insert(QStringLiteral("specularModel"), QStringLiteral("DefaultMaterial.Default"));
-    defaultMaterial->insert(QStringLiteral("specularTint"), QColor(Qt::white));
-    defaultMaterial->insert(QStringLiteral("indexOfRefraction"), 1.45f);
-    defaultMaterial->insert(QStringLiteral("fresnelPower"), 0.0f);
-    defaultMaterial->insert(QStringLiteral("specularAmount"), 0.0f);
-    defaultMaterial->insert(QStringLiteral("specularRoughness"), 0.0f);
-    defaultMaterial->insert(QStringLiteral("opacity"), 1.0f);
-    defaultMaterial->insert(QStringLiteral("bumpAmount"), 0.0f);
-    defaultMaterial->insert(QStringLiteral("translucentFalloff"), 0.0f);
-    defaultMaterial->insert(QStringLiteral("diffuseLightWrap"), 0.0f);
-    defaultMaterial->insert(QStringLiteral("vertexColorsEnabled"), false);
-
-    m_properties.insert(Type::DefaultMaterial, defaultMaterial);
-
-    PropertiesMap *principledMaterial = new PropertiesMap;
-    principledMaterial->insert(QStringLiteral("lighting"), QStringLiteral("PrincipledMaterial.FragmentLighting"));
-    principledMaterial->insert(QStringLiteral("blendMode"), QStringLiteral("PrincipledMaterial.SourceOver"));
-    principledMaterial->insert(QStringLiteral("alphaMode"), QStringLiteral("PrincipledMaterial.Default"));
-    principledMaterial->insert(QStringLiteral("baseColor"), QColor(Qt::white));
-    principledMaterial->insert(QStringLiteral("metalness"), 0.0f);
-    principledMaterial->insert(QStringLiteral("specularAmount"), 1.0f);
-    principledMaterial->insert(QStringLiteral("specularTint"), 0.0f);
-    principledMaterial->insert(QStringLiteral("roughness"), 0.0f);
-    principledMaterial->insert(QStringLiteral("emissiveFactor"), QVector3D(0.0, 0.0, 0.0));
-    principledMaterial->insert(QStringLiteral("opacity"), 1.0f);
-    principledMaterial->insert(QStringLiteral("normalStrength"), 1.0f);
-    principledMaterial->insert(QStringLiteral("alphaCutoff"), 0.5f);
-    principledMaterial->insert(QStringLiteral("occlusionAmount"), 1.0f);
-    principledMaterial->insert(QStringLiteral("clearcoatAmount"), 0.0f);
-    principledMaterial->insert(QStringLiteral("clearcoatRoughnessAmount"), 0.0f);
-    principledMaterial->insert(QStringLiteral("transmissionFactor"), 0.0f);
-    principledMaterial->insert(QStringLiteral("thicknessFactor"), 0.0f);
-    principledMaterial->insert(QStringLiteral("attenuationDistance"), std::numeric_limits<float>::infinity());
-    principledMaterial->insert(QStringLiteral("attenuationColor"), QColor(Qt::white));
-    principledMaterial->insert(QStringLiteral("indexOfRefraction"), 1.5f);
-
-    m_properties.insert(Type::PrincipledMaterial, principledMaterial);
-
-    PropertiesMap *specularGlossyMaterial = new PropertiesMap;
-    specularGlossyMaterial->insert(QStringLiteral("lighting"), QStringLiteral("SpecularGlossyMaterial.FragmentLighting"));
-    specularGlossyMaterial->insert(QStringLiteral("blendMode"), QStringLiteral("SpecularGlossyMaterial.SourceOver"));
-    specularGlossyMaterial->insert(QStringLiteral("alphaMode"), QStringLiteral("SpecularGlossyMaterial.Default"));
-    specularGlossyMaterial->insert(QStringLiteral("albedoColor"), QColor(Qt::white));
-    specularGlossyMaterial->insert(QStringLiteral("specularColor"), QColor(Qt::white));
-    specularGlossyMaterial->insert(QStringLiteral("glossiness"), 1.0f);
-    specularGlossyMaterial->insert(QStringLiteral("emissiveFactor"), QVector3D(0.0, 0.0, 0.0));
-    specularGlossyMaterial->insert(QStringLiteral("opacity"), 1.0f);
-    specularGlossyMaterial->insert(QStringLiteral("normalStrength"), 1.0f);
-    specularGlossyMaterial->insert(QStringLiteral("alphaCutoff"), 0.5f);
-    specularGlossyMaterial->insert(QStringLiteral("occlusionAmount"), 1.0f);
-    specularGlossyMaterial->insert(QStringLiteral("clearcoatAmount"), 0.0f);
-    specularGlossyMaterial->insert(QStringLiteral("clearcoatRoughnessAmount"), 0.0f);
-    specularGlossyMaterial->insert(QStringLiteral("transmissionFactor"), 0.0f);
-    specularGlossyMaterial->insert(QStringLiteral("thicknessFactor"), 0.0f);
-    specularGlossyMaterial->insert(QStringLiteral("attenuationDistance"), std::numeric_limits<float>::infinity());
-    specularGlossyMaterial->insert(QStringLiteral("attenuationColor"), QColor(Qt::white));
-
-    m_properties.insert(Type::SpecularGlossyMaterial, specularGlossyMaterial);
-
-    // Image
-    PropertiesMap *texture = new PropertiesMap;
-    texture->insert(QStringLiteral("scaleU"), 1.0f);
-    texture->insert(QStringLiteral("scaleV"), 1.0f);
-    texture->insert(QStringLiteral("mappingMode"), QStringLiteral("Texture.UV"));
-    texture->insert(QStringLiteral("tilingModeHorizontal"), QStringLiteral("Texture.Repeat"));
-    texture->insert(QStringLiteral("tilingModeVertical"), QStringLiteral("Texture.Repeat"));
-    texture->insert(QStringLiteral("rotationUV"), 0.0f);
-    texture->insert(QStringLiteral("positionU"), 0.0f);
-    texture->insert(QStringLiteral("positionV"), 0.0f);
-    texture->insert(QStringLiteral("pivotU"), 0.0f);
-    texture->insert(QStringLiteral("pivotV"), 0.0f);
-    texture->insert(QStringLiteral("indexUV"), 0);
-    texture->insert(QStringLiteral("magFilter"), QStringLiteral("Texture.Linear"));
-    texture->insert(QStringLiteral("minFilter"), QStringLiteral("Texture.Linear"));
-    texture->insert(QStringLiteral("mipFilter"), QStringLiteral("Texture.None"));
-    texture->insert(QStringLiteral("generateMipmaps"), false);
-    m_properties.insert(Type::Texture, texture);
+static PropertyMap::PropertiesMap getObjectPropertiesMap(QObject *object) {
+    PropertyMap::PropertiesMap propertiesMap;
+    auto metaObject = object->metaObject();
+    for (auto i = 0; i < metaObject->propertyCount(); ++i) {
+        auto property = metaObject->property(i);
+        const auto name = property.name();
+        const auto value = property.read(object);
+        propertiesMap.insert(name, value);
+    }
+    return propertiesMap;
 }
 
-PropertyMap::~PropertyMap()
+PropertyMap::PropertyMap()
 {
-    for (const auto &proprtyMap : std::as_const(m_properties))
-        delete proprtyMap;
+    // Create a table containing the default values for each property for each supported type
+    {
+        QQuick3DNode node;
+        m_properties.insert(QSSGSceneDesc::Node::RuntimeType::Node, getObjectPropertiesMap(&node));
+    }
+    {
+        QQuick3DPrincipledMaterial principledMaterial;
+        m_properties.insert(QSSGSceneDesc::Node::RuntimeType::PrincipledMaterial, getObjectPropertiesMap(&principledMaterial));
+    }
+    {
+        QQuick3DSpecularGlossyMaterial specularGlossyMaterial;
+        m_properties.insert(QSSGSceneDesc::Node::RuntimeType::SpecularGlossyMaterial, getObjectPropertiesMap(&specularGlossyMaterial));
+    }
+    {
+        QQuick3DCustomMaterial customMaterial;
+        m_properties.insert(QSSGSceneDesc::Node::RuntimeType::CustomMaterial, getObjectPropertiesMap(&customMaterial));
+    }
+    {
+        QQuick3DTexture texture;
+        m_properties.insert(QSSGSceneDesc::Node::RuntimeType::Image2D, getObjectPropertiesMap(&texture));
+    }
+    {
+        QQuick3DCubeMapTexture cubeMapTexture;
+        m_properties.insert(QSSGSceneDesc::Node::RuntimeType::ImageCube, getObjectPropertiesMap(&cubeMapTexture));
+    }
+    {
+        QQuick3DTextureData textureData;
+        m_properties.insert(QSSGSceneDesc::Node::RuntimeType::TextureData, getObjectPropertiesMap(&textureData));
+    }
+    {
+        QQuick3DModel model;
+        m_properties.insert(QSSGSceneDesc::Node::RuntimeType::Model, getObjectPropertiesMap(&model));
+    }
+    {
+        QQuick3DOrthographicCamera orthographicCamera;
+        m_properties.insert(QSSGSceneDesc::Node::RuntimeType::OrthographicCamera, getObjectPropertiesMap(&orthographicCamera));
+    }
+    {
+        QQuick3DPerspectiveCamera perspectiveCamera;
+        m_properties.insert(QSSGSceneDesc::Node::RuntimeType::PerspectiveCamera, getObjectPropertiesMap(&perspectiveCamera));
+    }
+    {
+        QQuick3DDirectionalLight directionalLight;
+        m_properties.insert(QSSGSceneDesc::Node::RuntimeType::DirectionalLight, getObjectPropertiesMap(&directionalLight));
+    }
+    {
+        QQuick3DPointLight pointLight;
+        m_properties.insert(QSSGSceneDesc::Node::RuntimeType::PointLight, getObjectPropertiesMap(&pointLight));
+    }
+    {
+        QQuick3DSpotLight spotLight;
+        m_properties.insert(QSSGSceneDesc::Node::RuntimeType::SpotLight, getObjectPropertiesMap(&spotLight));
+    }
+    {
+        QQuick3DSkeleton skeleton;
+        m_properties.insert(QSSGSceneDesc::Node::RuntimeType::Skeleton, getObjectPropertiesMap(&skeleton));
+    }
+    {
+        QQuick3DJoint joint;
+        m_properties.insert(QSSGSceneDesc::Node::RuntimeType::Joint, getObjectPropertiesMap(&joint));
+    }
+    {
+        QQuick3DSkin skin;
+        m_properties.insert(QSSGSceneDesc::Node::RuntimeType::Skin, getObjectPropertiesMap(&skin));
+    }
+    {
+        QQuick3DMorphTarget morphTarget;
+        m_properties.insert(QSSGSceneDesc::Node::RuntimeType::MorphTarget, getObjectPropertiesMap(&morphTarget));
+    }
 }
 
 struct OutputContext
 {
     enum Type : quint8 { Header, RootNode, NodeTree, Resource };
+    enum Options : quint8
+    {
+        None,
+        ExpandValueComponents = 0x1,
+        DesignStudioWorkarounds = ExpandValueComponents | 0x2
+    };
     QTextStream &stream;
     QDir outdir;
+    QString sourceDir;
     quint8 indent = 0;
     Type type = NodeTree;
+    quint8 options = Options::None;
     quint16 scopeDepth = 0;
 };
 
@@ -475,10 +398,9 @@ template<QSSGSceneDesc::Material::RuntimeType T>
 const char *qmlElementName() { static_assert(!std::is_same_v<decltype(T), decltype(T)>, "Unknown type"); return nullptr; }
 template<> const char *qmlElementName<QSSGSceneDesc::Node::RuntimeType::Node>() { return "Node"; }
 
-template<> const char *qmlElementName<QSSGSceneDesc::Material::RuntimeType::DefaultMaterial>() { return "DefaultMaterial"; }
+template<> const char *qmlElementName<QSSGSceneDesc::Material::RuntimeType::SpecularGlossyMaterial>() { return "SpecularGlossyMaterial"; }
 template<> const char *qmlElementName<QSSGSceneDesc::Material::RuntimeType::PrincipledMaterial>() { return "PrincipledMaterial"; }
 template<> const char *qmlElementName<QSSGSceneDesc::Material::RuntimeType::CustomMaterial>() { return "CustomMaterial"; }
-template<> const char *qmlElementName<QSSGSceneDesc::Material::RuntimeType::SpecularGlossyMaterial>() { return "SpecularGlossyMaterial"; }
 template<> const char *qmlElementName<QSSGSceneDesc::Material::RuntimeType::OrthographicCamera>() { return "OrthographicCamera"; }
 template<> const char *qmlElementName<QSSGSceneDesc::Material::RuntimeType::PerspectiveCamera>() { return "PerspectiveCamera"; }
 
@@ -505,12 +427,10 @@ static const char *getQmlElementName(const QSSGSceneDesc::Node &node)
         return qmlElementName<RuntimeType::Node>();
     case RuntimeType::PrincipledMaterial:
         return qmlElementName<RuntimeType::PrincipledMaterial>();
-    case RuntimeType::DefaultMaterial:
-        return qmlElementName<RuntimeType::DefaultMaterial>();
-    case RuntimeType::CustomMaterial:
-        return qmlElementName<RuntimeType::CustomMaterial>();
     case RuntimeType::SpecularGlossyMaterial:
         return qmlElementName<RuntimeType::SpecularGlossyMaterial>();
+    case RuntimeType::CustomMaterial:
+        return qmlElementName<RuntimeType::CustomMaterial>();
     case RuntimeType::Image2D:
         return qmlElementName<RuntimeType::Image2D>();
     case RuntimeType::ImageCube:
@@ -545,7 +465,7 @@ static const char *getQmlElementName(const QSSGSceneDesc::Node &node)
 enum QMLBasicType
 {
     Bool,
-    Dobule,
+    Double,
     Int,
     List,
     Real,
@@ -656,11 +576,34 @@ using NodeNameMap = QHash<const QSSGSceneDesc::Node *, QString>;
 Q_GLOBAL_STATIC(NodeNameMap, g_nodeNameMap)
 using UniqueIdMap = QHash<QString, const QSSGSceneDesc::Node *>;
 Q_GLOBAL_STATIC(UniqueIdMap, g_idMap)
+// Normally g_idMap will contain all the ids but in some cases
+// (like Animation, not Node) the ids will just be stored
+// to avoid conflict.
+// Now, Animations will be processed after all the Nodes,
+// For Nodes, it is not used.
+using UniqueIdOthers = QSet<QString>;
+Q_GLOBAL_STATIC(UniqueIdOthers, g_idOthers)
 
 static QString getIdForNode(const QSSGSceneDesc::Node &node)
 {
+    static constexpr const char *typeNames[] = {
+        "", // Transform
+        "_camera",
+        "", // Model
+        "_texture",
+        "_material",
+        "_light",
+        "_mesh",
+        "_skin",
+        "_skeleton",
+        "_joint",
+        "_morphtarget",
+        "_unknown"
+    };
+    constexpr uint nameCount = sizeof(typeNames)/sizeof(const char*);
     const bool nodeHasName = (node.name.size() > 0);
-    QString name = nodeHasName ? QString::fromUtf8(node.name) : QString::fromLatin1(getQmlElementName(node));
+    uint nameIdx = qMin(uint(node.nodeType), nameCount);
+    QString name = nodeHasName ? QString::fromUtf8(node.name  + typeNames[nameIdx]) : QString::fromLatin1(getQmlElementName(node));
     QString sanitizedName = QSSGQmlUtilities::sanitizeQmlId(name);
 
     // Make sure we return a unique id.
@@ -682,20 +625,25 @@ static QString getIdForNode(const QSSGSceneDesc::Node &node)
     return sanitizedName;
 }
 
-void writeQmlPropertyHelper(QTextStream &output, int tabLevel, PropertyMap::Type type, const QString &propertyName, const QVariant &value)
+static QString getIdForAnimation(const QByteArray &inName)
 {
-    if (!PropertyMap::instance()->propertiesForType(type)->contains(propertyName)) {
-        qWarning() << "property: " << propertyName << " not found";
-        return;
-    }
+    QString name = !inName.isEmpty() ? QString::fromUtf8(inName + "_timeline") : "timeline0"_L1;
+    QString sanitizedName = QSSGQmlUtilities::sanitizeQmlId(name);
 
-    auto defaultValue = PropertyMap::instance()->propertiesForType(type)->value(propertyName);
+    int attempts = 1000;
+    quint16 id = 0;
+    do {
+        if (const auto it = g_idMap->constFind(sanitizedName); it == g_idMap->constEnd()) {
+            if (const auto oIt = g_idOthers->constFind(sanitizedName); oIt == g_idOthers->constEnd()) {
+                g_idOthers->insert(sanitizedName);
+                return sanitizedName;
+            }
+        }
 
-    if ((defaultValue != value)) {
-        QString valueString = QSSGQmlUtilities::variantToQml(value);
-        output << QSSGQmlUtilities::insertTabs(tabLevel) << propertyName << ": " << valueString << Qt::endl;
-    }
+        sanitizedName = QStringLiteral("%1%2").arg(sanitizedName).arg(++id);
+    } while (--attempts);
 
+    return sanitizedName;
 }
 
 QString stripParentDirectory(const QString &filePath) {
@@ -758,13 +706,12 @@ static QString toQuotedString(const QString &text) { return QStringLiteral("\"%1
 static inline QString getMeshFolder() { return QStringLiteral("meshes/"); }
 static inline QString getMeshExtension() { return QStringLiteral(".mesh"); }
 
-QString getMeshSourceName(const QByteArrayView &name)
+QString getMeshSourceName(const QString &name)
 {
     const auto meshFolder = getMeshFolder();
     const auto extension = getMeshExtension();
 
-    const auto sanitizedName = QSSGQmlUtilities::sanitizeQmlId(QString::fromUtf8(name));
-    return QString(meshFolder + sanitizedName +  extension);
+    return QString(meshFolder + name +  extension);
 }
 
 static inline QString getTextureFolder() { return QStringLiteral("maps/"); }
@@ -780,54 +727,50 @@ QString getAnimationSourceName(const QString &id, const QString &property, qsize
                         + QString::number(index) + extension);
 }
 
-QString asString(const QSSGSceneDesc::Value &value)
+QString asString(const QVariant &var)
 {
-    QString str;
-    QMetaType::convert(value.mt, value.dptr, QMetaType::fromType<QString>(), &str);
-    return str;
+    return var.toString();
 }
 
-QString builtinQmlType(const QSSGSceneDesc::Value &value)
+QString builtinQmlType(const QVariant &var)
 {
-    switch (value.mt.id()) {
+    switch (var.metaType().id()) {
     case QMetaType::QVector2D: {
-        const auto &vec2 = *reinterpret_cast<QVector2D *>(value.dptr);
+        const auto vec2 = qvariant_cast<QVector2D>(var);
         return QLatin1String("Qt.vector2d(") + QString::number(vec2.x()) + QLatin1String(", ") + QString::number(vec2.y()) + QLatin1Char(')');
     }
     case QMetaType::QVector3D: {
-        const auto &vec3 = *reinterpret_cast<QVector3D *>(value.dptr);
+        const auto vec3 = qvariant_cast<QVector3D>(var);
         return QLatin1String("Qt.vector3d(") + QString::number(vec3.x()) + QLatin1String(", ")
                 + QString::number(vec3.y()) + QLatin1String(", ")
                 + QString::number(vec3.z()) + QLatin1Char(')');
     }
     case QMetaType::QVector4D: {
-        const auto &vec4 = *reinterpret_cast<QVector4D *>(value.dptr);
+        const auto vec4 = qvariant_cast<QVector4D>(var);
         return QLatin1String("Qt.vector4d(") + QString::number(vec4.x()) + QLatin1String(", ")
                 + QString::number(vec4.y()) + QLatin1String(", ")
                 + QString::number(vec4.z()) + QLatin1String(", ")
                 + QString::number(vec4.w()) + QLatin1Char(')');
     }
     case QMetaType::QColor: {
-        const auto &color = *reinterpret_cast<QColor *>(value.dptr);
+        const auto color = qvariant_cast<QColor>(var);
         return colorToQml(color);
     }
     case QMetaType::QQuaternion: {
-        const auto &quat = *reinterpret_cast<QQuaternion *>(value.dptr);
+        const auto &quat = qvariant_cast<QQuaternion>(var);
         return QLatin1String("Qt.quaternion(") + QString::number(quat.scalar()) + QLatin1String(", ")
                 + QString::number(quat.x()) + QLatin1String(", ")
                 + QString::number(quat.y()) + QLatin1String(", ")
                 + QString::number(quat.z()) + QLatin1Char(')');
     }
     case QMetaType::QMatrix4x4: {
-        const auto &mat44 = *reinterpret_cast<QMatrix4x4 *>(value.dptr);
+        const auto mat44 = qvariant_cast<QMatrix4x4>(var);
         return QLatin1String("Qt.matrix4x4(")
                 + QString::number(mat44(0, 0)) + u", " + QString::number(mat44(0, 1)) + u", " + QString::number(mat44(0, 2)) + u", " + QString::number(mat44(0, 3)) + u", "
                 + QString::number(mat44(1, 0)) + u", " + QString::number(mat44(1, 1)) + u", " + QString::number(mat44(1, 2)) + u", " + QString::number(mat44(1, 3)) + u", "
                 + QString::number(mat44(2, 0)) + u", " + QString::number(mat44(2, 1)) + u", " + QString::number(mat44(2, 2)) + u", " + QString::number(mat44(2, 3)) + u", "
                 + QString::number(mat44(3, 0)) + u", " + QString::number(mat44(3, 1)) + u", " + QString::number(mat44(3, 2)) + u", " + QString::number(mat44(3, 3)) + u')';
     }
-    case QMetaType::QUrl:
-        return QString(QLatin1String("\"%1\"")).arg(asString(value));
     case QMetaType::Float:
     case QMetaType::Double:
     case QMetaType::Int:
@@ -836,9 +779,9 @@ QString builtinQmlType(const QSSGSceneDesc::Value &value)
     case QMetaType::LongLong:
     case QMetaType::ULong:
     case QMetaType::ULongLong:
-        Q_FALLTHROUGH();
     case QMetaType::Bool:
-        return asString(value);
+        return var.toString();
+    case QMetaType::QUrl: // QUrl needs special handling. Return empty string to trigger that.
     default:
         break;
     }
@@ -860,238 +803,354 @@ QString asString(QSSGSceneDesc::Animation::Channel::TargetProperty prop)
     return QStringLiteral("unknown");
 }
 
-
-
-using PropertyPair = std::pair<const char * /* name */, QString /* value */>;
-
-static PropertyPair valueToQml(const QSSGSceneDesc::Node &target, const QSSGSceneDesc::Property &property, OutputContext &output, bool *ok = nullptr)
+static std::pair<QString, QString> meshAssetName(const QSSGSceneDesc::Scene &scene, const QSSGSceneDesc::Mesh &meshNode, const QDir &outdir)
 {
-    using namespace QSSGSceneDesc;
-    using RuntimeType = Node::RuntimeType;
+    // Returns {name, notValidReason}
 
-    const auto &value = property.value;
+    const auto meshFolder = getMeshFolder();
+    const auto meshId = QSSGQmlUtilities::getIdForNode(meshNode);
+    const auto meshSourceName = QSSGQmlUtilities::getMeshSourceName(meshId);
+    Q_ASSERT(scene.meshStorage.size() > meshNode.idx);
+    const auto &mesh = scene.meshStorage.at(meshNode.idx);
 
-    if (value.dptr) {
-
-        if (ok)
-            *ok = true;
-
-        // Built-in types
-        {
-            QString valueAsString = builtinQmlType(value);
-            if (valueAsString.size() > 0)
-                return { property.name, valueAsString };
-        }
-
-        // Enumerations
-        if (value.mt.flags() & (QMetaType::IsEnumeration | QMetaType::IsUnsignedEnumeration)) {
-            static const auto qmlEnumString = [](const QLatin1String &element, const QString &enumString) {
-                return QStringLiteral("%1.%2").arg(element).arg(enumString);
-            };
-            QLatin1String qmlElementName(getQmlElementName(target));
-            QString enumValue = asString(value);
-            if (enumValue.size() > 0)
-                return { property.name, qmlEnumString(qmlElementName, enumValue) };
-        }
-
-        if (value.mt.id() == qMetaTypeId<QSSGSceneDesc::Flag>()) {
-            QByteArray element(getQmlElementName(target));
-            if (element.size() > 0) {
-                const auto &flag = *reinterpret_cast<QSSGSceneDesc::Flag *>(value.dptr);
-                QByteArray keysString = flag.me.valueToKeys(int(flag.value));
-                if (keysString.size() > 0) {
-                    keysString.prepend(element + '.');
-                    QByteArray replacement(" | " + element + '.');
-                    keysString.replace('|', replacement);
-                    return { property.name, QString::fromLatin1(keysString) };
-                }
-            }
-        }
-
-        if (value.mt.id() == qMetaTypeId<QSSGSceneDesc::NodeList *>()) {
-            const auto &list = *reinterpret_cast<QSSGSceneDesc::NodeList *>(value.dptr);
-            if (list.count > 0) {
-                const bool useBrackets = (list.count > 1);
-
-                const QString indentStr = indentString(output);
-                QSSGQmlScopedIndent scopedIndent(output);
-                const QString listIndentStr = indentString(output);
-
-                QString str;
-                if (useBrackets)
-                    str.append(u"[\n");
-
-                for (int i = 0, end = list.count; i != end; ++i) {
-                    if (i != 0)
-                        str.append(u",\n");
-                    if (useBrackets)
-                        str.append(listIndentStr);
-                    str.append(getIdForNode(*(list.head[i])));
-                }
-
-                if (useBrackets)
-                    str.append(u'\n' + indentStr + u']');
-
-                return { property.name, str };
-            }
-        }
-
-        if (value.mt.id() == qMetaTypeId<QSSGSceneDesc::ListView>()) {
-            const auto &list = *reinterpret_cast<QSSGSceneDesc::ListView *>(value.dptr);
-            if (list.count > 0) {
-                const bool useBrackets = (list.count > 1);
-
-                const QString indentStr = indentString(output);
-                QSSGQmlScopedIndent scopedIndent(output);
-                const QString listIndentStr = indentString(output);
-
-                QString str;
-                if (useBrackets)
-                    str.append(u"[\n");
-
-                char *vptr = reinterpret_cast<char *>(list.head.dptr);
-                auto size = list.head.mt.sizeOf();
-
-                for (int i = 0, end = list.count; i != end; ++i) {
-                    if (i != 0)
-                        str.append(u",\n");
-
-                    QSSGSceneDesc::Value v{list.head.mt, reinterpret_cast<void *>(vptr + (size * i))};
-                    QString valueString = builtinQmlType(v);
-                    if (valueString.isEmpty())
-                        valueString = asString(v);
-
-                    if (useBrackets)
-                        str.append(listIndentStr);
-                    str.append(valueString);
-                }
-
-                if (useBrackets)
-                    str.append(u'\n' + indentStr + u']');
-
-                return { property.name, str };
-            }
-        }
-
-        if (value.mt.id() == qMetaTypeId<QSSGSceneDesc::Node *>()) {
-            if (const auto node = reinterpret_cast<QSSGSceneDesc::Node *>(value.dptr)) {
-                // If this assert is triggerd it likely means that the node never got added
-                // to the scene tree (see: addNode()) or that it's a type not handled as a resource, see:
-                // writeQmlForResources()
-                Q_ASSERT(node->id != 0);
-                // The 'TextureData' node will have its data written out and become
-                // a source url.
-                if (node->runtimeType == RuntimeType::TextureData)
-                    return { "source", getIdForNode(*node->scene->root) + QLatin1Char('.') + getIdForNode(*node) };
-
-                return { property.name, getIdForNode(*node) };
-            }
-        }
-
-        if (value.mt == QMetaType::fromType<QSSGSceneDesc::Mesh>()) {
-            //
-            static const auto outputMeshAsset = [](const QSSGSceneDesc::Scene &scene, const QSSGSceneDesc::Mesh &meshNode, const QDir &outdir) {
-                const auto meshFolder = getMeshFolder();
-                const auto meshSourceName = QSSGQmlUtilities::getMeshSourceName(meshNode.name);
-                Q_ASSERT(scene.meshStorage.size() > meshNode.idx);
-                const auto &mesh = scene.meshStorage.at(meshNode.idx);
-
-                // If a mesh folder does not exist, then create one
-                if (!outdir.exists(meshFolder) && !outdir.mkdir(meshFolder))
-                    return QString(); // Error out
-
-                QFile file(outdir.path() + QDir::separator() + meshSourceName);
-                if (!file.open(QIODevice::WriteOnly))
-                    return QString();
-
-                if (mesh.save(&file) == 0)
-                    return QString();
-
-                return meshSourceName;
-            };
-
-            if (const auto meshNode = reinterpret_cast<const Mesh *>(value.dptr)) {
-                Q_ASSERT(meshNode->nodeType == Node::Type::Mesh);
-                Q_ASSERT(meshNode->scene);
-
-                const auto &scene = *meshNode->scene;
-                const auto meshSourceName = outputMeshAsset(scene, *meshNode, output.outdir);
-                return { property.name, toQuotedString(meshSourceName) };
-            }
-        }
-
-        if (value.mt == QMetaType::fromType<QSSGSceneDesc::UrlView>()) {
-            //
-            static const auto copyTextureAsset = [](const QByteArrayView &texturePath, const QDir &outdir) {
-                const auto assetPath = QString::fromUtf8(texturePath);
-                QFileInfo fi(assetPath);
-                if (!fi.exists())
-                    return assetPath;
-
-                const auto mapsFolder = getTextureFolder();
-
-                // If a maps folder does not exist, then create one
-                if (!outdir.exists(mapsFolder) && !outdir.mkdir(mapsFolder))
-                    return QString(); // Error out
-
-                const QString relpath = mapsFolder + fi.fileName();
-                const auto newfilepath = QString(outdir.canonicalPath() + QDir::separator() + relpath);
-                if (!QFile::exists(newfilepath) && !QFile::copy(fi.canonicalFilePath(), newfilepath))
-                    return QString();
-
-                return relpath;
-            };
-
-            if (const auto urlView = reinterpret_cast<const UrlView *>(value.dptr)) {
-                // We need to adjust source url(s) as those should contain the canonical path
-                const auto &path = urlView->view;
-                if (QSSGRenderGraphObject::isTexture(target.runtimeType)) {
-                    const auto sourcePath = copyTextureAsset(path, output.outdir);
-                    return { property.name, toQuotedString(sourcePath) };
-                }
-
-                return { property.name, toQuotedString(QString::fromUtf8(path)) };
-            }
-        }
-
-        // Workaround the TextureInput item that wraps textures for the Custom material.
-        if (target.runtimeType == QSSGSceneDesc::Material::RuntimeType::CustomMaterial) {
-            if (value.mt.id() == qMetaTypeId<QSSGSceneDesc::Texture *>()) {
-                if (const auto texture = reinterpret_cast<QSSGSceneDesc::Texture *>(value.dptr)) {
-                    Q_ASSERT(QSSGRenderGraphObject::isTexture(texture->runtimeType));
-                    return { property.name, QLatin1String("TextureInput { texture: ") +
-                                getIdForNode(*texture) + QLatin1String(" }") };
-                }
-            }
-        }
+           // If a mesh folder does not exist, then create one
+    if (!outdir.exists(meshFolder) && !outdir.mkdir(meshFolder)) {
+        qDebug() << "Failed to create meshes folder at" << outdir;
+        return {}; // Error out
     }
 
-    if (ok)
-        *ok = false;
+    const QString path = outdir.path() + QDir::separator() + meshSourceName;
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly)) {
+        return {QString(), QStringLiteral("Failed to find mesh at ") + path};
+    }
 
-    return PropertyPair();
+    if (mesh.save(&file) == 0) {
+        return {};
+    }
+
+    return {meshSourceName, QString()};
+};
+
+static std::pair<QString, QString> copyTextureAsset(const QUrl &texturePath, OutputContext &output)
+{
+    // Returns {path, notValidReason}
+
+    // TODO: Use QUrl::resolved() instead of manual string manipulation
+    QString assetPath = output.outdir.isAbsolutePath(texturePath.path()) ?  texturePath.toString() : texturePath.path();
+    QFileInfo fi(assetPath);
+    if (fi.isRelative() && !output.sourceDir.isEmpty()) {
+        fi = QFileInfo(output.sourceDir + QChar(u'/') + assetPath);
+    }
+    if (!fi.exists()) {
+        indent(output) << comment() << "Source texture path expected: " << getTextureFolder() + texturePath.fileName() << "\n";
+        return {QString(), QStringLiteral("Failed to find texture at ") + assetPath};
+    }
+
+    const auto mapsFolder = getTextureFolder();
+    // If a maps folder does not exist, then create one
+    if (!output.outdir.exists(mapsFolder) && !output.outdir.mkdir(mapsFolder)) {
+        qDebug() << "Failed to create maps folder at" << output.outdir;
+        return {}; // Error out
+    }
+
+    const QString relpath = mapsFolder + fi.fileName();
+    const auto newfilepath = QString(output.outdir.canonicalPath() + QDir::separator() + relpath);
+    if (!QFile::exists(newfilepath) && !QFile::copy(fi.canonicalFilePath(), newfilepath)) {
+        qDebug() << "Failed to copy file from" << fi.canonicalFilePath() << "to" << newfilepath;
+        return {};
+    }
+
+    return {relpath, QString()};
+};
+
+static QStringList expandComponents(const QString &value, QMetaType mt)
+{
+    static const QRegularExpression re(QLatin1String("^Qt.[a-z0-9]*\\(([0-9.e\\+\\-, ]*)\\)"));
+    Q_ASSERT(re.isValid());
+
+    switch (mt.id()) {
+    case QMetaType::QVector2D: {
+        QRegularExpressionMatch match = re.match(value);
+        if (match.hasMatch()) {
+            const auto comp = match.captured(1).split(QLatin1Char(','));
+            if (comp.size() == 2) {
+                return { QLatin1String(".x: ") + comp.at(0).trimmed(),
+                         QLatin1String(".y: ") + comp.at(1).trimmed() };
+            }
+        }
+        break;
+    }
+    case QMetaType::QVector3D: {
+        QRegularExpressionMatch match = re.match(value);
+        if (match.hasMatch()) {
+            const auto comp = match.captured(1).split(QLatin1Char(','));
+            if (comp.size() == 3) {
+                return { QLatin1String(".x: ") + comp.at(0).trimmed(),
+                         QLatin1String(".y: ") + comp.at(1).trimmed(),
+                         QLatin1String(".z: ") + comp.at(2).trimmed() };
+            }
+        }
+        break;
+    }
+    case QMetaType::QVector4D: {
+        QRegularExpressionMatch match = re.match(value);
+        if (match.hasMatch()) {
+            const auto comp = match.captured(1).split(QLatin1Char(','));
+            if (comp.size() == 4) {
+                return { QLatin1String(".x: ") + comp.at(0).trimmed(),
+                         QLatin1String(".y: ") + comp.at(1).trimmed(),
+                         QLatin1String(".z: ") + comp.at(2).trimmed(),
+                         QLatin1String(".w: ") + comp.at(3).trimmed() };
+            }
+        }
+        break;
+    }
+    case QMetaType::QQuaternion: {
+        QRegularExpressionMatch match = re.match(value);
+        if (match.hasMatch()) {
+            const auto comp = match.captured(1).split(QLatin1Char(','));
+            if (comp.size() == 4) {
+                return { QLatin1String(".x: ") + comp.at(0).trimmed(),
+                         QLatin1String(".y: ") + comp.at(1).trimmed(),
+                         QLatin1String(".z: ") + comp.at(2).trimmed(),
+                         QLatin1String(".scalar: ") + comp.at(3).trimmed() };
+            }
+        }
+        break;
+    }
+    default:
+        break;
+    }
+
+    return { value };
+}
+
+static QStringList expandComponentsPartially(const QString &value, QMetaType mt)
+{
+    // Workaround for DS
+    if (mt.id() != QMetaType::QQuaternion)
+        return expandComponents(value, mt);
+
+    return { value };
+}
+
+struct ValueToQmlResult {
+    bool ok = false;
+    QString name;
+    QString value;
+    QString notValidReason;
+    bool isDynamicProperty = false;
+    QStringList expandedProperties;
+};
+
+static ValueToQmlResult valueToQml(const QSSGSceneDesc::Node &target, const QSSGSceneDesc::Property &property, OutputContext &output)
+{
+    ValueToQmlResult result;
+    if (property.value.isNull()) {
+        result.ok = false;
+        result.notValidReason = QStringLiteral("Property value is null");
+        return result;
+    }
+
+    const QVariant &value = property.value;
+    result.name = QString::fromUtf8(property.name);
+    result.isDynamicProperty = property.type == QSSGSceneDesc::Property::Type::Dynamic;
+
+    // Built-in types
+    QString valueAsString = builtinQmlType(value);
+    if (valueAsString.size() > 0) {
+        result.value = valueAsString;
+        result.ok = true;
+    } else if (value.metaType().flags() & (QMetaType::IsEnumeration | QMetaType::IsUnsignedEnumeration)) {
+        static const auto qmlEnumString = [](const QLatin1String &element, const QString &enumString) {
+            return QStringLiteral("%1.%2").arg(element).arg(enumString);
+        };
+        QLatin1String qmlElementName(getQmlElementName(target));
+        QString enumValue = asString(value);
+        if (enumValue.size() > 0) {
+            result.value = qmlEnumString(qmlElementName, enumValue);
+            result.ok = true;
+        }
+    } else if (value.metaType().id() == qMetaTypeId<QSSGSceneDesc::Flag>()) {
+        QByteArray element(getQmlElementName(target));
+        if (element.size() > 0) {
+            const auto flag = qvariant_cast<QSSGSceneDesc::Flag>(value);
+            QByteArray keysString = flag.me.valueToKeys(int(flag.value));
+            if (keysString.size() > 0) {
+                keysString.prepend(element + '.');
+                QByteArray replacement(" | " + element + '.');
+                keysString.replace('|', replacement);
+                result.value = QString::fromLatin1(keysString);
+                result.ok = true;
+            }
+        }
+    } else if (value.metaType().id() == qMetaTypeId<QSSGSceneDesc::NodeList *>()) {
+        const auto *list = qvariant_cast<QSSGSceneDesc::NodeList *>(value);
+        if (list->count > 0) {
+            const QString indentStr = indentString(output);
+            QSSGQmlScopedIndent scopedIndent(output);
+            const QString listIndentStr = indentString(output);
+
+            QString str;
+            str.append(u"[\n");
+
+            for (int i = 0, end = list->count; i != end; ++i) {
+                if (i != 0)
+                        str.append(u",\n");
+                str.append(listIndentStr);
+                str.append(getIdForNode(*(list->head[i])));
+            }
+
+            str.append(u'\n' + indentStr + u']');
+
+            result.value = str;
+            result.ok = true;
+        }
+    } else if (value.metaType().id() == qMetaTypeId<QSSGSceneDesc::ListView *>()) {
+        const auto &list = *qvariant_cast<QSSGSceneDesc::ListView *>(value);
+        if (list.count > 0) {
+            const QString indentStr = indentString(output);
+            QSSGQmlScopedIndent scopedIndent(output);
+            const QString listIndentStr = indentString(output);
+
+            QString str;
+            str.append(u"[\n");
+
+            char *vptr = reinterpret_cast<char *>(list.data);
+            auto size = list.mt.sizeOf();
+
+            for (int i = 0, end = list.count; i != end; ++i) {
+                if (i != 0)
+                        str.append(u",\n");
+
+                const QVariant var{list.mt, reinterpret_cast<void *>(vptr + (size * i))};
+                QString valueString = builtinQmlType(var);
+                if (valueString.isEmpty())
+                        valueString = asString(var);
+
+                str.append(listIndentStr);
+                str.append(valueString);
+            }
+
+            str.append(u'\n' + indentStr + u']');
+
+            result.value = str;
+            result.ok = true;
+        }
+    } else if (value.metaType().id() == qMetaTypeId<QSSGSceneDesc::Node *>()) {
+        if (const auto node = qvariant_cast<QSSGSceneDesc::Node *>(value)) {
+            // If this assert is triggerd it likely means that the node never got added
+            // to the scene tree (see: addNode()) or that it's a type not handled as a resource, see:
+            // writeQmlForResources()
+            Q_ASSERT(node->id != 0);
+            // The 'TextureData' node will have its data written out and become
+            // a source url.
+
+            if (node->runtimeType == QSSGSceneDesc::Node::RuntimeType::TextureData) {
+                result.name = QStringLiteral("source");
+                result.value = getIdForNode(*node->scene->root) + QLatin1Char('.') + getIdForNode(*node);
+            } else {
+                result.value = getIdForNode(*node);
+            }
+            result.ok = true;
+        }
+    } else if (value.metaType() == QMetaType::fromType<QSSGSceneDesc::Mesh *>()) {
+        if (const auto meshNode = qvariant_cast<const QSSGSceneDesc::Mesh *>(value)) {
+            Q_ASSERT(meshNode->nodeType == QSSGSceneDesc::Node::Type::Mesh);
+            Q_ASSERT(meshNode->scene);
+            const auto &scene = *meshNode->scene;
+            const auto& [meshSourceName, notValidReason] = meshAssetName(scene, *meshNode, output.outdir);
+            result.notValidReason = notValidReason;
+            if (!meshSourceName.isEmpty()) {
+                result.value = toQuotedString(meshSourceName);
+                result.ok = true;
+            }
+        }
+    } else if (value.metaType() == QMetaType::fromType<QUrl>()) {
+        if (const auto url = qvariant_cast<QUrl>(value); !url.isEmpty()) {
+            // We need to adjust source url(s) as those should contain the canonical path
+            QString path;
+            if (QSSGRenderGraphObject::isTexture(target.runtimeType)) {
+                const auto& [relpath, notValidReason] = copyTextureAsset(url, output);
+                result.notValidReason = notValidReason;
+                if (!relpath.isEmpty()) {
+                        path = relpath;
+                }
+            } else
+                path = url.path();
+
+            if (!path.isEmpty()) {
+                result.value = toQuotedString(path);
+                result.ok = true;
+            }
+        }
+    } else if (target.runtimeType == QSSGSceneDesc::Material::RuntimeType::CustomMaterial) {
+        // Workaround the TextureInput item that wraps textures for the Custom material.
+        if (value.metaType().id() == qMetaTypeId<QSSGSceneDesc::Texture *>()) {
+            if (const auto texture = qvariant_cast<QSSGSceneDesc::Texture *>(value)) {
+                Q_ASSERT(QSSGRenderGraphObject::isTexture(texture->runtimeType));
+                result.value = QLatin1String("TextureInput { texture: ") +
+                        getIdForNode(*texture) + QLatin1String(" }");
+                result.ok = true;
+            }
+        }
+    } else if (value.metaType() == QMetaType::fromType<QString>()) {
+        // Plain strings in the scenedesc should map to QML string values
+        result.value = toQuotedString(value.toString());
+        result.ok = true;
+    } else {
+        result.notValidReason = QStringLiteral("Unsupported value type: ") + QString::fromUtf8(value.metaType().name());
+        qWarning() << result.notValidReason;
+        result.ok = false;
+    }
+
+    if (result.ok && (output.options & OutputContext::Options::ExpandValueComponents)) {
+        result.expandedProperties = ((output.options & OutputContext::Options::DesignStudioWorkarounds) == OutputContext::Options::DesignStudioWorkarounds)
+                ? expandComponentsPartially(result.value, value.metaType())
+                : expandComponents(result.value, value.metaType());
+    }
+
+    return result;
 }
 
 static void writeNodeProperties(const QSSGSceneDesc::Node &node, OutputContext &output)
 {
-    using namespace QSSGSceneDesc;
-
     QSSGQmlScopedIndent scopedIndent(output);
 
-    indent(output) << "id: " << getIdForNode(node) << "\n";
+    indent(output) << u"id: "_s << getIdForNode(node) << u'\n';
+
+    // Set Object Name if one exists
+    if (node.name.size()) {
+        const QString objectName = QString::fromLocal8Bit(node.name);
+        if (!objectName.startsWith(u'*'))
+            indent(output) << u"objectName: \""_s << node.name << u"\"\n"_s;
+    }
 
     const auto &properties = node.properties;
     auto it = properties.begin();
     const auto end = properties.end();
-    bool ok = false;
     for (; it != end; ++it) {
-        const auto &[name, value] = valueToQml(node, (*it), output, &ok);
-        if (it->type != Property::Type::Dynamic) {
-            if (!ok)
-                indent(output) << comment();
-            indent(output) << name << ": " << value << "\n";
-        } else if (ok && it->type == Property::Type::Dynamic) {
-            indent(output) << "property " << typeName(it->value.mt).toByteArray() << ' ' << name << ": " << value << "\n";
+        const auto &property = *it;
+
+        const ValueToQmlResult result = valueToQml(node, *property, output);
+        if (result.ok) {
+            if (result.isDynamicProperty) {
+                indent(output) << "property " << typeName(property->value.metaType()).toByteArray() << ' ' << result.name << u": "_s << result.value << u'\n';
+            } else if (!QSSGQmlUtilities::PropertyMap::instance()->isDefaultValue(node.runtimeType, property->name, property->value)) {
+                if (result.expandedProperties.size() > 1) {
+                    for (const auto &va : result.expandedProperties)
+                        indent(output) << result.name << va << u'\n';
+                } else {
+                    indent(output) << result.name << u": "_s << result.value << u'\n';
+                }
+            }
+        } else if (!result.isDynamicProperty) {
+            QString message = u"Skipped property: "_s + QString::fromUtf8(property->name);
+            if (!result.notValidReason.isEmpty())
+                message.append(u", reason: "_s + result.notValidReason);
+            qDebug() << message;
+            indent(output) << comment() << message + u'\n';
         }
     }
 }
@@ -1108,8 +1167,8 @@ void writeQml(const QSSGSceneDesc::Material &material, OutputContext &output)
 {
     using namespace QSSGSceneDesc;
     Q_ASSERT(material.nodeType == QSSGSceneDesc::Model::Type::Material);
-    if (material.runtimeType == QSSGSceneDesc::Model::RuntimeType::DefaultMaterial) {
-        indent(output) << qmlElementName<Material::RuntimeType::DefaultMaterial>() << blockBegin(output);
+    if (material.runtimeType == QSSGSceneDesc::Model::RuntimeType::SpecularGlossyMaterial) {
+        indent(output) << qmlElementName<Material::RuntimeType::SpecularGlossyMaterial>() << blockBegin(output);
     } else if (material.runtimeType == Model::RuntimeType::PrincipledMaterial) {
         indent(output) << qmlElementName<Material::RuntimeType::PrincipledMaterial>() << blockBegin(output);
     } else if (material.runtimeType == Material::RuntimeType::CustomMaterial) {
@@ -1171,17 +1230,27 @@ static void writeQml(const QSSGSceneDesc::MorphTarget &morphTarget, OutputContex
     writeNodeProperties(morphTarget, output);
 }
 
-QString getTextureSourceName(const QString &name)
+QString getTextureSourceName(const QString &name, const QString &fmt)
 {
     const auto textureFolder = getTextureFolder();
 
     const auto sanitizedName = QSSGQmlUtilities::sanitizeQmlId(name);
-    return QString(textureFolder + sanitizedName +  QLatin1String(".png"));
+    const auto ext = (fmt.length() != 3) ? u".png"_s
+                                         : u"."_s + fmt;
+
+    return QString(textureFolder + sanitizedName + ext);
 }
 
-static QString outputTextureAsset(const QString &textureSourceName, const QImage &image, const QDir &outdir)
+static QString outputTextureAsset(const QSSGSceneDesc::TextureData &textureData, const QDir &outdir)
 {
+    if (textureData.data.isEmpty())
+        return QString();
+
     const auto mapsFolder = getTextureFolder();
+    const auto id = getIdForNode(textureData);
+    const QString textureSourceName = getTextureSourceName(id, QString::fromUtf8(textureData.fmt));
+
+    const bool isCompressed = ((textureData.flgs & quint8(QSSGSceneDesc::TextureData::Flags::Compressed)) != 0);
 
     // If a maps folder does not exist, then create one
     if (!outdir.exists(mapsFolder) && !outdir.mkdir(mapsFolder))
@@ -1189,8 +1258,19 @@ static QString outputTextureAsset(const QString &textureSourceName, const QImage
 
     const auto imagePath = QString(outdir.path() + QDir::separator() + textureSourceName);
 
-    if (!image.save(imagePath))
-        return QString();
+    if (isCompressed) {
+        QFile file(imagePath);
+        file.open(QIODevice::WriteOnly);
+        file.write(textureData.data);
+        file.close();
+    } else {
+        const auto &texData = textureData.data;
+        const auto &size = textureData.sz;
+        QImage image;
+        image = QImage(reinterpret_cast<const uchar *>(texData.data()), size.width(), size.height(), QImage::Format::Format_RGBA8888);
+        if (!image.save(imagePath))
+            return QString();
+    }
 
     return textureSourceName;
 }
@@ -1200,38 +1280,18 @@ static void writeQml(const QSSGSceneDesc::TextureData &textureData, OutputContex
     using namespace QSSGSceneDesc;
     Q_ASSERT(textureData.nodeType == Node::Type::Texture && textureData.runtimeType == Node::RuntimeType::TextureData);
 
-    const auto &texData = textureData.data;
-    const auto &size = textureData.sz;
-    const bool isCompressed = ((textureData.flgs & quint8(TextureData::Flags::Compressed)) != 0);
-
-    const auto id = getIdForNode(textureData);
-    QString textureSourcePath = getTextureSourceName(id);
-
-    if (!texData.isEmpty()) {
-        QImage image;
-        if (isCompressed) {
-            QByteArray data = texData.toByteArray();
-            QBuffer readBuffer(&data);
-            QImageReader imageReader(&readBuffer);
-            image = imageReader.read();
-            if (image.isNull())
-                qWarning() << imageReader.errorString();
-        } else {
-            image = QImage(reinterpret_cast<const uchar *>(texData.data()), size.width(), size.height(), QImage::Format::Format_RGBA8888);
-        }
-
-        if (!image.isNull())
-            textureSourcePath = outputTextureAsset(textureSourcePath, image, output.outdir);
-    }
+    QString textureSourcePath = outputTextureAsset(textureData, output.outdir);
 
     static const auto writeProperty = [](const QString &type, const QString &name, const QString &value) {
         return QString::fromLatin1("property %1 %2: %3").arg(type, name, value);
     };
 
-    const auto type = QLatin1String("url");
-    const auto &name = id;
+    if (!textureSourcePath.isEmpty()) {
+        const auto type = QLatin1String("url");
+        const auto name = getIdForNode(textureData);
 
-    indent(output) << writeProperty(type, name, toQuotedString(textureSourcePath)) << '\n';
+        indent(output) << writeProperty(type, name, toQuotedString(textureSourcePath)) << '\n';
+    }
 }
 
 static void writeQml(const QSSGSceneDesc::Light &light, OutputContext &output)
@@ -1348,9 +1408,9 @@ static void writeQmlForNode(const QSSGSceneDesc::Node &node, OutputContext &outp
     }
 
     for (const auto &cld : node.children) {
-        if (!QSSGRenderGraphObject::isResource(cld.runtimeType) && output.type == OutputContext::NodeTree) {
+        if (!QSSGRenderGraphObject::isResource(cld->runtimeType) && output.type == OutputContext::NodeTree) {
             QSSGQmlScopedIndent scopedIndent(output);
-            writeQmlForNode(cld, output);
+            writeQmlForNode(*cld, output);
         }
     }
 
@@ -1392,11 +1452,11 @@ static void generateKeyframeData(const QSSGSceneDesc::Animation::Channel &channe
     // file version. Increase this if the format changes.
     const int keyframesDataVersion = 1;
     writer.append(keyframesDataVersion);
-    writer.append(int(channel.keys.m_head->getValueQMetaType()));
+    writer.append(int(channel.keys.at(0)->getValueQMetaType()));
 
     // Start Keyframes array
     writer.startArray();
-    quint8 compEnd = quint8(channel.keys.m_head->getValueType());
+    quint8 compEnd = quint8(channel.keys.at(0)->getValueType());
     bool isQuaternion = false;
     if (compEnd == quint8(QSSGSceneDesc::Animation::KeyPosition::ValueType::Quaternion)) {
         isQuaternion = true;
@@ -1405,13 +1465,13 @@ static void generateKeyframeData(const QSSGSceneDesc::Animation::Channel &channe
         compEnd++;
     }
     for (const auto &key : channel.keys) {
-        writer.append(key.time);
+        writer.append(key->time);
         // Easing always linear
         writer.append(QEasingCurve::Linear);
         if (isQuaternion)
-            writer.append(key.value[3]);
+            writer.append(key->value[3]);
         for (quint8 i = 0; i < compEnd; ++i)
-            writer.append(key.value[i]);
+            writer.append(key->value[i]);
     }
     // End Keyframes array
     writer.endArray();
@@ -1430,6 +1490,11 @@ void writeQmlForAnimation(const QSSGSceneDesc::Animation &anim, qsizetype index,
     QSSGQmlScopedIndent scopedIndent(output);
     // The duration property of the TimelineAnimation is an int...
     const int duration = qCeil(anim.length);
+    // Use the same name for objectName and id
+    const QString objectName = getIdForAnimation(anim.name);
+    indent(output) << "id: " << objectName << "\n";
+    indent(output) << "objectName: \"" << objectName << "\"\n";
+    indent(output) << "property real framesPerSecond: " << anim.framesPerSecond << "\n";
     indent(output) << "startFrame: 0\n";
     indent(output) << "endFrame: " << duration << "\n";
     indent(output) << "currentFrame: 0\n";
@@ -1446,15 +1511,15 @@ void writeQmlForAnimation(const QSSGSceneDesc::Animation &anim, qsizetype index,
     indent(output) << blockEnd(output);
 
     for (const auto &channel : anim.channels) {
-        QString id = getIdForNode(*channel.target);
-        QString propertyName = asString(channel.targetProperty);
+        QString id = getIdForNode(*channel->target);
+        QString propertyName = asString(channel->targetProperty);
 
         indent(output) << "KeyframeGroup {\n";
         {
             QSSGQmlScopedIndent scopedIndent(output);
             indent(output) << "target: " << id << "\n";
             indent(output) << "property: " << toQuotedString(propertyName) << "\n";
-            if (useBinaryKeyframes) {
+            if (useBinaryKeyframes && channel->keys.size() != 1) {
                 const auto animFolder = getAnimationFolder();
                 const auto animSourceName = getAnimationSourceName(id, propertyName, index);
                 if (!output.outdir.exists(animFolder) && !output.outdir.mkdir(animFolder)) {
@@ -1468,18 +1533,18 @@ void writeQmlForAnimation(const QSSGSceneDesc::Animation &anim, qsizetype index,
                 // It is possible to store this keyframeData but we have to consider
                 // all the cases including runtime only or writeQml only.
                 // For now, we will generate it for each case.
-                generateKeyframeData(channel, keyframeData);
+                generateKeyframeData(*channel, keyframeData);
                 file.write(keyframeData);
                 file.close();
                 indent(output) << "keyframeSource: " << toQuotedString(animSourceName) << "\n";
             } else {
-                Q_ASSERT(!channel.keys.isEmpty());
-                for (const auto &key : channel.keys) {
+                Q_ASSERT(!channel->keys.isEmpty());
+                for (const auto &key : channel->keys) {
                     indent(output) << "Keyframe {\n";
                     {
                         QSSGQmlScopedIndent scopedIndent(output);
-                        indent(output) << "frame: " << key.time << "\n";
-                        indent(output) << "value: " << variantToQml(key.getValue()) << "\n";
+                        indent(output) << "frame: " << key->time << "\n";
+                        indent(output) << "value: " << variantToQml(key->getValue()) << "\n";
                     }
                     indent(output) << blockEnd(output);
                 }
@@ -1489,31 +1554,66 @@ void writeQmlForAnimation(const QSSGSceneDesc::Animation &anim, qsizetype index,
     }
 }
 
-void writeQml(const QSSGSceneDesc::Scene &scene, QTextStream &stream, const QDir &outdir)
+void writeQml(const QSSGSceneDesc::Scene &scene, QTextStream &stream, const QDir &outdir, const QJsonObject &optionsObject)
 {
+    static const auto checkBooleanOption = [](const QLatin1String &optionName, const QJsonObject &options, bool defaultValue = false) {
+        const auto it = options.constFind(optionName);
+        const auto end = options.constEnd();
+        QJsonValue value;
+        if (it != end) {
+            if (it->isObject())
+                value = it->toObject().value(QLatin1String("value"));
+            else
+                value = it.value();
+        }
+        return value.toBool(defaultValue);
+    };
+
     auto root = scene.root;
     Q_ASSERT(root);
-    OutputContext output { stream, outdir, 0, OutputContext::Header };
-    writeImportHeader(output, scene.animations.size() > 0);
+
+    QJsonObject options = optionsObject;
+
+    if (auto it = options.constFind(QLatin1String("options")), end = options.constEnd(); it != end)
+        options = it->toObject();
+
+    quint8 outputOptions{ OutputContext::Options::None };
+    if (checkBooleanOption(QLatin1String("expandValueComponents"), options))
+        outputOptions |= OutputContext::Options::ExpandValueComponents;
+
+    // Workaround for design studio type components
+    if (checkBooleanOption(QLatin1String("designStudioWorkarounds"), options))
+        outputOptions |= OutputContext::Options::DesignStudioWorkarounds;
+
+    const bool useBinaryKeyframes = checkBooleanOption("useBinaryKeyframes"_L1, options);
+
+    OutputContext output { stream, outdir, scene.sourceDir, 0, OutputContext::Header, outputOptions };
+
+    writeImportHeader(output, scene.animations.count() > 0);
+
     output.type = OutputContext::RootNode;
     writeQml(*root, output); // Block scope will be left open!
+    stream << "\n";
+    stream << indent() << "// Resources\n";
     output.type = OutputContext::Resource;
     writeQmlForResources(scene.resources, output);
     output.type = OutputContext::NodeTree;
-    for (const auto &cld : root->children) {
-        if (!QSSGRenderGraphObject::isResource(cld.runtimeType)) // If the child is a resource we can skip it
-            writeQmlForNode(cld, output);
-    }
-    // close the root
+    stream << "\n";
+    stream << indent() << "// Nodes:\n";
+    for (const auto &cld : root->children)
+        writeQmlForNode(*cld, output);
 
     // animations
     qsizetype animId = 0;
+    stream << "\n";
+    stream << indent() << "// Animations:\n";
     for (const auto &cld : scene.animations) {
         QSSGQmlScopedIndent scopedIndent(output);
-        writeQmlForAnimation(*cld, animId++, output);
+        writeQmlForAnimation(*cld, animId++, output, useBinaryKeyframes);
         indent(output) << blockEnd(output);
     }
 
+    // close the root
     indent(output) << blockEnd(output);
 }
 
@@ -1524,21 +1624,21 @@ void createTimelineAnimation(const QSSGSceneDesc::Animation &anim, QObject *pare
     auto timelineKeyframeGroup = timeline->keyframeGroups();
     for (const auto &channel : anim.channels) {
         auto keyframeGroup = new QQuickKeyframeGroup(timeline);
-        keyframeGroup->setTargetObject(channel.target->obj);
-        keyframeGroup->setProperty(asString(channel.targetProperty));
+        keyframeGroup->setTargetObject(channel->target->obj);
+        keyframeGroup->setProperty(asString(channel->targetProperty));
 
-        Q_ASSERT(!channel.keys.isEmpty());
+        Q_ASSERT(!channel->keys.isEmpty());
         if (useBinaryKeyframes) {
             QByteArray keyframeData;
-            generateKeyframeData(channel, keyframeData);
+            generateKeyframeData(*channel, keyframeData);
 
             keyframeGroup->setKeyframeData(keyframeData);
         } else {
             auto keyframes = keyframeGroup->keyframes();
-            for (const auto &key : channel.keys) {
+            for (const auto &key : channel->keys) {
                 auto keyframe = new QQuickKeyframe(keyframeGroup);
-                keyframe->setFrame(key.time);
-                keyframe->setValue(key.getValue());
+                keyframe->setFrame(key->time);
+                keyframe->setValue(key->getValue());
                 keyframes.append(&keyframes, keyframe);
             }
         }
@@ -1549,6 +1649,7 @@ void createTimelineAnimation(const QSSGSceneDesc::Animation &anim, QObject *pare
     timeline->setEnabled(isEnabled);
 
     auto timelineAnimation = new QQuickTimelineAnimation(timeline);
+    timelineAnimation->setObjectName(anim.name);
     timelineAnimation->setDuration(int(anim.length));
     timelineAnimation->setFrom(0.0f);
     timelineAnimation->setTo(anim.length);
@@ -1569,8 +1670,12 @@ void createTimelineAnimation(const QSSGSceneDesc::Animation &anim, QObject *pare
 void writeQmlComponent(const QSSGSceneDesc::Node &node, QTextStream &stream, const QDir &outDir)
 {
     using namespace QSSGSceneDesc;
+
+    QSSG_ASSERT(node.scene != nullptr, return);
+
     if (node.runtimeType == Material::RuntimeType::CustomMaterial) {
-        OutputContext output { stream, outDir, 0, OutputContext::Resource };
+        QString sourceDir = node.scene->sourceDir;
+        OutputContext output { stream, outDir, sourceDir, 0, OutputContext::Resource };
         writeImportHeader(output);
         writeQml(static_cast<const Material &>(node), output);
         // Resources, if any, are written out as properties on the component

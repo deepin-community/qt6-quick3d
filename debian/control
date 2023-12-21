@@ -2,7 +2,7 @@ Source: qt6-quick3d
 Section: libs
 Priority: optional
 Maintainer: Debian Qt/KDE Maintainers <debian-qt-kde@lists.debian.org>
-Uploaders: Patrick Franz <deltaone@debian.org>, Lu YaNing <dluyaning@gmail.com>
+Uploaders: Patrick Franz <deltaone@debian.org>, Lu YaNing <dluyaning@gmail.com>,
 Build-Depends: cmake (>= 3.24~),
                debhelper-compat (= 13),
                dh-exec,
@@ -14,17 +14,16 @@ Build-Depends: cmake (>= 3.24~),
                ninja-build,
                pkg-config,
                pkg-kde-tools,
-               qml6-module-qtquick-timeline (>= 6.4.2~),
-               qt6-base-dev (>= 6.4.2+dfsg~),
-               qt6-base-private-dev (>= 6.4.2+dfsg~),
-               qt6-declarative-dev (>= 6.4.2+dfsg~),
-               qt6-declarative-private-dev (>= 6.4.2+dfsg~),
+               qt6-base-dev (>= 6.6.1+dfsg~),
+               qt6-base-private-dev (>= 6.6.1+dfsg~),
+               qt6-declarative-dev (>= 6.6.1+dfsg~),
+               qt6-declarative-private-dev (>= 6.6.1+dfsg~),
                qt6-quick3d-dev:native <cross>,
-               qt6-quicktimeline-dev (>= 6.4.2~),
-               qt6-shadertools-dev (>= 6.4.2~),
+               qt6-quicktimeline-dev (>= 6.6.1~),
+               qt6-shadertools-dev (>= 6.6.1~),
                zlib1g-dev,
-Build-Depends-Indep: qt6-base-dev (>= 6.4~) <!nodoc>,
-                     qt6-documentation-tools (>= 6.4~) <!nodoc>,
+Build-Depends-Indep: qt6-base-dev (>= 6.6~) <!nodoc>,
+                     qt6-documentation-tools (>= 6.6~) <!nodoc>,
 Standards-Version: 4.6.2
 Homepage: https://www.qt.io/developers/
 Vcs-Browser: https://salsa.debian.org/qt-kde-team/qt6/qt6-quick3d
@@ -32,10 +31,11 @@ Vcs-Git: https://salsa.debian.org/qt-kde-team/qt6/qt6-quick3d.git
 Rules-Requires-Root: no
 
 Package: libqt6quick3d6
+Provides: qt6-quick3d-private-abi (= 6.6.1),
 Architecture: any
 Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends}, ${shlibs:Depends}
+Pre-Depends: ${misc:Pre-Depends},
+Depends: ${misc:Depends}, ${shlibs:Depends},
 Description: Qt 6 Quick 3D library
  Qt is a cross-platform C++ application framework. Qt's primary feature
  is its rich set of widgets that provide standard GUI functionality.
@@ -45,8 +45,8 @@ Description: Qt 6 Quick 3D library
 Package: libqt6quick3dassetimport6
 Architecture: any
 Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends}, ${shlibs:Depends}
+Pre-Depends: ${misc:Pre-Depends},
+Depends: ${misc:Depends}, ${shlibs:Depends},
 Description: Qt 6 Quick 3D Asset Import library
  Qt is a cross-platform C++ application framework. Qt's primary feature
  is its rich set of widgets that provide standard GUI functionality.
@@ -56,85 +56,41 @@ Description: Qt 6 Quick 3D Asset Import library
 Package: libqt6quick3dassetutils6
 Architecture: any
 Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends}, ${shlibs:Depends}
+Pre-Depends: ${misc:Pre-Depends},
+Depends: ${misc:Depends}, ${shlibs:Depends},
 Description: Qt 6 Quick 3D Asset Utils library
  Qt is a cross-platform C++ application framework. Qt's primary feature
  is its rich set of widgets that provide standard GUI functionality.
  .
  This package contains Qt 6 Quick 3D Asset Utils library.
 
-Package: libqt6quick3deffects6
-Architecture: any
-Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends}, ${shlibs:Depends}
-Description: Qt 6 Quick 3D Effects library
- Qt is a cross-platform C++ application framework. Qt's primary feature
- is its rich set of widgets that provide standard GUI functionality.
- .
- This package contains Qt 6 Quick 3D Effects library.
-
 Package: libqt6quick3dglslparser6
 Architecture: any
 Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends}, ${shlibs:Depends}
+Pre-Depends: ${misc:Pre-Depends},
+Depends: ${misc:Depends}, ${shlibs:Depends},
 Description: Qt 6 Quick 3D GLS Parser library
  Qt is a cross-platform C++ application framework. Qt's primary feature
  is its rich set of widgets that provide standard GUI functionality.
  .
  This package contains Qt 6 Quick 3D GLS Parser library.
 
-Package: libqt6quick3dhelpers6
-Architecture: any
-Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends}, ${shlibs:Depends}
-Description: Qt 6 Quick 3D Helpers library
- Qt is a cross-platform C++ application framework. Qt's primary feature
- is its rich set of widgets that provide standard GUI functionality.
- .
- This package contains Qt 6 Quick 3D Helpers library.
-
 Package: libqt6quick3diblbaker6
 Architecture: any
 Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends}, ${shlibs:Depends}
+Pre-Depends: ${misc:Pre-Depends},
+Depends: ${misc:Depends}, ${shlibs:Depends},
 Description: Qt 6 Quick 3D IblBaker library
  Qt is a cross-platform C++ application framework. Qt's primary feature
  is its rich set of widgets that provide standard GUI functionality.
  .
  This package contains Qt 6 Quick 3D IblBaker library.
 
-Package: libqt6quick3dparticleeffects6
-Architecture: any
-Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends}, ${shlibs:Depends}
-Description: Qt 6 Quick 3D Particle Effects library
- Qt is a cross-platform C++ application framework. Qt's primary feature
- is its rich set of widgets that provide standard GUI functionality.
- .
- This package contains Qt 6 Quick 3D Particle Effects library.
-
-Package: libqt6quick3dparticles6
-Architecture: any
-Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends}, ${shlibs:Depends}
-Description: Qt 6 Quick 3D Particles library
- Qt is a cross-platform C++ application framework. Qt's primary feature
- is its rich set of widgets that provide standard GUI functionality.
- .
- This package contains Qt 6 Quick 3D Particles library.
-
 Package: libqt6quick3druntimerender6
 Architecture: any
 Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends}, ${shlibs:Depends}
+Pre-Depends: ${misc:Pre-Depends},
+Depends: ${misc:Depends}, ${shlibs:Depends},
 Description: Qt 6 Quick 3D Runtime Renderer library
  Qt is a cross-platform C++ application framework. Qt's primary feature
  is its rich set of widgets that provide standard GUI functionality.
@@ -144,8 +100,8 @@ Description: Qt 6 Quick 3D Runtime Renderer library
 Package: libqt6quick3dutils6
 Architecture: any
 Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends}, ${shlibs:Depends}
+Pre-Depends: ${misc:Pre-Depends},
+Depends: ${misc:Depends}, ${shlibs:Depends},
 Description: Qt 6 Quick 3D Utils library
  Qt is a cross-platform C++ application framework. Qt's primary feature
  is its rich set of widgets that provide standard GUI functionality.
@@ -164,77 +120,107 @@ Description: Qt 6 Quick 3D Assimp Import plugin
  .
  This package contains Qt 6 Quick 3D's Assimp Import plugin.
 
-Package: qml6-module-quick3d
+Package: qml6-module-qtquick3d
 Architecture: any
 Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends}, ${shlibs:Depends}
+Pre-Depends: ${misc:Pre-Depends},
+Depends: ${misc:Depends}, ${shlibs:Depends},
+Breaks: qml6-module-quick3d,
+Replaces: qml6-module-quick3d,
+Provides: qml6-module-quick3d (= ${binary:Version}),
 Description: Qt 6 Quick 3D QML module
  Qt is a cross-platform C++ application framework. Qt's primary feature
  is its rich set of widgets that provide standard GUI functionality.
  .
  This package contains the Qt 6 Quick 3D QML module.
 
-Package: qml6-module-quick3d-helpers
+Package: qml6-module-qtquick3d-assetutils
 Architecture: any
 Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends}, ${shlibs:Depends}
-Description: Qt 6 Quick 3D Helpers QML module
- Qt is a cross-platform C++ application framework. Qt's primary feature
- is its rich set of widgets that provide standard GUI functionality.
- .
- This package contains the Qt 6 Quick 3D Helpers QML module.
-
-Package: qml6-module-quick3d-assetutils
-Architecture: any
-Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends}, ${shlibs:Depends}
+Pre-Depends: ${misc:Pre-Depends},
+Depends: ${misc:Depends}, ${shlibs:Depends},
+Breaks: qml6-module-quick3d-assetutils,
+Replaces: qml6-module-quick3d-assetutils,
+Provides: qml6-module-quick3d-assetutils (= ${binary:Version}),
 Description: Qt 6 Quick 3D Asset Utils QML module
  Qt is a cross-platform C++ application framework. Qt's primary feature
  is its rich set of widgets that provide standard GUI functionality.
  .
  This package contains the Qt 6 Quick 3D Asset Utils QML module.
 
-Package: qml6-module-quick3d-particleeffects
+Package: qml6-module-qtquick3d-effects
 Architecture: any
 Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends}, ${shlibs:Depends}
-Description: Qt 6 Quick 3D Particle Effects QML module
- Qt is a cross-platform C++ application framework. Qt's primary feature
- is its rich set of widgets that provide standard GUI functionality.
- .
- This package contains the Qt 6 Quick 3D Particle Effects QML module.
-
-Package: qml6-module-quick3d-particles3d
-Architecture: any
-Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends}, ${shlibs:Depends}
-Description: Qt 6 Quick 3D Particles 3D QML module
- Qt is a cross-platform C++ application framework. Qt's primary feature
- is its rich set of widgets that provide standard GUI functionality.
- .
- This package contains the Qt 6 Quick 3D Particles 3D QML module.
-
-Package: qml6-module-quick3d-effects
-Architecture: any
-Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends}, ${shlibs:Depends}
+Pre-Depends: ${misc:Pre-Depends},
+Depends: ${misc:Depends}, ${shlibs:Depends},
+Breaks: qml6-module-quick3d-effects, libqt6quick3deffects6
+Replaces: qml6-module-quick3d-effects, libqt6quick3deffects6
+Provides: qml6-module-quick3d-effects (= ${binary:Version}),
 Description: Qt 6 Quick 3D Effects QML module
  Qt is a cross-platform C++ application framework. Qt's primary feature
  is its rich set of widgets that provide standard GUI functionality.
  .
  This package contains the Qt 6 Quick 3D Effects QML module.
 
+Package: qml6-module-qtquick3d-helpers
+Architecture: any
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends},
+Depends: ${misc:Depends}, ${shlibs:Depends},
+Breaks: qml6-module-quick3d-helpers, libqt6quick3dhelpers6
+Replaces: qml6-module-quick3d-helpers, libqt6quick3dhelpers6
+Provides: qml6-module-quick3d-helpers (= ${binary:Version}),
+Description: Qt 6 Quick 3D Helpers QML module
+ Qt is a cross-platform C++ application framework. Qt's primary feature
+ is its rich set of widgets that provide standard GUI functionality.
+ .
+ This package contains the Qt 6 Quick 3D Helpers QML module.
+
+Package: qml6-module-qtquick3d-materialeditor
+Architecture: any
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends},
+Depends: ${misc:Depends}, ${shlibs:Depends},
+Description: Qt 6 Quick 3D Material Editor QML module
+ Qt is a cross-platform C++ application framework. Qt's primary feature
+ is its rich set of widgets that provide standard GUI functionality.
+ .
+ This package contains the Qt 6 Quick 3D Material Editor QML module.
+
+Package: qml6-module-qtquick3d-particleeffects
+Architecture: any
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends},
+Depends: ${misc:Depends}, ${shlibs:Depends},
+Breaks: libqt6quick3dparticleeffects6, qml6-module-quick3d-particleeffects,
+Replaces: libqt6quick3dparticleeffects6, qml6-module-quick3d-particleeffects,
+Provides: qml6-module-quick3d-particleeffects (= ${binary:Version}),
+Description: Qt 6 Quick 3D Particle Effects QML module
+ Qt is a cross-platform C++ application framework. Qt's primary feature
+ is its rich set of widgets that provide standard GUI functionality.
+ .
+ This package contains the Qt 6 Quick 3D Particle Effects QML module.
+
+Package: qml6-module-qtquick3d-particles3d
+Architecture: any
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends},
+Depends: ${misc:Depends}, ${shlibs:Depends},
+Breaks: libqt6quick3dparticles6, qml6-module-quick3d-particles3d,
+Replaces: libqt6quick3dparticles6, qml6-module-quick3d-particles3d,
+Provides: libqt6quick3dparticles6 (= ${binary:Version}),
+          qml6-module-quick3d-particles3d (= ${binary:Version}),
+Description: Qt 6 Quick 3D Particles 3D QML module
+ Qt is a cross-platform C++ application framework. Qt's primary feature
+ is its rich set of widgets that provide standard GUI functionality.
+ .
+ This package contains the Qt 6 Quick 3D Particles 3D QML module.
+
 Package: qt6-qmltooling-quick3dprofiler-plugin
 Architecture: any
 Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends}, ${shlibs:Depends}
+Pre-Depends: ${misc:Pre-Depends},
+Depends: ${misc:Depends}, ${shlibs:Depends},
 Description: Qt 6 qmltooling Quick3D profiler plugin
  Qt is a cross-platform C++ application framework. Qt's primary feature
  is its rich set of widgets that provide standard GUI functionality.
@@ -248,18 +234,15 @@ Multi-Arch: same
 Depends: libqt6quick3d6 (= ${binary:Version}),
          libqt6quick3dassetimport6 (= ${binary:Version}),
          libqt6quick3dassetutils6 (= ${binary:Version}),
-         libqt6quick3deffects6 (= ${binary:Version}),
-         libqt6quick3dhelpers6 (= ${binary:Version}),
          libqt6quick3diblbaker6 (= ${binary:Version}),
-         libqt6quick3dparticles6 (= ${binary:Version}),
          libqt6quick3druntimerender6 (= ${binary:Version}),
          libqt6quick3dutils6 (= ${binary:Version}),
-         qml6-module-quick3d (= ${binary:Version}),
-         qml6-module-quick3d-assetutils (= ${binary:Version}),
-         qml6-module-quick3d-effects (= ${binary:Version}),
-         qml6-module-quick3d-helpers (= ${binary:Version}),
-         qml6-module-quick3d-particleeffects (= ${binary:Version}),
-         qml6-module-quick3d-particles3d (= ${binary:Version}),
+         qml6-module-qtquick3d (= ${binary:Version}),
+         qml6-module-qtquick3d-assetutils (= ${binary:Version}),
+         qml6-module-qtquick3d-effects (= ${binary:Version}),
+         qml6-module-qtquick3d-helpers (= ${binary:Version}),
+         qml6-module-qtquick3d-particleeffects (= ${binary:Version}),
+         qml6-module-qtquick3d-particles3d (= ${binary:Version}),
          qt6-base-dev,
          qt6-qmltooling-quick3dprofiler-plugin (= ${binary:Version}),
          qt6-quick3d-assetimporters-plugin (= ${binary:Version}),
@@ -272,11 +255,27 @@ Description: Qt 6 Quick 3D - development files
  This package contains the header development files used for building Qt 6
  applications using Qt Quick 3D library.
 
+Package: qt6-quick3d-private-dev
+Architecture: any
+Multi-Arch: same
+Section: libdevel
+Depends: qt6-quick3d-dev (= ${binary:Version}), ${misc:Depends},
+Breaks: qt6-quick3d-dev (<< 6.6.1-1),
+Replaces: qt6-quick3d-dev (<< 6.6.1-1),
+Description: Qt 6 Quick 3D private development files
+ Qt is a cross-platform C++ application framework. Qt's primary feature
+ is its rich set of widgets that provide standard GUI functionality.
+ .
+ This package contains the private header development files for building some
+ Qt 6 applications using the Qt 6 Quick 3D private headers.
+ .
+ Use at your own risk.
+
 Package: qt6-quick3d-dev-tools
 Architecture: any
 Multi-Arch: foreign
 Section: devel
-Depends: ${misc:Depends}, ${shlibs:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends},
 Description: Qt 6 Quick 3D development programs
  Qt is a cross-platform C++ application framework. Qt's primary feature
  is its rich set of widgets that provide standard GUI functionality.

@@ -61,6 +61,9 @@ float QQuick3DMorphTarget::weight() const
     \value MorphTarget.Normal animates the normal vectors
     \value MorphTarget.Tangent animates the tangent vectors
     \value MorphTarget.Binormal animates the binormal vectors
+    \value MorphTarget.TexCoord0 animates the texture coordinate 0 vectors
+    \value MorphTarget.TexCoord1 animates the texture coordinate 1 vectors
+    \value MorphTarget.Color animates the vertex color vectors
 */
 
 QQuick3DMorphTarget::MorphTargetAttributes QQuick3DMorphTarget::attributes() const
@@ -106,7 +109,7 @@ QSSGRenderGraphObject *QQuick3DMorphTarget::updateSpatialNode(QSSGRenderGraphObj
         markAllDirty();
         node = new QSSGRenderMorphTarget();
     }
-
+    QQuick3DObject::updateSpatialNode(node);
     auto modelNode = static_cast<QSSGRenderMorphTarget *>(node);
     if (m_dirtyAttributes & WeightDirty)
         modelNode->weight = m_weight;

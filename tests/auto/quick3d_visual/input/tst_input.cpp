@@ -42,6 +42,10 @@ private:
 
 void tst_Input::initTestCase()
 {
+    // Overrides the internal input handling in QQuick3DViewport so that it's
+    // always true instead of conditionally based on if there are item2Ds in the scene.
+    qputenv("QT_QUICK3D_FORCE_INPUT_HANDLING", "1");
+
     QQuick3DDataTest::initTestCase();
     if (!initialized())
         return;
@@ -113,7 +117,7 @@ void tst_Input::singleTap2D()
 #ifdef DISABLE_HOVER_IN_IRRELEVANT_TESTS
     QQuickWindowPrivate::get(view.data())->deliveryAgentPrivate()->frameSynchronousHoverEnabled = false;
 #endif
-    QVERIFY(QTest::qWaitForWindowExposed(view.data()));
+    QVERIFY(QTest::qWaitForWindowActive(view.data()));
 
     QQuickItem *tapItem = find2DChildIn3DNode(view.data(), objectName, tapObjectName);
     QVERIFY(tapItem);
@@ -183,7 +187,7 @@ void tst_Input::dualTouchTap2D()
 #ifdef DISABLE_HOVER_IN_IRRELEVANT_TESTS
     QQuickWindowPrivate::get(view.data())->deliveryAgentPrivate()->frameSynchronousHoverEnabled = false;
 #endif
-    QVERIFY(QTest::qWaitForWindowExposed(view.data()));
+    QVERIFY(QTest::qWaitForWindowActive(view.data()));
 
     QQuickItem *tapItem1 = find2DChildIn3DNode(view.data(), objectName1, tapObjectName1);
     QVERIFY(tapItem1);
@@ -249,13 +253,13 @@ void tst_Input::fallthrough()
 #ifdef DISABLE_HOVER_IN_IRRELEVANT_TESTS
     QQuickWindowPrivate::get(view.data())->deliveryAgentPrivate()->frameSynchronousHoverEnabled = false;
 #endif
-    QVERIFY(QTest::qWaitForWindowExposed(view.data()));
+    QVERIFY(QTest::qWaitForWindowActive(view.data()));
     QQuickTapHandler *tapHandlerUnderneath = view->contentItem()->findChild<QQuickTapHandler *>();
     QVERIFY(tapHandlerUnderneath);
     QSignalSpy pressedChangedSpy(tapHandlerUnderneath, SIGNAL(pressedChanged()));
 
     QTest::mouseClick(view.data(), Qt::LeftButton, Qt::NoModifier, pos);
-    QTRY_COMPARE(pressedChangedSpy.count(), 2);
+    QTRY_COMPARE(pressedChangedSpy.size(), 2);
 
     if (mouseAreaCanBlock) {
         pressedChangedSpy.clear();
@@ -264,8 +268,8 @@ void tst_Input::fallthrough()
         QSignalSpy maPressedChangedSpy(mouseArea, SIGNAL(pressedChanged()));
         mouseArea->setEnabled(true); // accepts the mouse events
         QTest::mouseClick(view.data(), Qt::LeftButton, Qt::NoModifier, pos);
-        QTRY_COMPARE(maPressedChangedSpy.count(), 2);
-        QCOMPARE(pressedChangedSpy.count(), 0);
+        QTRY_COMPARE(maPressedChangedSpy.size(), 2);
+        QCOMPARE(pressedChangedSpy.size(), 0);
     }
 }
 
@@ -305,7 +309,7 @@ void tst_Input::singleDrag2D()
 #ifdef DISABLE_HOVER_IN_IRRELEVANT_TESTS
     QQuickWindowPrivate::get(view.data())->deliveryAgentPrivate()->frameSynchronousHoverEnabled = false;
 #endif
-    QVERIFY(QTest::qWaitForWindowExposed(view.data()));
+    QVERIFY(QTest::qWaitForWindowActive(view.data()));
 
     QQuickItem *dragItem = find2DChildIn3DNode(view.data(), objectName, dragObjectName);
     QVERIFY(dragItem);

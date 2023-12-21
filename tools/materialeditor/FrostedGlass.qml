@@ -15,7 +15,7 @@ Item {
         anchors.fill: parent
         id: backgroundSourceImage
         sourceRect: Qt.rect(0, 0, width, height)
-        sourceItem: targetView
+        sourceItem: root.backgroundItem
         visible: false
     }
 
@@ -35,7 +35,7 @@ Item {
         horizontalAlignment: Image.AlignLeft
         verticalAlignment: Image.AlignTop
         visible: false
-        source: "qrc:/assets/images/noise.png"
+        source: "assets/images/noise.png"
     }
 
     ShaderEffect {
@@ -46,6 +46,6 @@ Item {
         property real blur: 0.05;
         property color color: "white"
         anchors.fill: parent
-        fragmentShader: "qrc:/assets/shaders/frostedGlass.frag.qsb"
+        fragmentShader: "assets/shaders/frostedGlass.frag.qsb"
     }
 }

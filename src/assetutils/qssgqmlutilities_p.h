@@ -22,6 +22,7 @@
 #include <QVariant>
 #include <QHash>
 #include <QTextStream>
+#include <QtCore/QJsonObject>
 
 QT_BEGIN_NAMESPACE
 
@@ -39,42 +40,6 @@ class QDir;
 
 namespace QSSGQmlUtilities {
 
-class PropertyMap
-{
-public:
-    enum Type {
-        Node,
-        Model,
-        Joint,
-        PerspectiveCamera,
-        OrthographicCamera,
-        DirectionalLight,
-        PointLight,
-        SpotLight,
-        DefaultMaterial,
-        PrincipledMaterial,
-        SpecularGlossyMaterial,
-        Texture,
-    };
-
-    typedef QHash<QString, QVariant> PropertiesMap;
-
-    static PropertyMap *instance();
-
-    PropertiesMap *propertiesForType(Type type);
-    QVariant getDefaultValue(Type type, const QString &property);
-    bool isDefaultValue(Type type, const QString &property, const QVariant &value);
-
-
-private:
-    PropertyMap();
-    ~PropertyMap();
-
-    QHash<Type, PropertiesMap *> m_properties;
-
-};
-
-QString Q_QUICK3DASSETUTILS_EXPORT insertTabs(int n);
 QString Q_QUICK3DASSETUTILS_EXPORT qmlComponentName(const QString &name);
 QString Q_QUICK3DASSETUTILS_EXPORT colorToQml(const QColor &color);
 QString Q_QUICK3DASSETUTILS_EXPORT variantToQml(const QVariant &variant);
@@ -82,9 +47,7 @@ QString Q_QUICK3DASSETUTILS_EXPORT sanitizeQmlId(const QString &id);
 QString Q_QUICK3DASSETUTILS_EXPORT sanitizeQmlSourcePath(const QString &source, bool removeParentDirectory = false);
 QString Q_QUICK3DASSETUTILS_EXPORT stripParentDirectory(const QString &filePath);
 
-void Q_QUICK3DASSETUTILS_EXPORT writeQmlPropertyHelper(QTextStream &output, int tabLevel, PropertyMap::Type type, const QString &propertyName, const QVariant &value);
-
-void Q_QUICK3DASSETUTILS_EXPORT writeQml(const QSSGSceneDesc::Scene &scene, QTextStream &stream, const QDir &outdir);
+void Q_QUICK3DASSETUTILS_EXPORT writeQml(const QSSGSceneDesc::Scene &scene, QTextStream &stream, const QDir &outdir, const QJsonObject &optionsObject = QJsonObject());
 void Q_QUICK3DASSETUTILS_EXPORT writeQmlComponent(const QSSGSceneDesc::Node &node, QTextStream &stream, const QDir &outDir);
 
 Q_REQUIRED_RESULT QString Q_QUICK3DASSETUTILS_EXPORT getMeshSourceName(const QByteArrayView &name);

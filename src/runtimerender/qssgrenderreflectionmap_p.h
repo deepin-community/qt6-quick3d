@@ -15,10 +15,13 @@
 // We mean it.
 //
 
+#include <QtQuick3DRuntimeRender/private/qtquick3druntimerenderglobal_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderreflectionprobe_p.h>
 
 QT_BEGIN_NAMESPACE
 
+class QRhi;
+class QRhiCommandBuffer;
 class QSSGRhiContext;
 class QSSGRenderContextInterface;
 
@@ -34,6 +37,8 @@ struct QSSGReflectionMapEntry
 {
     QSSGReflectionMapEntry();
 
+    static QSSGReflectionMapEntry withRhiTexturedCubeMap(quint32 probeIdx,
+                                                         QRhiTexture *preFiltered);
     static QSSGReflectionMapEntry withRhiCubeMap(quint32 probeIdx,
                                                  QRhiTexture *cube,
                                                  QRhiTexture *prefiltered,
@@ -71,21 +76,24 @@ struct QSSGReflectionMapEntry
 
     QSSGRenderReflectionProbe::ReflectionTimeSlicing m_timeSlicing = QSSGRenderReflectionProbe::ReflectionTimeSlicing::None;
     int m_timeSliceFrame = 1;
-    int m_timeSliceFace = 0;
+    QSSGRenderTextureCubeFace m_timeSliceFace = { QSSGRenderTextureCubeFaces[0] };
+    Q_QUICK3D_PROFILE_ID
 };
 
-class QSSGRenderReflectionMap
+class Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderReflectionMap
 {
     typedef QVector<QSSGReflectionMapEntry> TReflectionMapEntryList;
+    Q_DISABLE_COPY(QSSGRenderReflectionMap)
 
 public:
-    QAtomicInt ref;
     const QSSGRenderContextInterface &m_context;
 
-    QSSGRenderReflectionMap(const QSSGRenderContextInterface &inContext);
+    explicit QSSGRenderReflectionMap(const QSSGRenderContextInterface &inContext);
     ~QSSGRenderReflectionMap();
+    void releaseCachedResources();
 
     void addReflectionMapEntry(qint32 probeIdx, const QSSGRenderReflectionProbe &probe);
+    void addTexturedReflectionMapEntry(qint32 probeIdx, const QSSGRenderReflectionProbe &probe);
 
     QSSGReflectionMapEntry *reflectionMapEntry(int probeIdx);
 
@@ -94,6 +102,8 @@ public:
 private:
     TReflectionMapEntryList m_reflectionMapList;
 };
+
+using QSSGRenderReflectionMapPtr = std::shared_ptr<QSSGRenderReflectionMap>;
 
 QT_END_NAMESPACE
 

@@ -43,12 +43,8 @@ class QRhiTexture;
 class Q_QUICK3DRUNTIMERENDER_EXPORT QSSGCustomMaterialSystem
 {
     Q_DISABLE_COPY(QSSGCustomMaterialSystem)
-public:
-    QAtomicInt ref;
-
-private:
     typedef QPair<QByteArray, QByteArray> TStrStrPair;
-    typedef QHash<QSSGShaderMapKey, QSSGRef<QSSGRhiShaderPipeline>> TShaderMap;
+    typedef QHash<QSSGShaderMapKey, QSSGRhiShaderPipelinePtr> TShaderMap;
 
     QSSGRenderContextInterface *context = nullptr;
     TShaderMap shaderMap;
@@ -57,8 +53,8 @@ private:
                             const QSSGRenderCustomMaterial &inMaterial,
                             const QByteArray &inPropertyName,
                             const QVariant &propertyValue,
-                            QSSGRenderShaderDataType inPropertyType,
-                            const QSSGRef<QSSGRhiShaderPipeline> &shaderPipeline);
+                            QSSGRenderShaderValue::Type inPropertyType,
+                            QSSGRhiShaderPipeline &shaderPipeline);
 
 public:
     QSSGCustomMaterialSystem();
@@ -66,48 +62,50 @@ public:
 
     void setRenderContextInterface(QSSGRenderContextInterface *inContext);
 
+    void releaseCachedResources();
+
     // Returns true if the material is dirty and thus will produce a different render result
     // than previously.  This effects things like progressive AA.
     bool prepareForRender(const QSSGRenderModel &inModel,
                           const QSSGRenderSubset &inSubset,
                           QSSGRenderCustomMaterial &inMaterial);
 
-    QSSGRef<QSSGRhiShaderPipeline> shadersForCustomMaterial(QSSGRhiGraphicsPipelineState *ps,
-                                                            const QSSGRenderCustomMaterial &material,
-                                                            QSSGSubsetRenderable &renderable,
-                                                            const QSSGShaderFeatures &featureSet);
+    QSSGRhiShaderPipelinePtr shadersForCustomMaterial(QSSGRhiGraphicsPipelineState *ps,
+                                                      const QSSGRenderCustomMaterial &material,
+                                                      QSSGSubsetRenderable &renderable,
+                                                      const QSSGShaderFeatures &featureSet);
 
-    void updateUniformsForCustomMaterial(QSSGRef<QSSGRhiShaderPipeline> &shaderPipeline,
+    void updateUniformsForCustomMaterial(QSSGRhiShaderPipeline &shaderPipeline,
                                          QSSGRhiContext *rhiCtx,
+                                         const QSSGLayerRenderData &inData,
                                          char *ubufData,
                                          QSSGRhiGraphicsPipelineState *ps,
                                          const QSSGRenderCustomMaterial &material,
                                          QSSGSubsetRenderable &renderable,
-                                         QSSGLayerRenderData &layerData,
-                                         QSSGRenderCamera &camera,
+                                         const QSSGRenderCamera &camera,
                                          const QVector2D *depthAdjust,
                                          const QMatrix4x4 *alteredModelViewProjection);
 
     void rhiPrepareRenderable(QSSGRhiGraphicsPipelineState *ps,
+                              QSSGPassKey passKey,
                               QSSGSubsetRenderable &renderable,
                               const QSSGShaderFeatures &featureSet,
                               const QSSGRenderCustomMaterial &material,
-                              QSSGLayerRenderData &layerData,
+                              const QSSGLayerRenderData &layerData,
                               QRhiRenderPassDescriptor *renderPassDescriptor,
                               int samples,
                               QSSGRenderCamera *camera = nullptr,
-                              int cubeFace = -1,
+                              QSSGRenderTextureCubeFace cubeFace = QSSGRenderTextureCubeFaceNone,
                               QMatrix4x4 *modelViewProjection = nullptr,
                               QSSGReflectionMapEntry *entry = nullptr);
     void applyRhiShaderPropertyValues(char *ubufData,
                                       const QSSGRenderCustomMaterial &inMaterial,
-                                      const QSSGRef<QSSGRhiShaderPipeline> &shaderPipeline);
+                                      QSSGRhiShaderPipeline &shaderPipeline);
     void rhiRenderRenderable(QSSGRhiContext *rhiCtx,
                              QSSGSubsetRenderable &renderable,
-                             QSSGLayerRenderData &inData,
                              bool *needsSetViewport,
-                             int cubeFace,
-                             QSSGRhiGraphicsPipelineState *state);
+                             QSSGRenderTextureCubeFace cubeFace,
+                             const QSSGRhiGraphicsPipelineState &state);
 };
 
 QT_END_NAMESPACE

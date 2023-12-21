@@ -273,7 +273,7 @@ void QQuick3DParticleModelBlendParticle::regenerate()
     handleEndNodeChanged();
 }
 
-static QSSGMesh::Mesh loadMesh(const QString &source)
+static QSSGMesh::Mesh loadModelBlendParticleMesh(const QString &source)
 {
     QString src = source;
     if (source.startsWith(QLatin1Char('#'))) {
@@ -447,7 +447,7 @@ void QQuick3DParticleModelBlendParticle::updateParticles()
         QString src = m_model->source().toString();
         if (context && !src.startsWith(QLatin1Char('#')))
             src = QQmlFile::urlToLocalFileOrQrc(context->resolvedUrl(m_model->source()));
-        QSSGMesh::Mesh mesh = loadMesh(src);
+        QSSGMesh::Mesh mesh = loadModelBlendParticleMesh(src);
         if (!mesh.isValid()) {
             qWarning () << "ModelBlendParticle3D: Unable to load mesh: " << src;
             return;
@@ -536,7 +536,7 @@ void QQuick3DParticleModelBlendParticle::updateParticles()
     QMatrix4x4 transform = m_model->sceneTransform();
     if (m_model->parentNode())
         transform = m_model->parentNode()->sceneTransform().inverted() * transform;
-    const QVector3D scale = mat44::getScale(transform);
+    const QVector3D scale = QSSGUtils::mat44::getScale(transform);
     // Take max component scale for a conservative bounds estimation
     const float scaleMax = qMax(scale.x(), qMax(scale.y(), scale.z()));
     m_maxTriangleRadius *= scaleMax;
@@ -565,7 +565,11 @@ QSSGRenderGraphObject *QQuick3DParticleModelBlendParticle::updateSpatialNode(QSS
     if (!spatialNode) {
         spatialNode = QQuick3DObjectPrivate::updateSpatialNode(m_model, nullptr);
         QQuick3DObjectPrivate::get(m_model)->spatialNode = spatialNode;
+        Q_QUICK3D_PROFILE_ASSIGN_ID_SG(this, spatialNode);
     }
+    auto *geometrySpatialNode = QQuick3DObjectPrivate::get(m_modelGeometry)->spatialNode;
+    if (geometrySpatialNode)
+        Q_QUICK3D_PROFILE_ASSIGN_ID_SG(this, geometrySpatialNode);
 
     QSSGRenderModel *model = static_cast<QSSGRenderModel *>(spatialNode);
 

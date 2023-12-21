@@ -28,13 +28,31 @@ QQuick3DReflectionProbe::QQuick3DReflectionProbe(QQuick3DNode *parent)
     QObject::connect(this, &QQuick3DReflectionProbe::scenePositionChanged, this, &QQuick3DReflectionProbe::updateDebugView);
 }
 
+void QQuick3DReflectionProbe::itemChange(QQuick3DObject::ItemChange change,
+                                         const QQuick3DObject::ItemChangeData &value)
+{
+    if (change == QQuick3DObject::ItemSceneChange)
+        updateSceneManager(value.sceneManager);
+}
+
 /*!
-    \qmlproperty ReflectionQuality ReflectionProbe::quality
+    \qmlproperty enumeration ReflectionProbe::quality
 
     Quality determines the resolution of the cube map.
-    The qualities are \c {ReflectionQuality.VeryLow}, \c {ReflectionQuality.Low},
-    \c {ReflectionQuality.Medium}, \c {ReflectionQuality.High} and \c {ReflectionQuality.VeryHigh}
-    corresponding to 128x128, 256x256, 512x512, 1024x1024 and 2048x2048 resolutions.
+
+    Possible values are:
+    \value ReflectionProbe.VeryLow
+    Renders a reflection map using a 128x128 texture.
+    \value ReflectionProbe.Low
+    Renders a reflection map using a 256x256 texture.
+    \value ReflectionProbe.Medium
+    Renders a reflection map using a 512x512 texture.
+    \value ReflectionProbe.High
+    Renders a reflection map using a 1024x1024 texture.
+    \value ReflectionProbe.VeryHigh
+    Renders a reflection map using a 2048x2048 texture.
+
+    The default value is \c ReflectionProbe.Low
 */
 QQuick3DReflectionProbe::ReflectionQuality QQuick3DReflectionProbe::quality() const
 {
@@ -52,14 +70,18 @@ QColor QQuick3DReflectionProbe::clearColor() const
 }
 
 /*!
-    \qmlproperty ReflectionRefreshMode ReflectionProbe::refreshMode
+    \qmlproperty enumeration ReflectionProbe::refreshMode
 
-    Refresh mode tells the runtime how many times the cube map is rendered.
-    The settings are \c {ReflectionRefreshMode.FirstFrame} and \c {ReflectionRefreshMode.EveryFrame}.
-    With \c {ReflectionRefreshMode.FirstFrame} the scene is rendered once and with
-    \c {ReflectionRefreshMode.EveryFrame} the scene is rendered every frame.
+    Refresh mode tells the runtime how often the cube map should be updated.
 
-    \note Use \c {ReflectionRefreshMode.FirstFrame} for improved performance.
+    Possible values are:
+    \value ReflectionProbe.FirstFrame
+    Renders the scene on the first frame.
+    \value ReflectionProbe.EveryFrame
+    Renders the scene every frame.
+
+    The default value is \c ReflectionProbe.EveryFrame
+    \note Use \c ReflectionProbe.FirstFrame for improved performance.
 */
 QQuick3DReflectionProbe::ReflectionRefreshMode QQuick3DReflectionProbe::refreshMode() const
 {
@@ -67,28 +89,28 @@ QQuick3DReflectionProbe::ReflectionRefreshMode QQuick3DReflectionProbe::refreshM
 }
 
 /*!
-    \qmlproperty ReflectionTimeSlicing ReflectionProbe::timeSlicing
+    \qmlproperty enumeration ReflectionProbe::timeSlicing
 
     Time slicing determines how the cube map render is timed.
-    Options are \c {ReflectionTimeSlicing.None}, \c {ReflectionTimeSlicing.AllFacesAtOnce} and
-    \c {ReflectionTimeSlicing.IndividualFaces}.
 
-    \value ReflectionTimeSlicing.None
+    Possible values are:
+    \value ReflectionProbe.None
         All faces of the cube map are rendered and prefiltered during one frame.
 
-    \value ReflectionTimeSlicing.AllFacesAtOnce
+    \value ReflectionProbe.AllFacesAtOnce
         All faces are rendered during one frame but the prefiltering
         is divided to subsquent frames with each mip level handled on
         their own frame. Rough surface reflections are thus refreshed
         every sixth frame while smooth surfaces have reflections
         that refresh every frame.
 
-    \value ReflectionTimeSlicing.IndividualFaces
+    \value ReflectionProbe.IndividualFaces
         Each face is rendered and prefiltered in a separate frame.
         Thus all reflections are refreshed every sixth frame.
 
-    \note Use \c {ReflectionTimeSlicing.AllFacesAtOnce} or
-    \c {ReflectionTimeSlicing.IndividualFaces} to increase performance.
+    The default value is \c ReflectionProbe.None
+    \note Use \c ReflectionProbe.AllFacesAtOnce or
+    \c ReflectionProbe.IndividualFaces to increase performance.
 */
 QQuick3DReflectionProbe::ReflectionTimeSlicing QQuick3DReflectionProbe::timeSlicing() const
 {
@@ -156,10 +178,24 @@ QVector3D QQuick3DReflectionProbe::boxOffset() const
 }
 
 /*!
+    \qmlproperty CubeMapTexture ReflectionProbe::texture
+    \since 6.5
+
+    Instead of rendering the scene, this cube map texture is used to show reflections
+    in objects affected by this reflection probe.
+
+    \sa CubeMapTexture
+*/
+QQuick3DCubeMapTexture *QQuick3DReflectionProbe::texture() const
+{
+    return m_texture;
+}
+
+/*!
     \qmlmethod ReflectionProbe::scheduleUpdate()
 
     Updates the reflection probe render when called while \l ReflectionProbe::refreshMode
-    is set as \c {ReflectionRefreshMode.FirstFrame}.
+    is set as \c ReflectionProbe.FirstFrame.
 */
 void QQuick3DReflectionProbe::scheduleUpdate()
 {
@@ -252,6 +288,17 @@ void QQuick3DReflectionProbe::setBoxOffset(const QVector3D &boxOffset)
     update();
 }
 
+void QQuick3DReflectionProbe::setTexture(QQuick3DCubeMapTexture *newTexture)
+{
+    if (m_texture == newTexture)
+        return;
+    QQuick3DObjectPrivate::attachWatcher(this, &QQuick3DReflectionProbe::setTexture, newTexture, m_texture);
+    m_texture = newTexture;
+    m_dirtyFlags.setFlag(DirtyFlag::TextureDirty);
+    emit textureChanged();
+    update();
+}
+
 QSSGRenderGraphObject *QQuick3DReflectionProbe::updateSpatialNode(QSSGRenderGraphObject *node)
 {
     if (!node) {
@@ -310,6 +357,14 @@ QSSGRenderGraphObject *QQuick3DReflectionProbe::updateSpatialNode(QSSGRenderGrap
         m_dirtyFlags.setFlag(DirtyFlag::BoxDirty, false);
         probe->boxSize = m_boxSize;
         probe->boxOffset = m_boxOffset;
+    }
+
+    if (m_dirtyFlags.testFlag(DirtyFlag::TextureDirty)) {
+        m_dirtyFlags.setFlag(DirtyFlag::TextureDirty, false);
+        if (m_texture)
+            probe->texture = m_texture->getRenderImage();
+        else
+            probe->texture = nullptr;
     }
 
     return node;
@@ -477,5 +532,15 @@ quint32 QQuick3DReflectionProbe::mapToReflectionResolution(ReflectionQuality qua
     }
     return 7;
 }
+
+void QQuick3DReflectionProbe::updateSceneManager(QQuick3DSceneManager *sceneManager)
+{
+    // Check all the resource value's scene manager, and update as necessary.
+    if (sceneManager)
+        QQuick3DObjectPrivate::refSceneManager(m_texture, *sceneManager);
+    else
+        QQuick3DObjectPrivate::derefSceneManager(m_texture);
+}
+
 
 QT_END_NAMESPACE

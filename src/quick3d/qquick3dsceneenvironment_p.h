@@ -26,6 +26,8 @@
 
 #include <QtQuick3D/private/qquick3deffect_p.h>
 #include <QtQuick3D/private/qquick3dlightmapper_p.h>
+#include <QtQuick3D/private/qquick3ddebugsettings_p.h>
+#include <QtQuick3D/private/qquick3dfog_p.h>
 
 QT_BEGIN_NAMESPACE
 
@@ -50,6 +52,7 @@ class Q_QUICK3D_EXPORT QQuick3DSceneEnvironment : public QQuick3DObject
     Q_PROPERTY(bool aoDither READ aoDither WRITE setAoDither NOTIFY aoDitherChanged)
     Q_PROPERTY(int aoSampleRate READ aoSampleRate WRITE setAoSampleRate NOTIFY aoSampleRateChanged)
     Q_PROPERTY(float aoBias READ aoBias WRITE setAoBias NOTIFY aoBiasChanged)
+    Q_PROPERTY(bool aoEnabled READ aoEnabled WRITE setAoEnabled NOTIFY aoEnabledChanged REVISION(6, 5))
 
     Q_PROPERTY(QQuick3DTexture *lightProbe READ lightProbe WRITE setLightProbe NOTIFY lightProbeChanged)
     Q_PROPERTY(float probeExposure READ probeExposure WRITE setProbeExposure NOTIFY probeExposureChanged)
@@ -66,6 +69,11 @@ class Q_QUICK3D_EXPORT QQuick3DSceneEnvironment : public QQuick3DObject
     Q_PROPERTY(bool specularAAEnabled READ specularAAEnabled WRITE setSpecularAAEnabled NOTIFY specularAAEnabledChanged REVISION(6, 4))
 
     Q_PROPERTY(QQuick3DLightmapper *lightmapper READ lightmapper WRITE setLightmapper NOTIFY lightmapperChanged REVISION(6, 4))
+
+    Q_PROPERTY(QQuick3DDebugSettings *debugSettings READ debugSettings WRITE setDebugSettings NOTIFY debugSettingsChanged REVISION(6, 5))
+    Q_PROPERTY(QRect scissorRect READ scissorRect WRITE setScissorRect NOTIFY scissorRectChanged REVISION(6, 5))
+
+    Q_PROPERTY(QQuick3DFog *fog READ fog WRITE setFog NOTIFY fogChanged REVISION(6, 5))
 
     QML_NAMED_ELEMENT(SceneEnvironment)
 
@@ -121,6 +129,8 @@ public:
     bool aoDither() const;
     int aoSampleRate() const;
     float aoBias() const;
+    Q_REVISION(6, 5) bool aoEnabled() const;
+    Q_REVISION(6, 5) void setAoEnabled(bool newAoEnabled);
 
     QQuick3DTexture *lightProbe() const;
     float probeExposure() const;
@@ -138,6 +148,20 @@ public:
     Q_REVISION(6, 4) bool specularAAEnabled() const;
     Q_REVISION(6, 4) QQuick3DLightmapper *lightmapper() const;
     Q_REVISION(6, 4) QQuick3DCubeMapTexture *skyBoxCubeMap() const;
+
+    Q_REVISION(6, 5) QQuick3DDebugSettings *debugSettings() const;
+    Q_REVISION(6, 5) QRect scissorRect() const;
+
+    Q_REVISION(6, 5) QQuick3DFog *fog() const;
+
+    bool gridEnabled() const;
+    void setGridEnabled(bool newGridEnabled);
+
+    float gridScale() const;
+    void setGridScale(float newGridScale);
+
+    uint gridFlags() const;
+    void setGridFlags(uint newGridFlags);
 
 public Q_SLOTS:
     void setAntialiasingMode(QQuick3DSceneEnvironment::QQuick3DEnvironmentAAModeValues antialiasingMode);
@@ -171,6 +195,11 @@ public Q_SLOTS:
 
     Q_REVISION(6, 4) void setLightmapper(QQuick3DLightmapper *lightmapper);
 
+    Q_REVISION(6, 5) void setDebugSettings(QQuick3DDebugSettings *newDebugSettings);
+    Q_REVISION(6, 5) void setScissorRect(QRect scissorRect);
+
+    Q_REVISION(6, 5) void setFog(QQuick3DFog *fog);
+
 Q_SIGNALS:
     void antialiasingModeChanged();
     void antialiasingQualityChanged();
@@ -186,6 +215,7 @@ Q_SIGNALS:
     void aoDitherChanged();
     void aoSampleRateChanged();
     void aoBiasChanged();
+    Q_REVISION(6, 5) void aoEnabledChanged();
 
     void lightProbeChanged();
     void probeExposureChanged();
@@ -202,12 +232,21 @@ Q_SIGNALS:
     Q_REVISION(6, 4) void lightmapperChanged();
     Q_REVISION(6, 4) void skyBoxCubeMapChanged();
 
+    Q_REVISION(6, 5) void debugSettingsChanged();
+    Q_REVISION(6, 5) void scissorRectChanged();
+
+    Q_REVISION(6, 5) void fogChanged();
+
 protected:
     QSSGRenderGraphObject *updateSpatialNode(QSSGRenderGraphObject *node) override;
     void itemChange(ItemChange, const ItemChangeData &) override;
+    virtual const QVector<QQuick3DEffect *> &effectList() const;
+    virtual bool useBuiltinTonemapper() const;
 
 private:
     friend class QQuick3DSceneRenderer;
+
+    static constexpr float defaultAoDistance() { return 5.0f; }
 
     QVector<QQuick3DEffect *> m_effects;
 
@@ -228,17 +267,17 @@ private:
     QColor m_clearColor = Qt::black;
 
     float m_aoStrength = 0.0f;
-    float m_aoDistance = 5.0f;
+    float m_aoDistance = defaultAoDistance();
     float m_aoSoftness = 50.0f;
-    bool m_aoDither = false;
-    int m_aoSampleRate = 2;
     float m_aoBias = 0.0f;
+    int m_aoSampleRate = 2;
+    bool m_aoDither = false;
+    bool m_aoEnabled = false;
     QQuick3DTexture *m_lightProbe = nullptr;
     float m_probeExposure = 1.0f;
     float m_probeHorizon = 0.0f;
     QVector3D m_probeOrientation;
 
-    QHash<QByteArray, QMetaObject::Connection> m_connections;
     bool m_depthTestEnabled = true;
     bool m_depthPrePassEnabled = false;
     QQuick3DEnvironmentTonemapModes m_tonemapMode = QQuick3DEnvironmentTonemapModes::TonemapModeLinear;
@@ -246,6 +285,14 @@ private:
     QQuick3DLightmapper *m_lightmapper = nullptr;
     QMetaObject::Connection m_lightmapperSignalConnection;
     QQuick3DCubeMapTexture *m_skyBoxCubeMap = nullptr;
+    QQuick3DDebugSettings *m_debugSettings = nullptr;
+    QRect m_scissorRect;
+    QMetaObject::Connection m_debugSettingsSignalConnection;
+    bool m_gridEnabled = false;
+    uint m_gridFlags = 0;
+    float m_gridScale = 1.0f;
+    QQuick3DFog *m_fog = nullptr;
+    QMetaObject::Connection m_fogSignalConnection;
 };
 
 QT_END_NAMESPACE

@@ -1,3 +1,6 @@
+# Copyright (C) 2022 The Qt Company Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 cmake_minimum_required(VERSION 3.16)
 project(bakedlightmap LANGUAGES CXX)
 
@@ -31,7 +34,7 @@ qt_add_qml_module(bakedlightmap
     URI Example
     VERSION 1.0
     QML_FILES main.qml Box.qml
-    RESOURCES box.mesh qlm_box.exr
+    RESOURCES box.mesh
     NO_RESOURCE_TARGET_PATH
 )
 

@@ -1,4 +1,3 @@
-// Copyright (C) 2008-2012 NVIDIA Corporation.
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
@@ -18,7 +17,10 @@
 // We mean it.
 //
 
-#include <QtQuick3DRuntimeRender/private/qssgrendernode_p.h>
+#include <QtQuick3DRuntimeRender/private/qssgrendergraphobject_p.h>
+
+#include <QtGui/qvectornd.h>
+#include <QtGui/qmatrix4x4.h>
 
 QT_BEGIN_NAMESPACE
 
@@ -30,9 +32,9 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderInstanceTableEntry {
     QVector4D instanceData;
 };
 
-struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderInstanceTable : public QSSGRenderNode
+struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderInstanceTable : public QSSGRenderGraphObject
 {
-    QSSGRenderInstanceTable() : QSSGRenderNode(QSSGRenderGraphObject::Type::ModelInstance) {}
+    QSSGRenderInstanceTable() : QSSGRenderGraphObject(QSSGRenderGraphObject::Type::ModelInstance) {}
 
     int count() const { return instanceCount; }
     qsizetype dataSize() const { return table.size(); }
@@ -45,6 +47,7 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderInstanceTable : public QSSGRender
     void setHasTransparency( bool t) { transparency = t; }
     void setDepthSorting(bool enable) { depthSorting = enable; }
     bool isDepthSortingEnabled() { return depthSorting; }
+    QMatrix4x4 getTransform(int index) const;
 
 private:
     int instanceCount = 0;

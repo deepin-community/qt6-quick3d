@@ -59,6 +59,9 @@ QQuick3DSkin::~QQuick3DSkin()
     The order in the list becomes the index of the joint, which is used in the
     \c SkinSemantic \l {QQuick3DGeometry::addAttribute}{custom geometry attribute}.
 
+    \note A value 'undefined' will be ignored and if a node which doesn't exist is
+    described, the result is unpredictable.
+
     \sa {QQuick3DGeometry::addAttribute}, {Qt Quick 3D - Simple Skinning Example}
 */
 QQmlListProperty<QQuick3DNode> QQuick3DSkin::joints()
@@ -146,6 +149,7 @@ void QQuick3DSkin::qmlClearJoints(QQmlListProperty<QQuick3DNode> *list)
         joint->disconnect(self, SLOT(onJointDestroyed(QObject*)));
     }
     self->m_joints.clear();
+    self->m_boneData.clear();
     self->markDirty();
 }
 
@@ -210,12 +214,17 @@ QSSGRenderGraphObject *QQuick3DSkin::updateSpatialNode(QSSGRenderGraphObject *no
         markAllDirty();
         node = new QSSGRenderSkin();
     }
-
+    QQuick3DObject::updateSpatialNode(node);
     auto skinNode = static_cast<QSSGRenderSkin *>(node);
 
     if (m_dirty) {
         m_dirty = false;
-        skinNode->boneData = m_boneData;
+        const int boneTexWidth = qCeil(qSqrt(m_joints.size() * 4 * 2));
+        const int textureSizeInBytes = boneTexWidth * boneTexWidth * 16;  //NB: Assumes RGBA32F set above (16 bytes per color)
+        m_boneData.resize(textureSizeInBytes);
+        skinNode->setSize(QSize(boneTexWidth, boneTexWidth));
+        skinNode->setTextureData(m_boneData);
+        skinNode->boneCount = m_joints.size();
     }
 
     return node;

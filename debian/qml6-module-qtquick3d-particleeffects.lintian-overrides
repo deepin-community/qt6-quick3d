@@ -1,0 +1,3 @@
+# libQt6Quick3DParticleEffects6 is a private lib installed in a public path
+qml6-module-qtquick3d-particleeffects: package-name-doesnt-match-sonames libQt6Quick3DParticleEffects6
+qml6-module-qtquick3d-particleeffects: no-symbols-control-file usr/lib/*/libQt6Quick3DParticleEffects.so.6.*

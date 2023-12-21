@@ -318,25 +318,17 @@ QT_BEGIN_NAMESPACE
     the associated model does not provide joint weights data, the value is
     vec4(0.0).
 
-    \li MORPH_POSITION\e{n} -> vec3, the \e{n}th morph target position in the vertex
-    shader. \e{n}'s range is from 0 to 7. The associated model should provide proper
-    data. For safety, the user can check \b {defined(QT_MORPH_IN_POSITION\e{n})}
-    before use it.
+    \li MORPH_POSITION(\e{n}) -> vec3, the \e{n+1}th morph target position in the vertex
+    shader. The associated model should provide proper data.
 
-    \li MORPH_NORMAL\e{n} -> vec3, the \e{n}th morph target normal in the vertex
-    shader. \e{n}'s range is from 0 to 4. The associated model should provide proper
-    data. For safety, the user can check \b {defined(QT_MORPH_IN_NORMAL\e{n})}
-    before use it.
+    \li MORPH_NORMAL(\e{n}) -> vec3, the \e{n+1}th morph target normal in the vertex
+    shader. The associated model should provide proper data.
 
-    \li MORPH_TANGENT\e{n} -> vec3, the \e{n}th morph target tangent in the vertex
-    shader. \e{n}'s range is from 0 to 1. The associated model should provide proper
-    data. For safety, the user can check \b {defined(QT_MORPH_IN_TANGENT\e{n})}
-    before use it.
+    \li MORPH_TANGENT(\e{n}) -> vec3, the \e{n+1}th morph target tangent in the vertex
+    shader. The associated model should provide proper data.
 
-    \li MORPH_BINORMAL\e{n} -> vec3, the \e{n}th morph target binormal in the vertex
-    shader. \e{n}'s range is from 0 to 1. The associated model should provide proper
-    data. For safety, the user can check \b {defined(QT_MORPH_IN_BINORMAL\e{n})}
-    before use it.
+    \li MORPH_BINORMAL(\e{n}) -> vec3, the \e{n+1}th morph target binormal in the vertex
+    shader. The associated model should provide proper data.
 
     \li MODELVIEWPROJECTION_MATRIX -> mat4, the model-view-projection matrix.
     Projection matrices always follow OpenGL conventions, with a baked-in
@@ -1454,13 +1446,15 @@ static void setCustomMaterialFlagsFromShader(QSSGRenderCustomMaterial *material,
         material->m_renderFlags.setFlag(QSSGRenderCustomMaterial::RenderFlag::Lightmap, true);
     if (meta.flags.testFlag(QSSGCustomShaderMetaData::UsesSkinning))
         material->m_renderFlags.setFlag(QSSGRenderCustomMaterial::RenderFlag::Skinning, true);
+    if (meta.flags.testFlag(QSSGCustomShaderMetaData::UsesMorphing))
+        material->m_renderFlags.setFlag(QSSGRenderCustomMaterial::RenderFlag::Morphing, true);
 }
 
 QSSGRenderGraphObject *QQuick3DCustomMaterial::updateSpatialNode(QSSGRenderGraphObject *node)
 {
     using namespace QSSGShaderUtils;
 
-    const auto &renderContext = QQuick3DObjectPrivate::get(this)->sceneManager->rci;
+    const auto &renderContext = QQuick3DObjectPrivate::get(this)->sceneManager->wattached->rci();
     if (!renderContext) {
         qWarning("QQuick3DCustomMaterial: No render context interface?");
         return nullptr;
@@ -1508,12 +1502,6 @@ QSSGRenderGraphObject *QQuick3DCustomMaterial::updateSpatialNode(QSSGRenderGraph
             if (Q_UNLIKELY(!property.isValid()))
                 continue;
 
-            if (newBackendNode) {
-                // Track the property changes
-                if (property.hasNotifySignal() && propertyDirtyMethod.isValid())
-                    connect(this, property.notifySignal(), this, propertyDirtyMethod);
-            } // else already connected
-
             const auto name = property.name();
             QMetaType propType = property.metaType();
             QVariant propValue = property.read(this);
@@ -1530,12 +1518,14 @@ QSSGRenderGraphObject *QQuick3DCustomMaterial::updateSpatialNode(QSSGRenderGraph
                     textureProperties.push_back({texture, name});
             } else {
                 const auto type = uniformType(propType);
-                if (type != QSSGRenderShaderDataType::Unknown) {
+                if (type != QSSGRenderShaderValue::Unknown) {
                     uniforms.append({ uniformTypeName(propType), name });
                     customMaterial->m_properties.push_back({ name, propValue, uniformType(propType), i});
-                    // Track the property changes
-                    if (property.hasNotifySignal() && propertyDirtyMethod.isValid())
-                        connect(this, property.notifySignal(), this, propertyDirtyMethod);
+                    if (newBackendNode) {
+                        // Track the property changes
+                        if (property.hasNotifySignal() && propertyDirtyMethod.isValid())
+                            connect(this, property.notifySignal(), this, propertyDirtyMethod);
+                    } // else already connected
                 } else {
                     // ### figure out how _not_ to warn when there are no dynamic
                     // properties defined (because warnings like Blah blah objectName etc. are not helpful)
@@ -1550,7 +1540,7 @@ QSSGRenderGraphObject *QQuick3DCustomMaterial::updateSpatialNode(QSSGRenderGraph
             QSSGRenderCustomMaterial::TextureProperty textureData;
             textureData.texInput = &texture;
             textureData.name = name;
-            textureData.shaderDataType = QSSGRenderShaderDataType::Texture;
+            textureData.shaderDataType = QSSGRenderShaderValue::Texture;
 
             if (newBackendNode) {
                 connect(&texture, &QQuick3DShaderUtilsTextureInput::enabledChanged, this, &QQuick3DCustomMaterial::onTextureDirty);
@@ -1560,6 +1550,8 @@ QSSGRenderGraphObject *QQuick3DCustomMaterial::updateSpatialNode(QSSGRenderGraph
             QQuick3DTexture *tex = texture.texture(); // may be null if the TextureInput has no 'texture' set
             if (tex && QQuick3DObjectPrivate::get(tex)->type == QQuick3DObjectPrivate::Type::ImageCube)
                 uniforms.append({ QByteArrayLiteral("samplerCube"), textureData.name });
+            else if (tex && tex->textureData() && tex->textureData()->depth() > 0)
+                uniforms.append({ QByteArrayLiteral("sampler3D"), textureData.name });
             else
                 uniforms.append({ QByteArrayLiteral("sampler2D"), textureData.name });
 
@@ -1587,7 +1579,7 @@ QSSGRenderGraphObject *QQuick3DCustomMaterial::updateSpatialNode(QSSGRenderGraph
                         textureProperties.push_back({texture, name});
                 } else {
                     const auto type = uniformType(propType);
-                    if (type != QSSGRenderShaderDataType::Unknown) {
+                    if (type != QSSGRenderShaderValue::Unknown) {
                         uniforms.append({ uniformTypeName(propType), name });
                         customMaterial->m_properties.push_back({ name, propValue,
                                                                  uniformType(propType), -1 /* aka. dynamic property */});

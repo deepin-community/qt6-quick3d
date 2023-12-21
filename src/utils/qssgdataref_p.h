@@ -30,6 +30,8 @@ struct QSSGDataView
     qsizetype mSize;
 
     explicit QSSGDataView(const QList<T> &data) : mData(data.constData()), mSize(data.size()) { Q_ASSERT(mSize >= 0); }
+    template <qsizetype N>
+    explicit QSSGDataView(const QVarLengthArray<T, N> &data) : mData(data.constData()), mSize(data.size()) { Q_ASSERT(mSize >= 0); }
     QSSGDataView(const T *inData, qsizetype inSize) : mData(inData), mSize(inSize) { Q_ASSERT(mSize >= 0); }
     constexpr QSSGDataView() : mData(nullptr), mSize(0) {}
 
@@ -38,12 +40,17 @@ struct QSSGDataView
     const T *begin() const { return mData; }
     const T *end() const { return mData + mSize; }
 
+    const T& first() const { Q_ASSERT(!isEmpty()); return *begin(); }
+    const T& last() const { Q_ASSERT(!isEmpty()); return *(end()-1); }
+
     const T &operator[](int index) const
     {
         Q_ASSERT(index > -1);
         Q_ASSERT(index < mSize);
         return mData[index];
     }
+
+    bool isEmpty() const { return (mSize == 0); }
 
     void clear()
     {
@@ -75,6 +82,7 @@ struct QSSGDataView<quint8>
     constexpr QSSGDataView() : mData(nullptr), mSize(0) {}
 
     qsizetype size() const { return mSize; }
+    bool isEmpty() const { return (mSize == 0); }
 
     const quint8 *begin() const { return mData; }
     const quint8 *end() const { return mData + mSize; }
@@ -159,6 +167,14 @@ struct QSSGDataRef
 
     T *begin() const { return mData; }
     T *end() const { return mData + mSize; }
+
+    T& first() { Q_ASSERT(!isEmpty()); return *begin(); }
+    T& last() { Q_ASSERT(!isEmpty()); return *(end()-1); }
+
+    const T &first() const { Q_ASSERT(!isEmpty()); return *begin(); }
+    const T &last() const { Q_ASSERT(!isEmpty()); return *(end()-1); }
+
+    bool isEmpty() const { return (mSize == 0); }
 
     T &operator[](qsizetype index)
     {

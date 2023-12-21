@@ -24,6 +24,7 @@
 #include <QtQuick3DRuntimeRender/private/qssgrenderdefaultmaterialshadergenerator_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderbuffermanager_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderer_p.h>
+#include <QtQuick3DRuntimeRender/private/qssgdebugdrawsystem_p.h>
 
 #include <QtCore/QPair>
 #include <QtCore/QSize>
@@ -33,37 +34,37 @@ QT_BEGIN_NAMESPACE
 class QSSGCustomMaterialSystem;
 class QSSGRendererInterface;
 class QQuickWindow;
+class QSSGDebugDrawSystem;
 
 class Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderContextInterface
 {
     Q_DISABLE_COPY(QSSGRenderContextInterface)
 public:
-    QAtomicInt ref;
-
-    static QSSGRenderContextInterface *renderContextForWindow(const QQuickWindow &window);
-
     // The commonly used version (from QQuick3DSceneRenderer). There is one
     // rendercontext per QQuickWindow (and so scenegraph render thread).
-    QSSGRenderContextInterface(QQuickWindow *window, const QSSGRef<QSSGRhiContext> &ctx);
+    explicit QSSGRenderContextInterface(QRhi *rhi);
 
     // This overload must only be used in special cases, e.g. by the genshaders tool.
-    QSSGRenderContextInterface(const QSSGRef<QSSGRhiContext> &ctx,
-                               const QSSGRef<QSSGBufferManager> &bufferManager,
-                               const QSSGRef<QSSGRenderer> &renderer,
-                               const QSSGRef<QSSGShaderLibraryManager> &shaderLibraryManager,
-                               const QSSGRef<QSSGShaderCache> &shaderCache,
-                               const QSSGRef<QSSGCustomMaterialSystem> &customMaterialSystem,
-                               const QSSGRef<QSSGProgramGenerator> &shaderProgramGenerator);
+    QSSGRenderContextInterface(std::unique_ptr<QSSGBufferManager> &&bufferManager,
+                               std::unique_ptr<QSSGRenderer> renderer,
+                               std::shared_ptr<QSSGShaderLibraryManager> shaderLibraryManager,
+                               std::unique_ptr<QSSGShaderCache> shaderCache,
+                               std::unique_ptr<QSSGCustomMaterialSystem> customMaterialSystem,
+                               std::unique_ptr<QSSGProgramGenerator> shaderProgramGenerator,
+                               std::unique_ptr<QSSGRhiContext> ctx,
+                               std::unique_ptr<QSSGDebugDrawSystem> debugDrawSystem = nullptr);
 
     ~QSSGRenderContextInterface();
 
-    const QSSGRef<QSSGRenderer> &renderer() const;
-    const QSSGRef<QSSGBufferManager> &bufferManager() const;
-    const QSSGRef<QSSGRhiContext> &rhiContext() const;
-    const QSSGRef<QSSGShaderCache> &shaderCache() const;
-    const QSSGRef<QSSGShaderLibraryManager> &shaderLibraryManager() const;
-    const QSSGRef<QSSGCustomMaterialSystem> &customMaterialSystem() const;
-    const QSSGRef<QSSGProgramGenerator> &shaderProgramGenerator() const;
+    const std::unique_ptr<QSSGRenderer> &renderer() const;
+    const std::unique_ptr<QSSGBufferManager> &bufferManager() const;
+    const std::unique_ptr<QSSGRhiContext> &rhiContext() const;
+    const std::unique_ptr<QSSGShaderCache> &shaderCache() const;
+    const std::shared_ptr<QSSGShaderLibraryManager> &shaderLibraryManager() const;
+    const std::unique_ptr<QSSGCustomMaterialSystem> &customMaterialSystem() const;
+    const std::unique_ptr<QSSGProgramGenerator> &shaderProgramGenerator() const;
+    const std::unique_ptr<QSSGDebugDrawSystem> &debugDrawSystem() const;
+    QRhi *rhi() const;
 
     // The memory used for the per frame allocator is released as the first step in BeginFrame.
     // This is useful for short lived objects and datastructures.
@@ -84,6 +85,7 @@ public:
     QRect scissorRect() const { return m_scissorRect; }
 
     void cleanupResources(QList<QSSGRenderGraphObject*> &resources);
+    void cleanupResources(QSet<QSSGRenderGraphObject *> &resources);
     void cleanupUnreferencedBuffers(QSSGRenderLayer *inLayer);
     void resetResourceCounters(QSSGRenderLayer *inLayer);
 
@@ -110,15 +112,19 @@ public:
     bool endFrame(QSSGRenderLayer *layer, bool allowRecursion = true);
 
 private:
-    void init();
+    friend class QQuick3DWindowAttachment;
 
-    const QSSGRef<QSSGRhiContext> m_rhiContext;
-    const QSSGRef<QSSGShaderCache> m_shaderCache;
-    const QSSGRef<QSSGBufferManager> m_bufferManager;
-    const QSSGRef<QSSGRenderer> m_renderer;
-    const QSSGRef<QSSGShaderLibraryManager> m_shaderLibraryManager;
-    const QSSGRef<QSSGCustomMaterialSystem> m_customMaterialSystem;
-    const QSSGRef<QSSGProgramGenerator> m_shaderProgramGenerator;
+    void init();
+    void releaseCachedResources();
+
+    std::unique_ptr<QSSGRhiContext> m_rhiContext;
+    std::unique_ptr<QSSGShaderCache> m_shaderCache;
+    std::unique_ptr<QSSGBufferManager> m_bufferManager;
+    std::unique_ptr<QSSGRenderer> m_renderer;
+    std::shared_ptr<QSSGShaderLibraryManager> m_shaderLibraryManager;
+    std::unique_ptr<QSSGCustomMaterialSystem> m_customMaterialSystem;
+    std::unique_ptr<QSSGProgramGenerator> m_shaderProgramGenerator;
+    std::unique_ptr<QSSGDebugDrawSystem> m_debugDrawSystem;
 
     QSSGPerFrameAllocator m_perFrameAllocator;
     quint32 m_activeFrameRef = 0;
@@ -129,9 +135,6 @@ private:
     float m_dpr = 1.0;
     QRect m_scissorRect;
     QColor m_sceneColor;
-
-    QMetaObject::Connection m_beforeFrameConnection;
-    QMetaObject::Connection m_afterFrameConnection;
 };
 QT_END_NAMESPACE
 
