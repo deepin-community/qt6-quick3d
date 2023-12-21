@@ -1,9 +1,12 @@
+# Copyright (C) 2022 The Qt Company Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 qt_internal_add_manual_test(manual_test_dynamic3DTest
     GUI
     SOURCES
         main.cpp
         gradienttexture.cpp
-    PUBLIC_LIBRARIES
+    LIBRARIES
         Qt::Gui
         Qt::Quick
         Qt::Quick3D
@@ -32,4 +35,5 @@ qt_internal_add_resource(manual_test_dynamic3DTest "qml"
 qt_add_qml_module(manual_test_dynamic3DTest
     VERSION 1.0
     URI io.qt.tests.manual.dynamic3DTest
+    RESOURCE_PREFIX /
 )

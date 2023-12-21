@@ -102,7 +102,7 @@ QVector3D QQuick3DParticleModelShape::getPosition(int particleIndex)
     return randomPositionModel(particleIndex);
 }
 
-static QSSGMesh::Mesh loadMesh(const QString &source)
+static QSSGMesh::Mesh loadModelShapeMesh(const QString &source)
 {
     QString src = source;
     if (source.startsWith(QLatin1Char('#'))) {
@@ -261,7 +261,7 @@ void QQuick3DParticleModelShape::calculateModelVertexPositions()
                 QString src = m_model->source().toString();
                 if (context && !src.startsWith(QLatin1Char('#')))
                     src = QQmlFile::urlToLocalFileOrQrc(context->resolvedUrl(m_model->source()));
-                QSSGMesh::Mesh mesh = loadMesh(src);
+                QSSGMesh::Mesh mesh = loadModelShapeMesh(src);
                 if (!mesh.isValid())
                     return;
                 if (mesh.drawMode() != QSSGMesh::Mesh::DrawMode::Triangles)
@@ -270,7 +270,8 @@ void QQuick3DParticleModelShape::calculateModelVertexPositions()
                 auto entries = mesh.vertexBuffer().entries;
                 int posOffset = 0;
                 int posCount = 0;
-                QSSGMesh::Mesh::ComponentType posType;
+                // Just set 'posType' to something to avoid invalid 'maybe-uninitialized' warning
+                QSSGMesh::Mesh::ComponentType posType = QSSGMesh::Mesh::ComponentType::UnsignedInt8;
                 for (int i = 0; i < entries.size(); ++i) {
                     const char *nameStr = entries[i].name.constData();
                     if (!strcmp(nameStr, QSSGMesh::MeshInternal::getPositionAttrName())) {

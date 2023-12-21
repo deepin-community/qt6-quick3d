@@ -1,3 +1,6 @@
+# Copyright (C) 2022 The Qt Company Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 cmake_minimum_required(VERSION 3.16)
 project(offlineshaders LANGUAGES CXX)
 
@@ -38,6 +41,17 @@ qt_add_qml_module(offlineshaders
         maps/metallic/basecolor.jpg
     NO_RESOURCE_TARGET_PATH
 )
+
+#! [CMake material build function]
+qt6_add_materials(offlineshaders "shaders"
+    PREFIX
+        /
+    FILES
+        MaterialRed.qml
+        MaterialRedExtended.qml
+        main.qml
+)
+#! [CMake material build function]
 
 install(TARGETS offlineshaders
     RUNTIME DESTINATION "${INSTALL_EXAMPLEDIR}"

@@ -158,7 +158,7 @@ QVector3D QQuick3DCamera::mapToViewport(const QVector3D &scenePos) const
     // Transform position
     const QMatrix4x4 sceneToCamera = sceneTransform().inverted();
     const QMatrix4x4 projectionViewMatrix = cameraNode->projection * sceneToCamera;
-    const QVector4D transformedScenePos = mat44::transform(projectionViewMatrix, scenePosRightHand);
+    const QVector4D transformedScenePos = QSSGUtils::mat44::transform(projectionViewMatrix, scenePosRightHand);
 
     if (qFuzzyIsNull(transformedScenePos.w()) || qIsNaN(transformedScenePos.w()))
         return QVector3D(0, 0, 0);
@@ -170,13 +170,13 @@ QVector3D QQuick3DCamera::mapToViewport(const QVector3D &scenePos) const
     // can be used as argument to viewportToscene() to reverse the call.
     const QVector4D clipNearPos(scenePosView.x(), scenePosView.y(), -1, 1);
     auto invProj = projectionViewMatrix.inverted();
-    const QVector4D clipNearPosTransformed = mat44::transform(invProj, clipNearPos);
+    const QVector4D clipNearPosTransformed = QSSGUtils::mat44::transform(invProj, clipNearPos);
     if (qFuzzyIsNull(clipNearPosTransformed.w()) || qIsNaN(clipNearPosTransformed.w()))
         return QVector3D(0, 0, 0);
     const QVector4D clipNearPosScene = clipNearPosTransformed / clipNearPosTransformed.w();
     QVector4D clipFarPos = clipNearPos;
     clipFarPos.setZ(0);
-    const QVector4D clipFarPosTransformed = mat44::transform(invProj, clipFarPos);
+    const QVector4D clipFarPosTransformed = QSSGUtils::mat44::transform(invProj, clipFarPos);
     if (qFuzzyIsNull(clipFarPosTransformed.w()) || qIsNaN(clipFarPosTransformed.w()))
         return QVector3D(0, 0, 0);
     const QVector4D clipFarPosScene = clipFarPosTransformed / clipFarPosTransformed.w();
@@ -232,8 +232,8 @@ QVector3D QQuick3DCamera::mapFromViewport(const QVector3D &viewportPos) const
     // Transform position to scene
     const QMatrix4x4 sceneToCamera = sceneTransform().inverted();
     const QMatrix4x4 projectionViewMatrixInv = (cameraNode->projection * sceneToCamera).inverted();
-    const QVector4D transformedClipNearPos = mat44::transform(projectionViewMatrixInv, clipNearPos);
-    const QVector4D transformedClipFarPos = mat44::transform(projectionViewMatrixInv, clipFarPos);
+    const QVector4D transformedClipNearPos = QSSGUtils::mat44::transform(projectionViewMatrixInv, clipNearPos);
+    const QVector4D transformedClipFarPos = QSSGUtils::mat44::transform(projectionViewMatrixInv, clipFarPos);
 
     if (qFuzzyIsNull(transformedClipNearPos.w()) || qIsNaN(transformedClipNearPos.w()) ||
         qFuzzyIsNull(transformedClipFarPos.w()) || qIsNaN(transformedClipFarPos.w()))
@@ -347,6 +347,8 @@ QSSGRenderGraphObject *QQuick3DCamera::updateSpatialNode(QSSGRenderGraphObject *
     QSSGRenderCamera *camera = static_cast<QSSGRenderCamera *>(node);
     if (qUpdateIfNeeded(camera->enableFrustumClipping, m_frustumCullingEnabled))
         camera->markDirty(QSSGRenderCamera::DirtyFlag::CameraDirty);
+    if (qUpdateIfNeeded(camera->levelOfDetailPixelThreshold, m_levelOfDetailBias))
+        camera->markDirty(QSSGRenderCamera::DirtyFlag::CameraDirty);
 
     return node;
 }
@@ -357,4 +359,43 @@ void QQuick3DCamera::updateLookAt()
         lookAt(m_lookAtNode);
 }
 
+/*!
+    \qmlproperty float Camera::levelOfDetailBias
+    \since 6.5
+
+    This property changes the size a model needs to be when rendered before the
+    automatic level of detail meshes are used. Each generated level of detail
+    mesh contains an ideal size value that each level should be shown, which is
+    a ratio of how much of the rendered scene will be that mesh. A model that
+    represents only a few pixels on screen will not require the full geometry
+    to look correct, so a lower level of detail mesh will be used instead in
+    this case. This value is a bias to the ideal value such that a value smaller
+    than \c 1.0 will require an even smaller rendered size before switching to
+    a lesser level of detail. Values above \c 1.0 will lead to lower levels of detail
+    being used sooner.  A value of \c 0.0 will disable the usage of levels of detail
+    completely.
+
+    The default value is \c 1.0
+
+    \note This property will only have an effect on Models with geomtry containing
+    levels of detail.
+
+    \sa Model::levelOfDetailBias
+*/
+
+float QQuick3DCamera::levelOfDetailBias() const
+{
+    return m_levelOfDetailBias;
+}
+
+void QQuick3DCamera::setLevelOfDetailBias(float newLevelOfDetailBias)
+{
+    if (qFuzzyCompare(m_levelOfDetailBias, newLevelOfDetailBias))
+        return;
+    m_levelOfDetailBias = newLevelOfDetailBias;
+    emit levelOfDetailBiasChanged();
+    update();
+}
+
 QT_END_NAMESPACE
+

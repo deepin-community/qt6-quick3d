@@ -36,6 +36,8 @@ class tst_RotationDataClass;
 
 QT_BEGIN_NAMESPACE
 
+namespace QSSGUtils {
+
 namespace aux {
 Q_DECL_CONSTEXPR inline float translateConstantAttenuation(float attenuation) { return attenuation; }
 template<int MINATTENUATION = 0, int MAXATTENUATION = 1000>
@@ -86,7 +88,7 @@ inline void flip(QMatrix4x4 &matrix)
 
 }
 
-namespace quant {
+namespace quat {
 bool Q_QUICK3DUTILS_EXPORT isFinite(const QQuaternion &q);
 
 float Q_QUICK3DUTILS_EXPORT magnitude(const QQuaternion &q);
@@ -102,6 +104,7 @@ QVector3D Q_QUICK3DUTILS_EXPORT inverseRotated(const QQuaternion &q, const QVect
 
 namespace color {
 QVector4D Q_QUICK3DUTILS_EXPORT sRGBToLinear(const QColor &color);
+QColor Q_QUICK3DUTILS_EXPORT sRGBToLinearColor(const QColor &color);
 }
 
 template<typename TDataType>
@@ -120,6 +123,49 @@ inline QVector3D degToRad(const QVector3D &v) {
 inline QVector3D radToDeg(const QVector3D &v) {
     return QVector3D(qRadiansToDegrees(v.x()), qRadiansToDegrees(v.y()), qRadiansToDegrees(v.z()));
 }
+
+namespace rect {
+// Return coordinates in pixels but relative to this rect.
+inline QVector2D toRectRelative(const QRectF &r, const QVector2D &absoluteCoordinates)
+{
+    return QVector2D(absoluteCoordinates.x() - float(r.x()), absoluteCoordinates.y() - float(r.y()));
+}
+
+inline QVector2D halfDims(const QRectF &r)
+{
+    return QVector2D(float(r.width() / 2.0), float(r.height() / 2.0));
+}
+
+// Take coordinates in global space and move local space where 0,0 is the center
+// of the rect but return value in pixels, not in normalized -1,1 range
+inline QVector2D toNormalizedRectRelative(const QRectF &r, QVector2D absoluteCoordinates)
+{
+    // normalize them
+    const QVector2D relativeCoords(toRectRelative(r, absoluteCoordinates));
+    const QVector2D halfD(halfDims(r));
+    const QVector2D normalized((relativeCoords.x() / halfD.x()) - 1.0f, (relativeCoords.y() / halfD.y()) - 1.0f);
+    return QVector2D(normalized.x() * halfD.x(), normalized.y() * halfD.y());
+}
+
+inline QVector2D relativeToNormalizedCoordinates(const QRectF &r, QVector2D rectRelativeCoords)
+{
+    return { (rectRelativeCoords.x() / halfDims(r).x()) - 1.0f, (rectRelativeCoords.y() / halfDims(r).y()) - 1.0f };
+}
+
+// Normalized coordinates are in the range of -1,1 where -1 is the left, bottom edges
+// and 1 is the top,right edges.
+inline QVector2D absoluteToNormalizedCoordinates(const QRectF &r, const QVector2D &absoluteCoordinates)
+{
+    return relativeToNormalizedCoordinates(r, toRectRelative(r, absoluteCoordinates));
+}
+
+inline QVector2D toAbsoluteCoords(const QRectF &r, const QVector2D &inRelativeCoords)
+{
+    return QVector2D(inRelativeCoords.x() + float(r.x()), inRelativeCoords.y() + float(r.y()));
+}
+}
+
+} // namespace QSSGUtils
 
 class RotationData
 {
@@ -207,7 +253,7 @@ private:
     [[nodiscard]] constexpr static inline bool fuzzyQuaternionCompare(const QQuaternion &a, const QQuaternion &b)
     {
         // This 'e' will give better precision than qtbase's qFuzzyCompare for QQuaternion
-        constexpr float e = 0.0000001f;
+        constexpr float e = std::numeric_limits<float>::epsilon();
         return (qAbs(1.0f - qAbs(QQuaternion::dotProduct(a, b))) <= e);
     }
 
@@ -222,6 +268,20 @@ private:
     mutable QVector3D m_eulerRot;
     mutable Dirty m_dirty { Dirty::None };
 };
+
+namespace DebugViewHelpers {
+template<typename T>
+inline void ensureDebugObjectName(T *node, QObject *src)
+{
+    if (!node->debugObjectName.isEmpty())
+        return;
+    node->debugObjectName = src->objectName();
+    if (node->debugObjectName.isEmpty())
+        node->debugObjectName = QString::fromLatin1(src->metaObject()->className());
+    if (node->debugObjectName.isEmpty())
+        node->debugObjectName = QString::asprintf("%p", src);
+}
+}
 
 QT_END_NAMESPACE
 

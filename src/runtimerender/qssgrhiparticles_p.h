@@ -34,32 +34,31 @@ class QRhiTexture;
 class QSSGParticleRenderer
 {
 public:
-    static void updateUniformsForParticles(QSSGRef<QSSGRhiShaderPipeline> &shaderPipeline,
+    static void updateUniformsForParticles(QSSGRhiShaderPipeline &shaderPipeline,
                                          QSSGRhiContext *rhiCtx,
                                          char *ubufData,
                                          QSSGParticlesRenderable &renderable,
                                          QSSGRenderCamera &inCamera);
-    static void updateUniformsForParticleModel(QSSGRef<QSSGRhiShaderPipeline> &shaderPipeline,
+    static void updateUniformsForParticleModel(QSSGRhiShaderPipeline &shaderPipeline,
                                                char *ubufData,
                                                const QSSGRenderModel *model, quint32 offset);
 
-    static void rhiPrepareRenderable(QSSGRef<QSSGRhiShaderPipeline> &shaderPipeline,
+    static void rhiPrepareRenderable(QSSGRhiShaderPipeline &shaderPipeline, QSSGPassKey passKey,
                                      QSSGRhiContext *rhiCtx,
                                      QSSGRhiGraphicsPipelineState *ps,
                                      QSSGParticlesRenderable &renderable,
-                                     QSSGLayerRenderData &inData,
+                                     const QSSGLayerRenderData &inData,
                                      QRhiRenderPassDescriptor *renderPassDescriptor,
                                      int samples,
                                      QSSGRenderCamera *camera = nullptr,
-                                     int cubeFace = -1,
+                                     QSSGRenderTextureCubeFace cubeFace = QSSGRenderTextureCubeFaceNone,
                                      QSSGReflectionMapEntry *entry = nullptr);
     static void rhiRenderRenderable(QSSGRhiContext *rhiCtx,
                                     QSSGParticlesRenderable &renderable,
-                                    QSSGLayerRenderData &inData,
                                     bool *needsSetViewport,
-                                    int cubeFace,
-                                    QSSGRhiGraphicsPipelineState *state);
-    static void prepareParticlesForModel(QSSGRef<QSSGRhiShaderPipeline> &shaderPipeline,
+                                    QSSGRenderTextureCubeFace cubeFace,
+                                    const QSSGRhiGraphicsPipelineState &state);
+    static void prepareParticlesForModel(QSSGRhiShaderPipeline &shaderPipeline,
                                          QSSGRhiContext *rhiCtx,
                                          QSSGRhiShaderResourceBindingList &bindings,
                                          const QSSGRenderModel *model);

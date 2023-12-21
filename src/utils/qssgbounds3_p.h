@@ -16,6 +16,7 @@
 // We mean it.
 //
 
+#include "qssgutils_p.h"
 #include <QtQuick3DUtils/private/qtquick3dutilsglobal_p.h>
 
 #include <QVector3D>
@@ -27,7 +28,7 @@
 
 QT_BEGIN_NAMESPACE
 
-typedef QVector3D QSSGBounds2BoxPoints[8];
+using QSSGBoxPoints = std::array<QVector3D, 8>;
 
 /**
 \brief Class representing 3D range or axis aligned bounding box.
@@ -78,7 +79,7 @@ public:
     \param[in] matrix Transform to apply, can contain scaling as well
     \param[in] bounds The bounds to transform.
     */
-    static Q_ALWAYS_INLINE QSSGBounds3 transform(const QMatrix3x3 &matrix, const QSSGBounds3 &bounds);
+    static QSSGBounds3 transform(const QMatrix3x3 &matrix, const QSSGBounds3 &bounds);
 
     /**
     \brief Sets empty to true
@@ -171,9 +172,21 @@ public:
 
     bool isFinite() const;
 
-    Q_ALWAYS_INLINE void expand(QSSGBounds2BoxPoints &outPoints) const;
+    /**
+    Use when the bounds is already verified to be non-empty!!!
+    */
+    Q_ALWAYS_INLINE QSSGBoxPoints toQSSGBoxPointsNoEmptyCheck() const;
+    /**
+    Verifies that the bounds is non-empty.
+    */
+    Q_ALWAYS_INLINE QSSGBoxPoints toQSSGBoxPoints() const;
 
     void transform(const QMatrix4x4 &inMatrix);
+
+    /**
+    Returns the support point in a given direction
+    */
+    QVector3D getSupport(const QVector3D &direction) const;
 
     QVector3D minimum;
     QVector3D maximum;
@@ -301,24 +314,27 @@ Q_ALWAYS_INLINE void QSSGBounds3::fatten(double distance)
     maximum += QVector3D(float(distance), float(distance), float(distance));
 }
 
-Q_ALWAYS_INLINE void QSSGBounds3::expand(QSSGBounds2BoxPoints &outPoints) const
+Q_ALWAYS_INLINE QSSGBoxPoints QSSGBounds3::toQSSGBoxPointsNoEmptyCheck() const
 {
-    if (isEmpty()) {
-        for (quint32 idx = 0; idx < 8; ++idx)
-            outPoints[idx] = QVector3D(0, 0, 0);
-    } else {
-        // Min corner of box
-        outPoints[0] = QVector3D(minimum[0], minimum[1], minimum[2]);
-        outPoints[1] = QVector3D(maximum[0], minimum[1], minimum[2]);
-        outPoints[2] = QVector3D(minimum[0], maximum[1], minimum[2]);
-        outPoints[3] = QVector3D(minimum[0], minimum[1], maximum[2]);
+    return { // Min corner of box
+             QVector3D(minimum[0], minimum[1], minimum[2]),
+             QVector3D(maximum[0], minimum[1], minimum[2]),
+             QVector3D(minimum[0], maximum[1], minimum[2]),
+             QVector3D(minimum[0], minimum[1], maximum[2]),
+             // Max corner of box
+             QVector3D(maximum[0], maximum[1], maximum[2]),
+             QVector3D(minimum[0], maximum[1], maximum[2]),
+             QVector3D(maximum[0], minimum[1], maximum[2]),
+             QVector3D(maximum[0], maximum[1], minimum[2])
+    };
+}
 
-        // Max corner of box
-        outPoints[4] = QVector3D(maximum[0], maximum[1], maximum[2]);
-        outPoints[5] = QVector3D(minimum[0], maximum[1], maximum[2]);
-        outPoints[6] = QVector3D(maximum[0], minimum[1], maximum[2]);
-        outPoints[7] = QVector3D(maximum[0], maximum[1], minimum[2]);
-    }
+Q_ALWAYS_INLINE QSSGBoxPoints QSSGBounds3::toQSSGBoxPoints() const
+{
+    if (isEmpty())
+        return { QVector3D(0, 0, 0), QVector3D(0, 0, 0), QVector3D(0, 0, 0), QVector3D(0, 0, 0),
+                 QVector3D(0, 0, 0), QVector3D(0, 0, 0), QVector3D(0, 0, 0), QVector3D(0, 0, 0) };
+    return toQSSGBoxPointsNoEmptyCheck();
 }
 
 QT_END_NAMESPACE

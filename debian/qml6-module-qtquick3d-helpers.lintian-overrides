@@ -1,0 +1,4 @@
+# libQt6Quick3DHelpers6 and libQt6Quick3DHelpersImpl6 is a private lib installed in a public path
+qml6-module-qtquick3d-helpers: package-name-doesnt-match-sonames libQt6Quick3DHelpers6 libQt6Quick3DHelpersImpl6
+qml6-module-qtquick3d-helpers: no-symbols-control-file usr/lib/*/libQt6Quick3DHelpers.so.6.*
+qml6-module-qtquick3d-helpers: no-symbols-control-file usr/lib/*/libQt6Quick3DHelpersImpl.so.6.*

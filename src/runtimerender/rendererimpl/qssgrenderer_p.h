@@ -17,7 +17,6 @@
 //
 
 #include <QtQuick3DRuntimeRender/private/qssgrenderableobjects_p.h>
-#include <QtQuick3DRuntimeRender/private/qssglayerrenderdata_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendermesh_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendermodel_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderdefaultmaterial_p.h>
@@ -25,7 +24,6 @@
 #include <QtQuick3DRuntimeRender/private/qssgrenderray_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendercamera_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendershadercache_p.h>
-#include <QtQuick3DRuntimeRender/private/qssgrendercontextcore_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderclippingfrustum_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendershaderkeys_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendershadercache_p.h>
@@ -33,22 +31,23 @@
 #include <QtQuick3DRuntimeRender/private/qssgrenderbuffermanager_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderpickresult_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgshadermapkey_p.h>
+#include <QtQuick3DRuntimeRender/private/qssgrenderpass_p.h>
 
 #include <QtQuick3DUtils/private/qssgbounds3_p.h>
-#include <QtQuick3DUtils/private/qssgoption_p.h>
 #include <QtQuick3DUtils/private/qssgdataref_p.h>
 
 QT_BEGIN_NAMESPACE
 
 class QSSGRhiQuadRenderer;
 class QSSGRhiCubeRenderer;
+struct QSSGRenderItem2D;
+struct QSSGReflectionMapEntry;
 
 class Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderer
 {
+    Q_DISABLE_COPY(QSSGRenderer)
     using PickResultList = QVarLengthArray<QSSGRenderPickResult, 20>; // Lets assume most items are filtered out already
-
 public:
-    QAtomicInt ref;
     QSSGRenderer();
     ~QSSGRenderer();
 
@@ -66,19 +65,20 @@ public:
     void rhiRender(QSSGRenderLayer &inLayer);
 
     void cleanupResources(QList<QSSGRenderGraphObject*> &resources);
+    void cleanupResources(QSet<QSSGRenderGraphObject*> &resources);
 
     QSSGLayerRenderData *getOrCreateLayerRenderData(QSSGRenderLayer &layer);
 
     // The QSSGRenderContextInterface calls these, clients should not.
-    void beginFrame();
-    void endFrame();
+    void beginFrame(QSSGRenderLayer *layer);
+    void endFrame(QSSGRenderLayer *layer);
 
     PickResultList syncPickAll(const QSSGRenderLayer &layer,
-                               const QSSGRef<QSSGBufferManager> &bufferManager,
+                               QSSGBufferManager &bufferManager,
                                const QSSGRenderRay &ray);
 
     QSSGRenderPickResult syncPick(const QSSGRenderLayer &layer,
-                                  const QSSGRef<QSSGBufferManager> &bufferManager,
+                                  QSSGBufferManager &bufferManager,
                                   const QSSGRenderRay &ray,
                                   QSSGRenderNode *target = nullptr);
 
@@ -90,61 +90,57 @@ public:
     QSSGRhiQuadRenderer *rhiQuadRenderer();
     QSSGRhiCubeRenderer *rhiCubeRenderer();
 
-    // Callback during the layer render process.
-    void beginLayerDepthPassRender(QSSGLayerRenderData &inLayer);
-    void endLayerDepthPassRender();
     void beginLayerRender(QSSGLayerRenderData &inLayer);
     void endLayerRender();
     void addMaterialDirtyClear(QSSGRenderGraphObject *material);
 
-    static QSSGRef<QSSGRhiShaderPipeline> generateRhiShaderPipelineImpl(QSSGSubsetRenderable &renderable, const QSSGRef<QSSGShaderLibraryManager> &shaderLibraryManager,
-                                                                        const QSSGRef<QSSGShaderCache> &shaderCache,
-                                                                        const QSSGRef<QSSGProgramGenerator> &shaderProgramGenerator,
-                                                                        QSSGShaderDefaultMaterialKeyProperties &shaderKeyProperties,
-                                                                        const QSSGShaderFeatures &featureSet,
-                                                                        QByteArray &shaderString);
+    static QSSGRhiShaderPipelinePtr generateRhiShaderPipelineImpl(QSSGSubsetRenderable &renderable, QSSGShaderLibraryManager &shaderLibraryManager,
+                                                                  QSSGShaderCache &shaderCache,
+                                                                  QSSGProgramGenerator &shaderProgramGenerator,
+                                                                  QSSGShaderDefaultMaterialKeyProperties &shaderKeyProperties,
+                                                                  const QSSGShaderFeatures &featureSet,
+                                                                  QByteArray &shaderString);
 
-    QSSGRef<QSSGRhiShaderPipeline> getRhiShaders(QSSGSubsetRenderable &inRenderable,
-                                               const QSSGShaderFeatures &inFeatureSet);
+    QSSGRhiShaderPipelinePtr getShaderPipelineForDefaultMaterial(QSSGSubsetRenderable &inRenderable,
+                                                                 const QSSGShaderFeatures &inFeatureSet);
 
     QSSGLayerGlobalRenderProperties getLayerGlobalRenderProperties();
 
-    QSSGRenderContextInterface *contextInterface() { return m_contextInterface; }
-
-    // Returns true if the renderer expects new frame to be rendered
-    // Happens when progressive AA is enabled
-    bool rendererRequestsFrames() const;
+    QSSGRenderContextInterface *contextInterface() const { return m_contextInterface; }
 
     enum class LightmapUVRasterizationShaderMode {
         Default,
-        BaseColorMap,
-        EmissiveMap,
-        BaseColorAndEmissiveMaps
+        Uv,
+        UvTangent
     };
 
     // shader implementations, RHI, implemented in qssgrendererimplshaders_rhi.cpp
-    QSSGRef<QSSGRhiShaderPipeline> getRhiCubemapShadowBlurXShader();
-    QSSGRef<QSSGRhiShaderPipeline> getRhiCubemapShadowBlurYShader();
-    QSSGRef<QSSGRhiShaderPipeline> getRhiOrthographicShadowBlurXShader();
-    QSSGRef<QSSGRhiShaderPipeline> getRhiOrthographicShadowBlurYShader();
-    QSSGRef<QSSGRhiShaderPipeline> getRhiSsaoShader();
-    QSSGRef<QSSGRhiShaderPipeline> getRhiSkyBoxCubeShader();
-    QSSGRef<QSSGRhiShaderPipeline> getRhiSkyBoxShader(QSSGRenderLayer::TonemapMode tonemapMode, bool isRGBE);
-    QSSGRef<QSSGRhiShaderPipeline> getRhiSupersampleResolveShader();
-    QSSGRef<QSSGRhiShaderPipeline> getRhiProgressiveAAShader();
-    QSSGRef<QSSGRhiShaderPipeline> getRhiTexturedQuadShader();
-    QSSGRef<QSSGRhiShaderPipeline> getRhiParticleShader(QSSGRenderParticles::FeatureLevel featureLevel);
-    QSSGRef<QSSGRhiShaderPipeline> getRhiSimpleQuadShader();
-    QSSGRef<QSSGRhiShaderPipeline> getRhiLightmapUVRasterizationShader(LightmapUVRasterizationShaderMode mode);
-    QSSGRef<QSSGRhiShaderPipeline> getRhiLightmapDilateShader();
+    QSSGRhiShaderPipelinePtr getRhiCubemapShadowBlurXShader();
+    QSSGRhiShaderPipelinePtr getRhiCubemapShadowBlurYShader();
+    QSSGRhiShaderPipelinePtr getRhiGridShader();
+    QSSGRhiShaderPipelinePtr getRhiOrthographicShadowBlurXShader();
+    QSSGRhiShaderPipelinePtr getRhiOrthographicShadowBlurYShader();
+    QSSGRhiShaderPipelinePtr getRhiSsaoShader();
+    QSSGRhiShaderPipelinePtr getRhiSkyBoxCubeShader();
+    QSSGRhiShaderPipelinePtr getRhiSkyBoxShader(QSSGRenderLayer::TonemapMode tonemapMode, bool isRGBE);
+    QSSGRhiShaderPipelinePtr getRhiSupersampleResolveShader();
+    QSSGRhiShaderPipelinePtr getRhiProgressiveAAShader();
+    QSSGRhiShaderPipelinePtr getRhiTexturedQuadShader();
+    QSSGRhiShaderPipelinePtr getRhiParticleShader(QSSGRenderParticles::FeatureLevel featureLevel);
+    QSSGRhiShaderPipelinePtr getRhiSimpleQuadShader();
+    QSSGRhiShaderPipelinePtr getRhiLightmapUVRasterizationShader(LightmapUVRasterizationShaderMode mode);
+    QSSGRhiShaderPipelinePtr getRhiLightmapDilateShader();
+    QSSGRhiShaderPipelinePtr getRhiDebugObjectShader();
+
+    static void setTonemapFeatures(QSSGShaderFeatures &features, QSSGRenderLayer::TonemapMode tonemapMode);
 
 protected:
     static void getLayerHitObjectList(const QSSGRenderLayer &layer,
-                                      const QSSGRef<QSSGBufferManager> &bufferManager,
+                                      QSSGBufferManager &bufferManager,
                                       const QSSGRenderRay &ray,
                                       bool inPickEverything,
                                       PickResultList &outIntersectionResult);
-    static void intersectRayWithSubsetRenderable(const QSSGRef<QSSGBufferManager> &bufferManager,
+    static void intersectRayWithSubsetRenderable(QSSGBufferManager &bufferManager,
                                                  const QSSGRenderRay &inRay,
                                                  const QSSGRenderNode &node,
                                                  PickResultList &outIntersectionResultList);
@@ -152,10 +148,12 @@ protected:
 
 private:
     friend class QSSGRenderContextInterface;
-    void releaseResources();
-    QSSGRef<QSSGRhiShaderPipeline> getBuiltinRhiShader(const QByteArray &name,
-                                                       QSSGRef<QSSGRhiShaderPipeline> &storage);
-    QSSGRef<QSSGRhiShaderPipeline> generateRhiShaderPipeline(QSSGSubsetRenderable &inRenderable, const QSSGShaderFeatures &inFeatureSet);
+    friend class QSSGLayerRenderData;
+
+    void releaseCachedResources();
+    QSSGRhiShaderPipelinePtr getBuiltinRhiShader(const QByteArray &name,
+                                                 QSSGRhiShaderPipelinePtr &storage);
+    QSSGRhiShaderPipelinePtr generateRhiShaderPipeline(QSSGSubsetRenderable &inRenderable, const QSSGShaderFeatures &inFeatureSet);
 
     QSSGRenderContextInterface *m_contextInterface = nullptr; //  We're own by the context interface
 
@@ -163,35 +161,36 @@ private:
     // shader. This does not mean we were successul, however.
 
     // RHI
-    QSSGRef<QSSGRhiShaderPipeline> m_cubemapShadowBlurXRhiShader;
-    QSSGRef<QSSGRhiShaderPipeline> m_cubemapShadowBlurYRhiShader;
-    QSSGRef<QSSGRhiShaderPipeline> m_orthographicShadowBlurXRhiShader;
-    QSSGRef<QSSGRhiShaderPipeline> m_orthographicShadowBlurYRhiShader;
-    QSSGRef<QSSGRhiShaderPipeline> m_ssaoRhiShader;
-    QSSGRef<QSSGRhiShaderPipeline> m_skyBoxRhiShader;
-    QSSGRef<QSSGRhiShaderPipeline> m_skyBoxCubeRhiShader;
-    QSSGRef<QSSGRhiShaderPipeline> m_supersampleResolveRhiShader;
-    QSSGRef<QSSGRhiShaderPipeline> m_progressiveAARhiShader;
-    QSSGRef<QSSGRhiShaderPipeline> m_texturedQuadRhiShader;
-    QSSGRef<QSSGRhiShaderPipeline> m_simpleQuadRhiShader;
-    QSSGRef<QSSGRhiShaderPipeline> m_lightmapUVRasterShader;
-    QSSGRef<QSSGRhiShaderPipeline> m_lightmapUVRasterShader_basecolormap;
-    QSSGRef<QSSGRhiShaderPipeline> m_lightmapUVRasterShader_emissivemap;
-    QSSGRef<QSSGRhiShaderPipeline> m_lightmapUVRasterShader_both;
-    QSSGRef<QSSGRhiShaderPipeline> m_lightmapDilateShader;
+    QSSGRhiShaderPipelinePtr m_cubemapShadowBlurXRhiShader;
+    QSSGRhiShaderPipelinePtr m_cubemapShadowBlurYRhiShader;
+    QSSGRhiShaderPipelinePtr m_gridShader;
+    QSSGRhiShaderPipelinePtr m_orthographicShadowBlurXRhiShader;
+    QSSGRhiShaderPipelinePtr m_orthographicShadowBlurYRhiShader;
+    QSSGRhiShaderPipelinePtr m_ssaoRhiShader;
+    QSSGRhiShaderPipelinePtr m_skyBoxRhiShader;
+    QSSGRhiShaderPipelinePtr m_skyBoxCubeRhiShader;
+    QSSGRhiShaderPipelinePtr m_supersampleResolveRhiShader;
+    QSSGRhiShaderPipelinePtr m_progressiveAARhiShader;
+    QSSGRhiShaderPipelinePtr m_texturedQuadRhiShader;
+    QSSGRhiShaderPipelinePtr m_simpleQuadRhiShader;
+    QSSGRhiShaderPipelinePtr m_lightmapUVRasterShader;
+    QSSGRhiShaderPipelinePtr m_lightmapUVRasterShader_uv;
+    QSSGRhiShaderPipelinePtr m_lightmapUVRasterShader_uv_tangent;
+    QSSGRhiShaderPipelinePtr m_lightmapDilateShader;
+    QSSGRhiShaderPipelinePtr m_debugObjectShader;
 
-    QSSGRef<QSSGRhiShaderPipeline> m_particlesNoLightingSimpleRhiShader;
-    QSSGRef<QSSGRhiShaderPipeline> m_particlesNoLightingMappedRhiShader;
-    QSSGRef<QSSGRhiShaderPipeline> m_particlesNoLightingAnimatedRhiShader;
-    QSSGRef<QSSGRhiShaderPipeline> m_particlesVLightingSimpleRhiShader;
-    QSSGRef<QSSGRhiShaderPipeline> m_particlesVLightingMappedRhiShader;
-    QSSGRef<QSSGRhiShaderPipeline> m_particlesVLightingAnimatedRhiShader;
-    QSSGRef<QSSGRhiShaderPipeline> m_lineParticlesRhiShader;
-    QSSGRef<QSSGRhiShaderPipeline> m_lineParticlesMappedRhiShader;
-    QSSGRef<QSSGRhiShaderPipeline> m_lineParticlesAnimatedRhiShader;
-    QSSGRef<QSSGRhiShaderPipeline> m_lineParticlesVLightRhiShader;
-    QSSGRef<QSSGRhiShaderPipeline> m_lineParticlesMappedVLightRhiShader;
-    QSSGRef<QSSGRhiShaderPipeline> m_lineParticlesAnimatedVLightRhiShader;
+    QSSGRhiShaderPipelinePtr m_particlesNoLightingSimpleRhiShader;
+    QSSGRhiShaderPipelinePtr m_particlesNoLightingMappedRhiShader;
+    QSSGRhiShaderPipelinePtr m_particlesNoLightingAnimatedRhiShader;
+    QSSGRhiShaderPipelinePtr m_particlesVLightingSimpleRhiShader;
+    QSSGRhiShaderPipelinePtr m_particlesVLightingMappedRhiShader;
+    QSSGRhiShaderPipelinePtr m_particlesVLightingAnimatedRhiShader;
+    QSSGRhiShaderPipelinePtr m_lineParticlesRhiShader;
+    QSSGRhiShaderPipelinePtr m_lineParticlesMappedRhiShader;
+    QSSGRhiShaderPipelinePtr m_lineParticlesAnimatedRhiShader;
+    QSSGRhiShaderPipelinePtr m_lineParticlesVLightRhiShader;
+    QSSGRhiShaderPipelinePtr m_lineParticlesMappedVLightRhiShader;
+    QSSGRhiShaderPipelinePtr m_lineParticlesAnimatedVLightRhiShader;
 
     bool m_globalPickingEnabled = false;
 
@@ -200,7 +199,6 @@ private:
     QMatrix4x4 m_viewProjection;
     QByteArray m_generatedShaderString;
 
-    bool m_progressiveAARenderRequest = false;
     QSSGShaderDefaultMaterialKeyProperties m_defaultMaterialShaderKeyProperties;
 
     QSet<QSSGRenderGraphObject *> m_materialClearDirty;
@@ -208,12 +206,101 @@ private:
     QSSGRhiQuadRenderer *m_rhiQuadRenderer = nullptr;
     QSSGRhiCubeRenderer *m_rhiCubeRenderer = nullptr;
 
-    QHash<QSSGShaderMapKey, QSSGRef<QSSGRhiShaderPipeline>> m_shaderMap;
+    QHash<QSSGShaderMapKey, QSSGRhiShaderPipelinePtr> m_shaderMap;
 
     // Skybox shader state
     QSSGRenderLayer::TonemapMode m_skyboxTonemapMode = QSSGRenderLayer::TonemapMode::None;
     bool m_isSkyboxRGBE = false;
 };
+
+namespace RenderHelpers
+{
+
+std::pair<QSSGBoxPoints, QSSGBoxPoints> calculateSortedObjectBounds(const QVector<QSSGRenderableObjectHandle> &sortedOpaqueObjects,
+                                                                    const QVector<QSSGRenderableObjectHandle> &sortedTransparentObjects);
+
+void rhiRenderShadowMap(QSSGRhiContext *rhiCtx, QSSGPassKey passKey,
+                        QSSGRhiGraphicsPipelineState &ps,
+                        QSSGRenderShadowMap &shadowMapManager,
+                        const QSSGRenderCamera &camera,
+                        const QSSGShaderLightList &globalLights,
+                        const QVector<QSSGRenderableObjectHandle> &sortedOpaqueObjects,
+                        QSSGRenderer &renderer,
+                        const QSSGBoxPoints &castingObjectsBox,
+                        const QSSGBoxPoints &receivingObjectsBox);
+
+void rhiRenderReflectionMap(QSSGRhiContext *rhiCtx,
+                            QSSGPassKey passKey,
+                            const QSSGLayerRenderData &inData, QSSGRhiGraphicsPipelineState *ps,
+                            QSSGRenderReflectionMap &reflectionMapManager,
+                            const QVector<QSSGRenderReflectionProbe *> &reflectionProbes,
+                            const QVector<QSSGRenderableObjectHandle> &reflectionPassObjects,
+                            QSSGRenderer &renderer);
+
+bool rhiPrepareDepthPass(QSSGRhiContext *rhiCtx, QSSGPassKey passKey,
+                         const QSSGRhiGraphicsPipelineState &basePipelineState,
+                         QRhiRenderPassDescriptor *rpDesc,
+                         QSSGLayerRenderData &inData,
+                         const QVector<QSSGRenderableObjectHandle> &sortedOpaqueObjects,
+                         const QVector<QSSGRenderableObjectHandle> &sortedTransparentObjects,
+                         int samples);
+
+void rhiRenderDepthPass(QSSGRhiContext *rhiCtx, const QSSGRhiGraphicsPipelineState &ps,
+                        const QVector<QSSGRenderableObjectHandle> &sortedOpaqueObjects,
+                        const QVector<QSSGRenderableObjectHandle> &sortedTransparentObjects,
+                        bool *needsSetViewport);
+
+bool rhiPrepareAoTexture(QSSGRhiContext *rhiCtx, const QSize &size, QSSGRhiRenderableTexture *renderableTex);
+
+void rhiRenderAoTexture(QSSGRhiContext *rhiCtx, QSSGPassKey passKey, QSSGRenderer &renderer, QSSGRhiShaderPipeline &shaderPipeline,
+                        QSSGRhiGraphicsPipelineState &ps, const SSAOMapPass::AmbientOcclusion &ao, const QSSGRhiRenderableTexture &rhiAoTexture, const QSSGRhiRenderableTexture &rhiDepthTexture,
+                        const QSSGRenderCamera &camera);
+
+bool rhiPrepareScreenTexture(QSSGRhiContext *rhiCtx, const QSize &size, bool wantsMips, QSSGRhiRenderableTexture *renderableTex);
+
+void rhiPrepareGrid(QSSGRhiContext *rhiCtx, QSSGPassKey passKey, QSSGRenderLayer &layer,
+                    QSSGRenderCamera &inCamera, QSSGRenderer &renderer);
+
+
+void rhiPrepareSkyBox(QSSGRhiContext *rhiCtx, QSSGPassKey passKey,
+                      QSSGRenderLayer &layer,
+                      QSSGRenderCamera &inCamera,
+                      QSSGRenderer &renderer);
+
+void rhiPrepareSkyBoxForReflectionMap(QSSGRhiContext *rhiCtx, QSSGPassKey passKey,
+                                      QSSGRenderLayer &layer,
+                                      QSSGRenderCamera &inCamera,
+                                      QSSGRenderer &renderer,
+                                      QSSGReflectionMapEntry *entry,
+                                      QSSGRenderTextureCubeFace cubeFace);
+
+Q_QUICK3DRUNTIMERENDER_EXPORT void rhiPrepareRenderable(QSSGRhiContext *rhiCtx, QSSGPassKey passKey,
+                                                       const QSSGLayerRenderData &inData,
+                                                       QSSGRenderableObject &inObject,
+                                                       QRhiRenderPassDescriptor *renderPassDescriptor,
+                                                       QSSGRhiGraphicsPipelineState *ps,
+                                                       QSSGShaderFeatures featureSet,
+                                                       int samples,
+                                                       QSSGRenderCamera *inCamera = nullptr,
+                                                       QMatrix4x4 *alteredModelViewProjection = nullptr,
+                                                       QSSGRenderTextureCubeFace cubeFace = QSSGRenderTextureCubeFaceNone,
+                                                       QSSGReflectionMapEntry *entry = nullptr);
+
+Q_QUICK3DRUNTIMERENDER_EXPORT void rhiRenderRenderable(QSSGRhiContext *rhiCtx,
+                                                       const QSSGRhiGraphicsPipelineState &state,
+                                                       QSSGRenderableObject &object,
+                                                       bool *needsSetViewport,
+                                                       QSSGRenderTextureCubeFace cubeFace = QSSGRenderTextureCubeFaceNone);
+
+bool rhiPrepareDepthTexture(QSSGRhiContext *rhiCtx, const QSize &size, QSSGRhiRenderableTexture *renderableTex);
+
+inline QRect correctViewportCoordinates(const QRectF &layerViewport, const QRect &deviceRect)
+{
+    const int y = deviceRect.bottom() - layerViewport.bottom() + 1;
+    return QRect(layerViewport.x(), y, layerViewport.width(), layerViewport.height());
+}
+}
+
 QT_END_NAMESPACE
 
 #endif

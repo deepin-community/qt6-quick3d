@@ -4,9 +4,9 @@
 #include "qquick3deffect_p.h"
 
 #include <QtQuick3DRuntimeRender/private/qssgrendercontextcore_p.h>
-#include <QtQuick3DRuntimeRender/private/qssgrendershaderlibrarymanager_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendereffect_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgshadermaterialadapter_p.h>
+#include <QtQuick3DUtils/private/qssgutils_p.h>
 #include <QtQuick/qquickwindow.h>
 #include <QtQuick3D/private/qquick3dobject_p.h>
 #include <QtQuick3D/private/qquick3dscenemanager_p.h>
@@ -42,6 +42,12 @@ QT_BEGIN_NAMESPACE
     using the previous step's output as the input to the next one, with the last
     effect's output defining the contents of the View3D.
 
+    \note \l SceneEnvironment and \l ExtendedSceneEnvironment provide a set of
+    built-in effects, such as depth of field, glow/bloom, lens flare, color
+    grading, and vignette. Always consider first if these are sufficient for
+    the application's needs, and prefer using the built-in facilities instead
+    of implementing a custom post-processing effect.
+
     Effects are similar to \l{CustomMaterial}{custom materials} in many
     ways. However, a custom material is associated with a model and is
     responsible for the shading of that given mesh. Whereas an effect's vertex
@@ -74,8 +80,18 @@ QT_BEGIN_NAMESPACE
     \c Underlay or \c Overlay. Effects will not be rendered for \c Inline mode.
 
     \note When using post-processing effects, the application-provided shaders
-    usually expect linear color data without tonemapping applied. It is then
-    essential to bypass the built-in tonemapping by setting
+    should expect linear color data without tonemapping applied. The
+    tonemapping that is performed during the main render pass (or during skybox
+    rendering, if there is a skybox) when
+    \l{SceneEnvironment::tonemapMode}{tonemapMode} is set to a value other than
+    \c SceneEnvironment.TonemapModeNone, is automatically disabled when there
+    is at least one post-processing effect specified in the SceneEnvironment.
+    The last effect in the chain (more precisely, the last pass of the last
+    effect in the chain) will automatically get its fragment shader amended to
+    perform the same tonemapping the main render pass would.
+
+    \note Effects that perform their own tonemapping should be used in a
+    SceneEnvironment that has the built-in tonemapping disabled by setting
     \l{SceneEnvironment::tonemapMode}{tonemapMode} to \c
     SceneEnvironment.TonemapModeNone.
 
@@ -131,13 +147,11 @@ QT_BEGIN_NAMESPACE
     and samplers must have a corresponding property declared in the
     Effect object.
 
-    \section1 Getting started with effects
+    \section1 Getting started with user-defined effects
 
-    First, check if a suitable effect is available in the \l{Qt Quick 3D Effects
-    QML Types}{QtQuick3D.Effects module}. If so, there is no need to implement
-    an effect with your own shaders. Otherwise, an Effect object and a fragment
-    shader snippet needs to be written. Some effects will also want a customized
-    vertex shader as well.
+    A custom post-processing effect involves at minimum an Effect object and a
+    fragment shader snippet. Some effects will also want a customized vertex
+    shader as well.
 
     As a simple example, let's create an effect that combines the scene's
     content with an image, while further altering the red channel's value in an
@@ -493,7 +507,7 @@ QT_BEGIN_NAMESPACE
     increased resource and performance costs can quickly outweigh the benefits
     from better quality on systems with limited GPU power.
 
-    \sa Shader, Pass, Buffer, BufferInput, {Qt Quick 3D - Custom Effect Example}, {Qt Quick 3D - Effects Example}
+    \sa Shader, Pass, Buffer, BufferInput, {Qt Quick 3D - Custom Effect Example}
 */
 
 /*!
@@ -531,29 +545,6 @@ static const char *default_effect_fragment_shader =
         "    FRAGCOLOR = texture(INPUT, INPUT_UV);\n"
         "}\n";
 
-// Suffix snippets added to the end of the shader strings. These are appended
-// after processing so it must be valid GLSL as-is, no more magic keywords.
-
-static const char *effect_vertex_main_pre =
-        "void main()\n"
-        "{\n"
-        "    qt_inputUV = attr_uv;\n"
-        "    qt_textureUV = qt_effectTextureMapUV(attr_uv);\n"
-        "    vec4 qt_vertPosition = vec4(attr_pos, 1.0);\n"
-        "    qt_customMain(qt_vertPosition.xyz);\n";
-
-static const char *effect_vertex_main_position =
-        "    gl_Position = qt_modelViewProjection * qt_vertPosition;\n";
-
-static const char *effect_vertex_main_post =
-        "}\n";
-
-static const char *effect_fragment_main =
-        "void main()\n"
-        "{\n"
-        "    qt_customMain();\n"
-        "}\n";
-
 static inline void insertVertexMainArgs(QByteArray &snippet)
 {
     static const char *argKey =  "/*%QT_ARGS_MAIN%*/";
@@ -567,18 +558,27 @@ QSSGRenderGraphObject *QQuick3DEffect::updateSpatialNode(QSSGRenderGraphObject *
 {
     using namespace QSSGShaderUtils;
 
-    const auto &renderContext = QQuick3DObjectPrivate::get(this)->sceneManager->rci;
+    const auto &renderContext = QQuick3DObjectPrivate::get(this)->sceneManager->wattached->rci();
     if (!renderContext) {
         qWarning("QQuick3DEffect: No render context interface?");
         return nullptr;
     }
 
     QSSGRenderEffect *effectNode = static_cast<QSSGRenderEffect *>(node);
-    if (!effectNode || effectNode->incompleteBuildTimeObject) {
+    bool newBackendNode = false;
+    if (!effectNode) {
+        effectNode = new QSSGRenderEffect;
+        newBackendNode = true;
+    }
+
+    bool shadersMayChange = false;
+    if (m_dirtyAttributes & Dirty::EffectChainDirty)
+        shadersMayChange = true;
+
+    const bool fullUpdate = newBackendNode || effectNode->incompleteBuildTimeObject;
+
+    if (fullUpdate || shadersMayChange) {
         markAllDirty();
-        if (!effectNode)
-            effectNode = new QSSGRenderEffect;
-        effectNode->setActive(true);
 
         QMetaMethod propertyDirtyMethod;
         const int idx = metaObject()->indexOfSlot("onPropertyDirty()");
@@ -621,13 +621,15 @@ QSSGRenderGraphObject *QQuick3DEffect::updateSpatialNode(QSSGRenderGraphObject *
                     textureProperties.push_back({texture, name});
             } else {
                 const auto type = uniformType(propType);
-                if (type != QSSGRenderShaderDataType::Unknown) {
+                if (type != QSSGRenderShaderValue::Unknown) {
                     uniforms.append({ uniformTypeName(propType), name });
                     effectNode->properties.push_back({ name, uniformTypeName(propType),
                                                        propValue, uniformType(propType), i});
                     // Track the property changes
-                    if (property.hasNotifySignal() && propertyDirtyMethod.isValid())
-                        connect(this, property.notifySignal(), this, propertyDirtyMethod);
+                    if (fullUpdate) {
+                        if (property.hasNotifySignal() && propertyDirtyMethod.isValid())
+                            connect(this, property.notifySignal(), this, propertyDirtyMethod);
+                    } // else already connected
                 } else {
                     // ### figure out how _not_ to warn when there are no dynamic
                     // properties defined (because warnings like Blah blah objectName etc. are not helpful)
@@ -639,13 +641,15 @@ QSSGRenderGraphObject *QQuick3DEffect::updateSpatialNode(QSSGRenderGraphObject *
         const auto processTextureProperty = [&](QQuick3DShaderUtilsTextureInput &texture, const QByteArray &name) {
             QSSGRenderEffect::TextureProperty texProp;
             QQuick3DTexture *tex = texture.texture(); // may be null if the TextureInput has no 'texture' set
-            connect(&texture, &QQuick3DShaderUtilsTextureInput::enabledChanged, this, &QQuick3DEffect::onTextureDirty);
-            connect(&texture, &QQuick3DShaderUtilsTextureInput::textureChanged, this, &QQuick3DEffect::onTextureDirty);
+            if (fullUpdate) {
+                connect(&texture, &QQuick3DShaderUtilsTextureInput::enabledChanged, this, &QQuick3DEffect::onTextureDirty);
+                connect(&texture, &QQuick3DShaderUtilsTextureInput::textureChanged, this, &QQuick3DEffect::onTextureDirty);
+            } // else already connected
             texProp.name = name;
             if (texture.enabled && tex)
                 texProp.texImage = tex->getRenderImage();
 
-            texProp.shaderDataType = QSSGRenderShaderDataType::Texture;
+            texProp.shaderDataType = QSSGRenderShaderValue::Texture;
 
             if (tex) {
                 texProp.minFilterType = tex->minFilter() == QQuick3DTexture::Nearest ? QSSGRenderTextureFilterOp::Nearest
@@ -665,6 +669,8 @@ QSSGRenderGraphObject *QQuick3DEffect::updateSpatialNode(QSSGRenderGraphObject *
 
             if (tex && QQuick3DObjectPrivate::get(tex)->type == QQuick3DObjectPrivate::Type::ImageCube)
                 uniforms.append({ QByteArrayLiteral("samplerCube"), name });
+            else if (tex && tex->textureData() && tex->textureData()->depth() > 0)
+                uniforms.append({ QByteArrayLiteral("sampler3D"), name });
             else
                 uniforms.append({ QByteArrayLiteral("sampler2D"), name });
 
@@ -693,7 +699,7 @@ QSSGRenderGraphObject *QQuick3DEffect::updateSpatialNode(QSSGRenderGraphObject *
                         textureProperties.push_back({texture, name});
                 } else {
                     const auto type = uniformType(propType);
-                    if (type != QSSGRenderShaderDataType::Unknown) {
+                    if (type != QSSGRenderShaderValue::Unknown) {
                         uniforms.append({ uniformTypeName(propType), name });
                         effectNode->properties.push_back({ name, uniformTypeName(propType),
                                                            propValue, uniformType(propType), -1 /* aka. dynamic property */});
@@ -731,9 +737,9 @@ QSSGRenderGraphObject *QQuick3DEffect::updateSpatialNode(QSSGRenderGraphObject *
 
         // fragOutput is added automatically by the program generator
 
-        bool needsDepthTexture = false;
         if (!m_passes.isEmpty()) {
             const QQmlContext *context = qmlContext(this);
+            effectNode->resetCommands();
             for (QQuick3DShaderUtilsRenderPass *pass : std::as_const(m_passes)) {
                 // Have a key composed more or less of the vertex and fragment filenames.
                 // The shaderLibraryManager uses stage+shaderPathKey as the key.
@@ -742,8 +748,7 @@ QSSGRenderGraphObject *QQuick3DEffect::updateSpatialNode(QSSGRenderGraphObject *
                 // set of shader files can be used in multiple different passes, or in multiple active effects.
                 // But that's the effect system's problem.
                 QByteArray shaderPathKey("effect pipeline--");
-                QByteArray shaderSource[2];
-                QSSGCustomShaderMetaData shaderMeta[2];
+                QSSGRenderEffect::ShaderPrepPassData passData;
                 for (QQuick3DShaderUtilsShader::Stage stage : { QQuick3DShaderUtilsShader::Stage::Vertex, QQuick3DShaderUtilsShader::Stage::Fragment }) {
                     QQuick3DShaderUtilsShader *shader = nullptr;
                     for (QQuick3DShaderUtilsShader *s : pass->m_shaders) {
@@ -799,44 +804,32 @@ QSSGRenderGraphObject *QQuick3DEffect::updateSpatialNode(QSSGRenderGraphObject *
                         result = QSSGShaderCustomMaterialAdapter::prepareCustomShader(shaderCodeMeta, code, type,
                                                                                       uniforms, builtinVertexOutputs);
                     }
-                    code = result.first;
-                    code.append(shaderCodeMeta);
+
+                    if (result.second.flags.testFlag(QSSGCustomShaderMetaData::UsesDepthTexture))
+                        effectNode->requiresDepthTexture = true;
+
+                    code = result.first + shaderCodeMeta;
 
                     if (type == QSSGShaderCache::ShaderType::Vertex) {
                         // qt_customMain() has an argument list which gets injected here
                         insertVertexMainArgs(code);
-                        // add the real main(), with or without assigning gl_Position at the end
-                        code.append(effect_vertex_main_pre);
-                        if (!result.second.flags.testFlag(QSSGCustomShaderMetaData::OverridesPosition))
-                            code.append(effect_vertex_main_position);
-                        code.append(effect_vertex_main_post);
+                        passData.vertexShaderCode = code;
+                        passData.vertexMetaData = result.second;
                     } else {
-                        code.append(effect_fragment_main);
+                        passData.fragmentShaderCode = code;
+                        passData.fragmentMetaData = result.second;
                     }
-
-                    if (result.second.flags.testFlag(QSSGCustomShaderMetaData::UsesDepthTexture))
-                        needsDepthTexture = true;
-
-                    shaderSource[int(type)] = code;
-                    shaderMeta[int(type)] = result.second;
                 }
 
-                {
-                    const auto &vertex = shaderSource[int(QSSGShaderCache::ShaderType::Vertex)];
-                    const auto &fragment = shaderSource[int(QSSGShaderCache::ShaderType::Fragment)];
-                    const QByteArray key = vertex + fragment;
-                    shaderPathKey.append(':' + QCryptographicHash::hash(key, QCryptographicHash::Algorithm::Sha1).toHex());
-                }
+                effectNode->commands.push_back({ nullptr, true }); // will be changed to QSSGBindShader in finalizeShaders
+                passData.bindShaderCmdIndex = effectNode->commands.size() - 1;
 
-                // Now that the final shaderPathKey is known, store the source and
-                // related data; it will be retrieved later by the QSSGRhiEffectSystem.
-                for (QSSGShaderCache::ShaderType type : { QSSGShaderCache::ShaderType::Vertex, QSSGShaderCache::ShaderType::Fragment }) {
-                    renderContext->shaderLibraryManager()->setShaderSource(shaderPathKey, type,
-                                                                           shaderSource[int(type)], shaderMeta[int(type)]);
-                }
+                // finalizing the shader code happens in a separate step later on by the backend node
+                passData.shaderPathKeyPrefix = shaderPathKey;
+                effectNode->shaderPrepData.passes.append(passData);
+                effectNode->shaderPrepData.valid = true; // trigger reprocessing the shader code later on
 
-                effectNode->commands.push_back(new QSSGBindShader(shaderPathKey));
-                effectNode->commands.push_back(new QSSGApplyInstanceValue);
+                effectNode->commands.push_back({ new QSSGApplyInstanceValue, true });
 
                 // Buffers
                 QQuick3DShaderUtilsBuffer *outputBuffer = pass->outputBuffer;
@@ -845,17 +838,17 @@ QSSGRenderGraphObject *QQuick3DEffect::updateSpatialNode(QSSGRenderGraphObject *
                     if (outBufferName.isEmpty()) {
                         // default output buffer (with settings)
                         auto outputFormat = QQuick3DShaderUtilsBuffer::mapTextureFormat(outputBuffer->format());
-                        effectNode->commands.push_back(new QSSGBindTarget(outputFormat));
+                        effectNode->commands.push_back({ new QSSGBindTarget(outputFormat), true });
                         effectNode->outputFormat = outputFormat;
                     } else {
                         // Allocate buffer command
-                        effectNode->commands.push_back(outputBuffer->getCommand());
+                        effectNode->commands.push_back({ outputBuffer->getCommand(), false });
                         // bind buffer
-                        effectNode->commands.push_back(new QSSGBindBuffer(outBufferName));
+                        effectNode->commands.push_back({ new QSSGBindBuffer(outBufferName), true });
                     }
                 } else {
                     // Use the default output buffer, same format as the source buffer
-                    effectNode->commands.push_back(new QSSGBindTarget(QSSGRenderTextureFormat::Unknown));
+                    effectNode->commands.push_back({ new QSSGBindTarget(QSSGRenderTextureFormat::Unknown), true });
                     effectNode->outputFormat = QSSGRenderTextureFormat::Unknown;
                 }
 
@@ -864,14 +857,13 @@ QSSGRenderGraphObject *QQuick3DEffect::updateSpatialNode(QSSGRenderGraphObject *
                 for (const auto &command : extraCommands) {
                     const int bufferCount = command->bufferCount();
                     for (int i = 0; i != bufferCount; ++i)
-                        effectNode->commands.push_back(command->bufferAt(i)->getCommand());
-                    effectNode->commands.push_back(command->getCommand());
+                        effectNode->commands.push_back({ command->bufferAt(i)->getCommand(), false });
+                    effectNode->commands.push_back({ command->getCommand(), false });
                 }
 
-                effectNode->commands.push_back(new QSSGRender);
+                effectNode->commands.push_back({ new QSSGRender, true });
             }
         }
-        effectNode->requiresDepthTexture = needsDepthTexture;
     }
 
     if (m_dirtyAttributes & Dirty::PropertyDirty) {
@@ -884,6 +876,8 @@ QSSGRenderGraphObject *QQuick3DEffect::updateSpatialNode(QSSGRenderGraphObject *
 
     m_dirtyAttributes = 0;
 
+    DebugViewHelpers::ensureDebugObjectName(effectNode, this);
+
     return effectNode;
 }
 
@@ -895,6 +889,16 @@ void QQuick3DEffect::onPropertyDirty()
 void QQuick3DEffect::onTextureDirty()
 {
     markDirty(Dirty::TextureDirty);
+}
+
+void QQuick3DEffect::onPassDirty()
+{
+    markDirty(Dirty::EffectChainDirty);
+}
+
+void QQuick3DEffect::effectChainDirty()
+{
+    markDirty(Dirty::EffectChainDirty);
 }
 
 void QQuick3DEffect::markDirty(QQuick3DEffect::Dirty type)
@@ -933,6 +937,9 @@ void QQuick3DEffect::qmlAppendPass(QQmlListProperty<QQuick3DShaderUtilsRenderPas
 
     QQuick3DEffect *that = qobject_cast<QQuick3DEffect *>(list->object);
     that->m_passes.push_back(pass);
+
+    connect(pass, &QQuick3DShaderUtilsRenderPass::changed, that, &QQuick3DEffect::onPassDirty);
+    that->effectChainDirty();
 }
 
 QQuick3DShaderUtilsRenderPass *QQuick3DEffect::qmlPassAt(QQmlListProperty<QQuick3DShaderUtilsRenderPass> *list, qsizetype index)
@@ -950,7 +957,12 @@ qsizetype QQuick3DEffect::qmlPassCount(QQmlListProperty<QQuick3DShaderUtilsRende
 void QQuick3DEffect::qmlPassClear(QQmlListProperty<QQuick3DShaderUtilsRenderPass> *list)
 {
     QQuick3DEffect *that = qobject_cast<QQuick3DEffect *>(list->object);
+
+    for (QQuick3DShaderUtilsRenderPass *pass : that->m_passes)
+        pass->disconnect(that);
+
     that->m_passes.clear();
+    that->effectChainDirty();
 }
 
 void QQuick3DEffect::setDynamicTextureMap(QQuick3DShaderUtilsTextureInput *textureMap)

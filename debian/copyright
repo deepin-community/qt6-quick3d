@@ -8,17 +8,13 @@ Copyright: 2019-2021 The Qt Company Ltd.
 License: GPL-3+
 
 Files: debian/*
-Copyright: 2021-2022 Patrick Franz <deltaone@debian.org>
+Copyright: 2021-2023 Patrick Franz <deltaone@debian.org>
            2021 Lu YaNing <dluyaning@gmail.com>
 License: GPL-3+
 
 Files: .clang-format
 Copyright: 2016 Olivier Goffart <ogoffart@woboq.com>
 License: BSD-3-clause
-
-Files: conanfile.py
-Copyright: 2021 The Qt Company Ltd.
-License: GPL-3 with Qt-1.0 exception
 
 Files: src/3rdparty/assimp/*
 Copyright: 2006-2020 assimp team / ASSIMP Development Team

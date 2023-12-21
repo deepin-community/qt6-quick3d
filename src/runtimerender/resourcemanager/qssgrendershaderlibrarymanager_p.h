@@ -46,18 +46,22 @@ struct QSSGCustomShaderMetaData
         UsesSharedVars = 1 << 8,
         UsesIblOrientation = 1 << 9,
         UsesLightmap = 1 << 10,
-        UsesSkinning = 1 << 11
+        UsesSkinning = 1 << 11,
+        UsesMorphing = 1 << 12
     };
     Q_DECLARE_FLAGS(Flags, Flag)
 
     Flags flags;
     QSet<QByteArray> customFunctions;
+    QSSGShaderFeatures features;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(QSSGCustomShaderMetaData::Flags)
 
-struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGShaderLibraryManager
+class Q_QUICK3DRUNTIMERENDER_EXPORT QSSGShaderLibraryManager
 {
+    Q_DISABLE_COPY(QSSGShaderLibraryManager)
+public:
     typedef QHash<QByteArray, QByteArray> TPathDataMap;
     typedef QSet<QString> TPathSet;
 
@@ -66,9 +70,8 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGShaderLibraryManager
     QByteArray m_vertShader;
     QByteArray m_fragShader;
 
-    QQsbCollection::EntryMap m_shaderEntries;
+    QQsbCollection::EntryMap m_preGeneratedShaderEntries;
 
-    QAtomicInt ref;
     QReadWriteLock m_lock;
 
     static QString getShaderCodeLibraryDirectory();

@@ -10,31 +10,23 @@ This is the QML frontend for using the spatial renderer and scenegraph. For the
 time being, all 3D content goes through offscreen textures (FBO)s so that they
 can be composed into Qt Quick scenes (as a QQuickItem).
 
-Qt Quick 3D provides the following QML types:
+Import the QtQuick3D module with the following statement:
+
+\qml
+import QtQuick3D
+\endqml
 
 \section1 QtQuick3D QML Types
 
-Import the QtQuick3D module with the following statement:
-
-\code
-import QtQuick3D
-\endcode
-
 \generatelist qmltypesbymodule QtQuick3D
-
-\code
-import QtQuick3D.Effects
-\endcode
-
-\generatelist qmltypesbymodule QtQuick3D.Effects
 
 \section1 QtQuick3D.Helpers QML Types
 
 Import the QtQuick3D.Helpers module with the following statement:
 
-\code
+\qml
 import QtQuick3D.Helpers
-\endcode
+\endqml
 
 \generatelist qmltypesbymodule QtQuick3D.Helpers
 
@@ -42,9 +34,9 @@ import QtQuick3D.Helpers
 
 Import the QtQuick3D.AssetUtils module with the following statement:
 
-\code
+\qml
 import QtQuick3D.AssetUtils
-\endcode
+\endqml
 
 \generatelist qmltypesbymodule QtQuick3D.AssetUtils
 
@@ -52,11 +44,30 @@ import QtQuick3D.AssetUtils
 
 Import the QtQuick3D.Particles3D module with the following statement:
 
-\code
+\qml
 import QtQuick3D.Particles3D
-\endcode
+\endqml
 
 \generatelist qmltypesbymodule QtQuick3D.Particles3D
+
+\section1 Obsolete QML Types
+
+The following QML types are now obsolete. Obsolete types are no longer
+maintained. They are provided to keep old source code working, but they can be
+removed in a future release. We strongly advise against using these classes in
+new code.
+
+\generatelist obsoleteqmltypes
+
+\section1 QML Types with Obsolete Properties or Methods
+
+The following QML types contain one or more properties or methods that are now
+obsolete. Obsolete members are no longer maintained. They are provided to keep
+old source code working, but they can be removed in a future release. We
+strongly advise against using these obsolete members in new code. Click on a
+type to see its deprecated members.
+
+\generatelist obsoleteqmlmembers
 
 \noautolist
 */

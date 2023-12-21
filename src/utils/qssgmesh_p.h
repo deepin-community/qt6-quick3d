@@ -28,43 +28,62 @@
 
 QT_BEGIN_NAMESPACE
 
+struct QSSGRenderVertexBufferEntry
+{
+    QByteArray m_name;
+    /** Datatype of the this entry points to in the buffer */
+    QSSGRenderComponentType m_componentType;
+    /** Number of components of each data member. 1,2,3, or 4.  Don't be stupid.*/
+    quint32 m_numComponents;
+    /** Offset from the beginning of the buffer of the first item */
+    quint32 m_firstItemOffset;
+
+    QSSGRenderVertexBufferEntry(const QByteArray &nm,
+                                QSSGRenderComponentType type,
+                                quint32 numComponents,
+                                quint32 firstItemOffset = 0)
+        : m_name(nm), m_componentType(type), m_numComponents(numComponents), m_firstItemOffset(firstItemOffset)
+    {
+    }
+
+    QSSGRenderVertexBufferEntry()
+        : m_componentType(QSSGRenderComponentType::Float32), m_numComponents(0), m_firstItemOffset(0)
+    {
+    }
+
+    QSSGRenderVertexBufferEntry(const QSSGRenderVertexBufferEntry &inOther)
+        : m_name(inOther.m_name)
+        , m_componentType(inOther.m_componentType)
+        , m_numComponents(inOther.m_numComponents)
+        , m_firstItemOffset(inOther.m_firstItemOffset)
+    {
+    }
+
+    QSSGRenderVertexBufferEntry &operator=(const QSSGRenderVertexBufferEntry &inOther)
+    {
+        if (this != &inOther) {
+            m_name = inOther.m_name;
+            m_componentType = inOther.m_componentType;
+            m_numComponents = inOther.m_numComponents;
+            m_firstItemOffset = inOther.m_firstItemOffset;
+        }
+        return *this;
+    }
+};
+
 namespace QSSGMesh {
 
 struct AssetVertexEntry;
 struct AssetMeshSubset;
 struct RuntimeMeshData;
+struct AssetLodEntry;
 
 class Q_QUICK3DUTILS_EXPORT Mesh
 {
 public:
-    enum class DrawMode {
-        Points = 1,
-        LineStrip,
-        LineLoop,
-        Lines,
-        TriangleStrip,
-        TriangleFan,
-        Triangles
-    };
-
-    enum class Winding {
-        Clockwise = 1,
-        CounterClockwise
-    };
-
-    enum class ComponentType {
-        UnsignedInt8 = 1,
-        Int8,
-        UnsignedInt16,
-        Int16,
-        UnsignedInt32,
-        Int32,
-        UnsignedInt64,
-        Int64,
-        Float16,
-        Float32,
-        Float64
-    };
+    using DrawMode = QSSGRenderDrawMode;
+    using Winding = QSSGRenderWinding;
+    using ComponentType = QSSGRenderComponentType;
 
     struct VertexBufferEntry {
         ComponentType componentType = ComponentType::Float32;
@@ -91,9 +110,21 @@ public:
         QByteArray data;
     };
 
+    struct TargetBuffer {
+        quint32 numTargets = 0;
+        QVector<VertexBufferEntry> entries;
+        QByteArray data;
+    };
+
     struct SubsetBounds {
         QVector3D min;
         QVector3D max;
+    };
+
+    struct Lod {
+        quint32 count = 0;
+        quint32 offset = 0;
+        float distance = 0.0f;
     };
 
     struct Subset {
@@ -102,11 +133,13 @@ public:
         quint32 count = 0;
         quint32 offset = 0;
         QSize lightmapSizeHint;
+        QVector<Lod> lods;
     };
 
     // can just return by value (big data is all implicitly shared)
     VertexBuffer vertexBuffer() const { return m_vertexBuffer; }
     IndexBuffer indexBuffer() const { return m_indexBuffer; }
+    TargetBuffer targetBuffer() const { return m_targetBuffer; }
     QVector<Subset> subsets() const { return m_subsets; }
 
     // id 0 == first, otherwise has to match
@@ -117,7 +150,8 @@ public:
     static Mesh fromAssetData(const QVector<AssetVertexEntry> &vbufEntries,
                               const QByteArray &indexBufferData,
                               ComponentType indexComponentType,
-                              const QVector<AssetMeshSubset> &subsets);
+                              const QVector<AssetMeshSubset> &subsets,
+                              quint32 numTargets = 0, quint32 numTargetComps = 0);
 
     static Mesh fromRuntimeData(const RuntimeMeshData &data,
                                 QString *error);
@@ -138,6 +172,7 @@ private:
     Winding m_winding = Winding::CounterClockwise;
     VertexBuffer m_vertexBuffer;
     IndexBuffer m_indexBuffer;
+    TargetBuffer m_targetBuffer;
     QVector<Subset> m_subsets;
     friend struct MeshInternal;
 };
@@ -148,6 +183,7 @@ struct Q_QUICK3DUTILS_EXPORT AssetVertexEntry // for asset importer plugins (Ass
     QByteArray data;
     Mesh::ComponentType componentType = Mesh::ComponentType::Float32;
     quint32 componentCount = 0;
+    qint32 morphTargetId = -1; // -1 menas that this entry belongs to the original mesh.
 };
 
 struct Q_QUICK3DUTILS_EXPORT AssetMeshSubset // for asset importer plugins (Assimp, FBX)
@@ -158,6 +194,7 @@ struct Q_QUICK3DUTILS_EXPORT AssetMeshSubset // for asset importer plugins (Assi
     quint32 boundsPositionEntryIndex = std::numeric_limits<quint32>::max();
     quint32 lightmapWidth = 0;
     quint32 lightmapHeight = 0;
+    QVector<Mesh::Lod> lods;
 };
 
 struct Q_QUICK3DUTILS_EXPORT RuntimeMeshData // for custom geometry (QQuick3DGeometry, QSSGRenderGeometry)
@@ -173,10 +210,6 @@ struct Q_QUICK3DUTILS_EXPORT RuntimeMeshData // for custom geometry (QQuick3DGeo
             JointSemantic,                          // attr_joints
             WeightSemantic,                         // attr_weights
             ColorSemantic,                          // attr_color
-            TargetPositionSemantic,                 // attr_tpos0
-            TargetNormalSemantic,                   // attr_tnorm0
-            TargetTangentSemantic,                  // attr_ttan0
-            TargetBinormalSemantic,                 // attr_tbinorm0
             TexCoord1Semantic,                      // attr_uv1
             TexCoord0Semantic = TexCoordSemantic    // attr_uv0
         };
@@ -197,20 +230,26 @@ struct Q_QUICK3DUTILS_EXPORT RuntimeMeshData // for custom geometry (QQuick3DGeo
             case JointSemantic:             return 4;
             case WeightSemantic:            return 4;
             case ColorSemantic:             return 4;
-            case TargetPositionSemantic:    return 3;
-            case TargetNormalSemantic:      return 3;
-            case TargetTangentSemantic:     return 3;
-            case TargetBinormalSemantic:    return 3;
-            default:
-                Q_ASSERT(false);
-                return 0;
             }
+            Q_UNREACHABLE_RETURN(0);
         }
     };
 
+    struct TargetAttribute {
+        Attribute attr;
+        int targetId;
+        int stride;
+    };
+
     static const int MAX_ATTRIBUTES = 16;
+    static const int MAX_TARGET_ATTRIBUTES = 32;
 
     void clear()
+    {
+        clearVertexAndIndex();
+        clearTarget();
+    }
+    void clearVertexAndIndex()
     {
         m_vertexBuffer.clear();
         m_indexBuffer.clear();
@@ -218,13 +257,21 @@ struct Q_QUICK3DUTILS_EXPORT RuntimeMeshData // for custom geometry (QQuick3DGeo
         m_attributeCount = 0;
         m_primitiveType = Mesh::DrawMode::Triangles;
     }
+    void clearTarget()
+    {
+        m_targetBuffer.clear();
+        m_targetAttributeCount = 0;
+    }
 
     QByteArray m_vertexBuffer;
     QByteArray m_indexBuffer;
+    QByteArray m_targetBuffer;
     QVector<Mesh::Subset> m_subsets;
 
     Attribute m_attributes[MAX_ATTRIBUTES];
     int m_attributeCount = 0;
+    TargetAttribute m_targetAttributes[MAX_TARGET_ATTRIBUTES];
+    int m_targetAttributeCount = 0;
     Mesh::DrawMode m_primitiveType = Mesh::DrawMode::Triangles;
     int m_stride = 0;
 };
@@ -260,7 +307,10 @@ struct Q_QUICK3DUTILS_EXPORT MeshInternal
         static const quint32 LEGACY_MESH_FILE_VERSION = 3;
         // Version 5 differs from 4 with the added lightmapSizeHint per subset.
         // This needs branching in the deserializer.
-        static const quint32 FILE_VERSION = 5;
+        // Version 6 differs from 5 with additional lodCount per subset as well
+        // as a list of Level of Detail data after the subset names.
+        // Version 7 will split the morph target data
+        static const quint32 FILE_VERSION = 7;
 
         static MeshDataHeader withDefaults() {
             return { FILE_ID, FILE_VERSION, 0, 0 };
@@ -274,6 +324,14 @@ struct Q_QUICK3DUTILS_EXPORT MeshInternal
 
         bool hasLightmapSizeHint() const {
             return fileVersion >= 5;
+        }
+
+        bool hasLodDataHint() const {
+            return fileVersion >= 6;
+        }
+
+        bool hasSeparateTargetBuffer() const {
+            return fileVersion >= 7;
         }
     };
 
@@ -307,6 +365,7 @@ struct Q_QUICK3DUTILS_EXPORT MeshInternal
         quint32 offset = 0;
         quint32 count = 0;
         QSize lightmapSizeHint;
+        quint32 lodCount = 0;
 
         Mesh::Subset toMeshSubset() const {
             Mesh::Subset subset;
@@ -317,6 +376,7 @@ struct Q_QUICK3DUTILS_EXPORT MeshInternal
             subset.count = count;
             subset.offset = offset;
             subset.lightmapSizeHint = lightmapSizeHint;
+            subset.lods.resize(lodCount);
             return subset;
         }
     };
@@ -327,24 +387,7 @@ struct Q_QUICK3DUTILS_EXPORT MeshInternal
     static void writeMeshHeader(QIODevice *device, const MeshDataHeader &header);
     static quint64 writeMeshData(QIODevice *device, const Mesh &mesh);
 
-    static int byteSizeForComponentType(Mesh::ComponentType componentType) {
-        switch (componentType) {
-        case Mesh::ComponentType::UnsignedInt8:  return 1;
-        case Mesh::ComponentType::Int8:  return 1;
-        case Mesh::ComponentType::UnsignedInt16: return 2;
-        case Mesh::ComponentType::Int16: return 2;
-        case Mesh::ComponentType::UnsignedInt32: return 4;
-        case Mesh::ComponentType::Int32: return 4;
-        case Mesh::ComponentType::UnsignedInt64: return 8;
-        case Mesh::ComponentType::Int64: return 8;
-        case Mesh::ComponentType::Float16: return 2;
-        case Mesh::ComponentType::Float32: return 4;
-        case Mesh::ComponentType::Float64: return 8;
-        default:
-            Q_ASSERT(false);
-            return 0;
-        }
-    }
+    static quint32 byteSizeForComponentType(Mesh::ComponentType componentType) { return quint32(QSSGBaseTypeHelpers::getSizeOfType(componentType)); }
 
     static const char *getPositionAttrName() { return "attr_pos"; }
     static const char *getNormalAttrName() { return "attr_norm"; }
@@ -356,63 +399,6 @@ struct Q_QUICK3DUTILS_EXPORT MeshInternal
     static const char *getColorAttrName() { return "attr_color"; }
     static const char *getJointAttrName() { return "attr_joints"; }
     static const char *getWeightAttrName() { return "attr_weights"; }
-    static const char *getMorphTargetAttrNamePrefix() { return "attr_t"; }
-    static const char *getTargetPositionAttrName(int idx)
-    {
-        switch (idx) {
-            case 0:
-                return "attr_tpos0";
-            case 1:
-                return "attr_tpos1";
-            case 2:
-                return "attr_tpos2";
-            case 3:
-                return "attr_tpos3";
-            case 4:
-                return "attr_tpos4";
-            case 5:
-                return "attr_tpos5";
-            case 6:
-                return "attr_tpos6";
-            case 7:
-                return "attr_tpos7";
-        }
-        return "attr_unsupported";
-    }
-    static const char *getTargetNormalAttrName(int idx)
-    {
-        switch (idx) {
-            case 0:
-                return "attr_tnorm0";
-            case 1:
-                return "attr_tnorm1";
-            case 2:
-                return "attr_tnorm2";
-            case 3:
-                return "attr_tnorm3";
-        }
-        return "attr_unsupported";
-    }
-    static const char *getTargetTangentAttrName(int idx)
-    {
-        switch (idx) {
-            case 0:
-                return "attr_ttan0";
-            case 1:
-                return "attr_ttan1";
-        }
-        return "attr_unsupported";
-    }
-    static const char *getTargetBinormalAttrName(int idx)
-    {
-        switch (idx) {
-            case 0:
-                return "attr_tbinorm0";
-            case 1:
-                return "attr_tbinorm1";
-        }
-        return "attr_unsupported";
-    }
 
     static QSSGBounds3 calculateSubsetBounds(const Mesh::VertexBufferEntry &entry,
                                              const QByteArray &vertexBufferData,
@@ -422,6 +408,26 @@ struct Q_QUICK3DUTILS_EXPORT MeshInternal
                                              quint32 subsetCount,
                                              quint32 subsetOffset);
 };
+
+size_t Q_QUICK3DUTILS_EXPORT simplifyMesh(unsigned int* destination,
+                                          const unsigned int* indices,
+                                          size_t indexCount,
+                                          const float* vertexPositions,
+                                          size_t vertexCount,
+                                          size_t vertexPositionsStride,
+                                          size_t targetIndexCount,
+                                          float targetError,
+                                          unsigned int options,
+                                          float* resultError);
+
+float Q_QUICK3DUTILS_EXPORT simplifyScale(const float* vertexPositions,
+                                          size_t vertexCount,
+                                          size_t vertexPositionsStride);
+
+void Q_QUICK3DUTILS_EXPORT optimizeVertexCache(unsigned int* destination,
+                                               const unsigned int* indices,
+                                               size_t indexCount,
+                                               size_t vertexCount);
 
 } // namespace QSSGMesh
 

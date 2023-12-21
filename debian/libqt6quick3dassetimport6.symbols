@@ -1,38 +1,6 @@
-# SymbolsHelper-Confirmed: 6.4.0 amd64
+# SymbolsHelper-Confirmed: 6.6.1 amd64
 libQt6Quick3DAssetImport.so.6 libqt6quick3dassetimport6 #MINVER#
-* Build-Depends-Package: qt6-quick3d-dev
- _ZN17QSSGAssetImporter11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.2.2
- _ZN17QSSGAssetImporter11qt_metacastEPKc@Base 6.2.2
- _ZN17QSSGAssetImporter16staticMetaObjectE@Base 6.2.2
- _ZN22QSSGAssetImportManager10importFileERK4QUrlRN13QSSGSceneDesc5SceneEP7QString@Base 6.2.2
- _ZN22QSSGAssetImportManager10importFileERK7QStringRK4QDirPS0_@Base 6.2.2
- _ZN22QSSGAssetImportManager10importFileERK7QStringRK4QDirRK11QJsonObjectPS0_@Base 6.4.0
- _ZN22QSSGAssetImportManager11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.2.2
- _ZN22QSSGAssetImportManager11qt_metacastEPKc@Base 6.2.2
- _ZN22QSSGAssetImportManager16staticMetaObjectE@Base 6.2.2
- _ZN22QSSGAssetImportManager17getOptionsForFileERK7QString@Base 6.2.2
- _ZN22QSSGAssetImportManagerC1EP7QObject@Base 6.2.2
- _ZN22QSSGAssetImportManagerC2EP7QObject@Base 6.2.2
- _ZN22QSSGAssetImportManagerD0Ev@Base 6.2.2
- _ZN22QSSGAssetImportManagerD1Ev@Base 6.2.2
- _ZN22QSSGAssetImportManagerD2Ev@Base 6.2.2
- _ZN23QSSGAssetImporterPlugin11qt_metacallEN11QMetaObject4CallEiPPv@Base 6.2.2
- _ZN23QSSGAssetImporterPlugin11qt_metacastEPKc@Base 6.2.2
- _ZN23QSSGAssetImporterPlugin16staticMetaObjectE@Base 6.2.2
- _ZN24QSSGAssetImporterFactory4keysEv@Base 6.2.2
- _ZN24QSSGAssetImporterFactory6createERK7QStringRK5QListIS0_E@Base 6.2.2
- _ZNK17QSSGAssetImporter10metaObjectEv@Base 6.2.2
- _ZNK22QSSGAssetImportManager10metaObjectEv@Base 6.2.2
- _ZNK22QSSGAssetImportManager13getAllOptionsEv@Base 6.2.2
- _ZNK22QSSGAssetImportManager22getImporterPluginInfosEv@Base 6.2.2
- _ZNK22QSSGAssetImportManager22getSupportedExtensionsEv@Base 6.2.2
- _ZNK23QSSGAssetImporterPlugin10metaObjectEv@Base 6.2.2
- _ZTI17QSSGAssetImporter@Base 6.2.2
- _ZTI22QSSGAssetImportManager@Base 6.2.2
- _ZTI23QSSGAssetImporterPlugin@Base 6.2.2
- _ZTS17QSSGAssetImporter@Base 6.2.2
- _ZTS22QSSGAssetImportManager@Base 6.2.2
- _ZTS23QSSGAssetImporterPlugin@Base 6.2.2
- _ZTV17QSSGAssetImporter@Base 6.2.2
- _ZTV22QSSGAssetImportManager@Base 6.2.2
- _ZTV23QSSGAssetImporterPlugin@Base 6.2.2
+| libqt6quick3dassetimport6 #MINVER#, qt6-quick3d-private-abi (= 6.6.1)
+* Build-Depends-Packages: qt6-quick3d-dev, qt6-quick3d-private-dev
+ Qt_6@Qt_6 6.6.1
+ (symver)Qt_6_PRIVATE_API 0

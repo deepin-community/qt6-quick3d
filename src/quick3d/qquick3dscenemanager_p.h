@@ -38,23 +38,35 @@ public:
     ~QQuick3DWindowAttachment() override;
 
     Q_INVOKABLE void preSync();
-    Q_INVOKABLE void synchronize(QSSGRenderContextInterface *rci, QSet<QSSGRenderGraphObject *> &resourceLoaders);
+    Q_INVOKABLE void cleanupResources();
+    Q_INVOKABLE bool synchronize(QSet<QSSGRenderGraphObject *> &resourceLoaders);
+    Q_INVOKABLE void requestUpdate();
 
     QQuickWindow *window() const;
 
-    void registerSceneManager(QQuick3DSceneManager &manager)
-    {
-        if (!sceneManagers.contains(&manager))
-            sceneManagers.push_back(&manager);
-    }
+    const std::shared_ptr<QSSGRenderContextInterface> &rci() const { return m_rci; }
+    void setRci(const std::shared_ptr<QSSGRenderContextInterface> &rciptr);
 
-    void unregisterSceneManager(QQuick3DSceneManager &manager)
-    {
-        sceneManagers.removeAll(&manager);
-    }
+    void registerSceneManager(QQuick3DSceneManager &manager);
+    void unregisterSceneManager(QQuick3DSceneManager &manager);
+
+    void queueForCleanup(QSSGRenderGraphObject *obj);
+    void queueForCleanup(QQuick3DSceneManager *manager);
+
+Q_SIGNALS:
+    void releaseCachedResources();
+    void renderContextInterfaceChanged();
 
 private:
+    Q_INVOKABLE void onReleaseCachedResources();
+    Q_INVOKABLE void onInvalidated();
+
+    QPointer<QQuickWindow> m_window;
+    std::shared_ptr<QSSGRenderContextInterface> m_rci;
     QList<QQuick3DSceneManager *> sceneManagers;
+    QList<QQuick3DSceneManager *> sceneManagerCleanupQueue;
+    QList<QSSGRenderGraphObject *> pendingResourceCleanupQueue;
+    QSet<QSSGRenderGraphObject *> resourceCleanupQueue;
 };
 
 class Q_QUICK3D_PRIVATE_EXPORT QQuick3DSceneManager : public QObject
@@ -68,6 +80,7 @@ public:
     QQuickWindow *window();
 
     void dirtyItem(QQuick3DObject *item);
+    void requestUpdate();
     void cleanup(QSSGRenderGraphObject *item);
 
     void polishItems();
@@ -75,23 +88,64 @@ public:
     void sync();
     void preSync();
 
-    void cleanupNodes();
+    bool cleanupNodes();
     bool updateDirtyResourceNodes();
     void updateDirtySpatialNodes();
+    void updateDiryExtensions();
 
-    void updateDirtyNode(QQuick3DObject *object);
     void updateDirtyResource(QQuick3DObject *resourceObject);
     void updateDirtySpatialNode(QQuick3DNode *spatialNode);
-    void updateBoundingBoxes(const QSSGRef<QSSGBufferManager> &mgr);
-    static QQuick3DWindowAttachment *getOrSetWindowAttachment(QQuickWindow &window);
+    void updateBoundingBoxes(QSSGBufferManager &mgr);
 
     QQuick3DObject *lookUpNode(const QSSGRenderGraphObject *node) const;
 
-    QQuick3DObject *dirtySpatialNodeList;
-    QQuick3DObject *dirtyResourceList;
-    QQuick3DObject *dirtyImageList;
-    QQuick3DObject *dirtyTextureDataList;
-    QList<QQuick3DObject *> dirtyLightList;
+    // Where the enumerator is placed will decide the priority it gets.
+    // NOTE: Place new list types before 'Count'.
+    // NOTE: InstanceNodes are nodes that have an instance root set, we'll process these
+    // after the other nodes but before light nodes; this implies that lights are not good candidates
+    // for being instance roots...
+    enum class NodePriority { Skeleton, Other, ModelWithInstanceRoot, Lights, Count };
+    enum class ResourcePriority { TextureData, Texture, Other, Count };
+    enum class ExtensionPriority { RenderExtension, Count };
+
+    static inline size_t resourceListIndex(QSSGRenderGraphObject::Type type)
+    {
+        Q_ASSERT(!QSSGRenderGraphObject::isNodeType(type));
+
+        if (QSSGRenderGraphObject::isTexture(type))
+            return size_t(ResourcePriority::Texture);
+
+        if (type == QSSGRenderGraphObject::Type::TextureData)
+            return size_t(ResourcePriority::TextureData);
+
+        return size_t(ResourcePriority::Other);
+    }
+
+    static inline size_t nodeListIndex(QSSGRenderGraphObject::Type type)
+    {
+        Q_ASSERT(QSSGRenderGraphObject::isNodeType(type));
+
+        if (QSSGRenderGraphObject::isLight(type))
+            return size_t(NodePriority::Lights);
+
+        if (type == QSSGRenderGraphObject::Type::Skeleton)
+            return size_t(NodePriority::Skeleton);
+
+        return size_t(NodePriority::Other);
+    }
+
+    static constexpr size_t extensionListIndex(QSSGRenderGraphObject::Type type)
+    {
+        Q_ASSERT(QSSGRenderGraphObject::isExtension(type));
+
+        return size_t(ExtensionPriority::RenderExtension);
+    }
+
+    static QQuick3DWindowAttachment *getOrSetWindowAttachment(QQuickWindow &window);
+
+    QQuick3DObject *dirtyResources[size_t(ResourcePriority::Count)] {};
+    QQuick3DObject *dirtyNodes[size_t(NodePriority::Count)] {};
+    QQuick3DObject *dirtyExtensions[size_t(ExtensionPriority::Count)] {};
 
     QList<QQuick3DObject *> dirtyBoundingBoxList;
     QList<QSSGRenderGraphObject *> cleanupNodeList;
@@ -103,7 +157,8 @@ public:
     QSet<QSSGRenderGraphObject *> resourceLoaders;
     QQuickWindow *m_window = nullptr;
     QPointer<QQuick3DWindowAttachment> wattached;
-    QSSGRenderContextInterface *rci = nullptr;
+    int inputHandlingEnabled = 0; // Holds the count of active item2Ds, input disabled if zero.
+    bool sharedResourceRemoved = false;
     friend QQuick3DObject;
 
 Q_SIGNALS:
@@ -111,7 +166,9 @@ Q_SIGNALS:
     void windowChanged();
 
 private Q_SLOTS:
-    bool updateNodes(QQuick3DObject **listHead);
+    bool updateResources(QQuick3DObject **listHead);
+    void updateNodes(QQuick3DObject **listHead);
+    void updateExtensions(QQuick3DObject **listHead);
 };
 
 QT_END_NAMESPACE

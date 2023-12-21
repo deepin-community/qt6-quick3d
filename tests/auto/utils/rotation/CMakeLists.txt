@@ -1,7 +1,10 @@
+# Copyright (C) 2022 The Qt Company Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 qt_internal_add_test(tst_qquick3drotationdata
     SOURCES
         tst_rotation.cpp
-    PUBLIC_LIBRARIES
+    LIBRARIES
         Qt::Quick3DUtilsPrivate
 )
 

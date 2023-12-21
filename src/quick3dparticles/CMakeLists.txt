@@ -1,3 +1,5 @@
+# Copyright (C) 2022 The Qt Company Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
 
 #####################################################################
 ## Quick3DParticles Module:
@@ -7,7 +9,7 @@ qt_internal_add_qml_module(Quick3DParticles
     URI "QtQuick3D.Particles3D"
     VERSION "${PROJECT_VERSION}"
     DESIGNER_SUPPORTED
-    CLASSNAME QtQuick3DParticles3DPlugin
+    CLASS_NAME QtQuick3DParticles3DPlugin
     PLUGIN_TARGET qtquick3dparticles3dplugin
     DEPENDENCIES
         QtQuick3D/auto
@@ -71,6 +73,11 @@ qt_internal_add_qml_module(Quick3DParticles
         Qt::Quick3DPrivate
     GENERATE_CPP_EXPORTS
     GENERATE_PRIVATE_CPP_EXPORTS
+)
+
+qt_internal_generate_tracepoints(Quick3DParticles quick3d
+    SOURCES
+        qquick3dparticlesystem.cpp
 )
 
 if(QT_FEATURE_quick_designer AND QT_BUILD_SHARED_LIBS) # special case handle unconverted static

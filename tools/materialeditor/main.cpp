@@ -4,11 +4,6 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 
-#include "resourceserver.h"
-#include "resourceclient.h"
-
-#include "materialadapter.h"
-
 #include <QtQuick3D>
 
 #include <QtCore/qcommandlineparser.h>
@@ -91,7 +86,7 @@ int main(int argc, char *argv[])
     QQmlApplicationEngine engine;
     if (auto ctx = engine.rootContext())
         ctx->setContextProperty("_qtProjectDir", QUrl::fromLocalFile(projectPath));
-    const QUrl url(QStringLiteral("qrc:/main.qml"));
+    const QUrl url(QStringLiteral("qrc:/qt-project.org/imports/QtQuick3D/MaterialEditor/main.qml"));
     engine.load(url);
     if (engine.rootObjects().isEmpty())
         return -1;

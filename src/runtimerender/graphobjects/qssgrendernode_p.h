@@ -71,8 +71,8 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderNode : public QSSGRenderGraphObje
     // Opacity of 1 means opaque, opacity of zero means transparent.
     float localOpacity = 1.0f;
 
-    // Nodes are initially dirty, but not active!
-    FlagT flags { FlagT(DirtyFlag::GlobalValuesDirty) };
+    // Nodes are initially dirty and locally active!
+    FlagT flags { FlagT(DirtyFlag::GlobalValuesDirty) | FlagT(LocalState::Active) };
     // These end up right handed
     QMatrix4x4 localTransform;
     QMatrix4x4 globalTransform;
@@ -91,6 +91,8 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderNode : public QSSGRenderGraphObje
 
     using ChildList = QSSGInvasiveLinkedList<QSSGRenderNode, &QSSGRenderNode::previousSibling, &QSSGRenderNode::nextSibling>;
     ChildList children;
+
+    QString debugObjectName;
 
     QSSGRenderNode();
     explicit QSSGRenderNode(Type type);
@@ -125,11 +127,11 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderNode : public QSSGRenderGraphObje
     [[nodiscard]] static QMatrix4x4 calculateTransformMatrix(QVector3D position, QVector3D scale, QVector3D pivot, QQuaternion rotation);
 
     // Get the bounds of us and our children in our local space.
-    QSSGBounds3 getBounds(const QSSGRef<QSSGBufferManager> &inManager,
+    QSSGBounds3 getBounds(QSSGBufferManager &inManager,
                             bool inIncludeChildren = true) const;
-    QSSGBounds3 getChildBounds(const QSSGRef<QSSGBufferManager> &inManager) const;
+    QSSGBounds3 getChildBounds(QSSGBufferManager &inManager) const;
     // Assumes CalculateGlobalVariables has already been called.
-    QVector3D getGlobalPos() const;
+    QVector3D getGlobalPos() const { return QVector3D(globalTransform(0, 3), globalTransform(1, 3), globalTransform(2, 3)); }
     QVector3D getGlobalPivot() const;
     // Pulls the 3rd column out of the global transform.
     QVector3D getDirection() const;
@@ -143,6 +145,15 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderNode : public QSSGRenderGraphObje
 
     // This should be in a utility file somewhere
     QMatrix3x3 calculateNormalMatrix() const;
+
+    // The Squared value of \a val
+    // This is mainly used for setting the sorting bias on models and particles
+    // since we're using the squared distance when sorting.
+    [[nodiscard]] static inline float signedSquared(float val)
+    {
+        const float sign = (val >= 0.0f) ? 1.0f : -1.0f;
+        return sign * val * val;
+    }
 };
 
 QT_END_NAMESPACE

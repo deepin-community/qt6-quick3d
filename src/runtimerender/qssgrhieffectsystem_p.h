@@ -25,42 +25,70 @@ QT_BEGIN_NAMESPACE
 struct QSSGRhiEffectTexture;
 class QSSGRenderer;
 
-struct QSSGProgramGenerator;
-struct QSSGShaderLibraryManager;
+class QSSGProgramGenerator;
+class QSSGShaderLibraryManager;
 class QSSGShaderCache;
 
+struct QSSGEffectSceneCacheKey
+{
+    QByteArray m_shaderPathKey;
+    quintptr m_cmd;
+    int m_ubufIndex;
+
+    size_t m_hashCode = 0;
+
+    static size_t generateHashCode(const QByteArray &shaderPathKey, quintptr cmd, int ubufIndex)
+    {
+        return qHash(shaderPathKey) ^ qHash(cmd) ^ qHash(ubufIndex);
+    }
+
+    void updateHashCode()
+    {
+        m_hashCode = generateHashCode(m_shaderPathKey, m_cmd, m_ubufIndex);
+    }
+
+    bool operator==(const QSSGEffectSceneCacheKey &other) const
+    {
+        return m_shaderPathKey == other.m_shaderPathKey
+                && m_cmd == other.m_cmd
+                && m_ubufIndex == other.m_ubufIndex;
+    }
+};
+
+inline size_t qHash(const QSSGEffectSceneCacheKey &key)
+{
+    return key.m_hashCode;
+}
 
 class Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRhiEffectSystem
 {
 public:
-    QSSGRhiEffectSystem(const QSSGRef<QSSGRenderContextInterface> &sgContext);
+    explicit QSSGRhiEffectSystem(const std::shared_ptr<QSSGRenderContextInterface> &sgContext);
     ~QSSGRhiEffectSystem();
 
     void setup(QSize outputSize);
-    QRhiTexture *process(const QSSGRef<QSSGRhiContext> &rhiCtx,
-                         const QSSGRef<QSSGRenderer> &renderer,
-                         const QSSGRenderEffect &firstEffect,
+    QRhiTexture *process(const QSSGRenderEffect &firstEffect,
                          QRhiTexture *inTexture,
                          QRhiTexture *inDepthTexture,
                          QVector2D cameraClipRange);
 
     static QSSGRenderTextureFormat::Format overriddenOutputFormat(const QSSGRenderEffect *inEffect);
 
-    static QSSGRef<QSSGRhiShaderPipeline> buildShaderForEffect(const QSSGBindShader &inCmd,
-                                                               const QSSGRef<QSSGProgramGenerator> &generator,
-                                                               const QSSGRef<QSSGShaderLibraryManager> &shaderLib,
-                                                               const QSSGRef<QSSGShaderCache> &shaderCache,
-                                                               bool isYUpInFramebuffer);
+    static QSSGRhiShaderPipelinePtr buildShaderForEffect(const QSSGBindShader &inCmd,
+                                                         QSSGProgramGenerator &generator,
+                                                         QSSGShaderLibraryManager &shaderLib,
+                                                         QSSGShaderCache &shaderCache,
+                                                         bool isYUpInFramebuffer);
 
 private:
     void releaseResources();
     QSSGRhiEffectTexture *doRenderEffect(const QSSGRenderEffect *inEffect,
                         QSSGRhiEffectTexture *inTexture);
 
-    void allocateBufferCmd(const QSSGAllocateBuffer *inCmd, QSSGRhiEffectTexture *inTexture);
+    void allocateBufferCmd(const QSSGAllocateBuffer *inCmd, QSSGRhiEffectTexture *inTexture, const QSSGRenderEffect *inEffect);
     void applyInstanceValueCmd(const QSSGApplyInstanceValue *inCmd, const QSSGRenderEffect *inEffect);
     void applyValueCmd(const QSSGApplyValue *inCmd, const QSSGRenderEffect *inEffect);
-    void bindShaderCmd(const QSSGBindShader *inCmd);
+    void bindShaderCmd(const QSSGBindShader *inCmd, const QSSGRenderEffect *inEffect);
     void renderCmd(QSSGRhiEffectTexture *inTexture, QSSGRhiEffectTexture *target);
 
     void addCommonEffectUniforms(const QSize &inputSize, const QSize &outputSize);
@@ -68,20 +96,18 @@ private:
 
     QSSGRhiEffectTexture *findTexture(const QByteArray &bufferName);
     QSSGRhiEffectTexture *getTexture(const QByteArray &bufferName, const QSize &size,
-                                     QRhiTexture::Format format, bool isFinalOutput);
+                                     QRhiTexture::Format format, bool isFinalOutput,
+                                     const QSSGRenderEffect *inEffect);
     void releaseTexture(QSSGRhiEffectTexture *texture);
     void releaseTextures();
 
     QSize m_outSize;
-    QSSGRenderContextInterface *m_sgContext = nullptr;
+    std::shared_ptr<QSSGRenderContextInterface> m_sgContext;
     QVector<QSSGRhiEffectTexture *> m_textures;
     QRhiTexture *m_depthTexture = nullptr;
     QVector2D m_cameraClipRange;
-    QSSGRhiEffectTexture *m_currentOutput = nullptr;
     int m_currentUbufIndex = 0;
-    QSSGRef<QSSGRhiContext> m_rhiContext;
-    QSSGRenderer *m_renderer = nullptr;
-    QHash<quintptr, QSSGRef<QSSGRhiShaderPipeline>> m_shaderPipelines;
+    QHash<QSSGEffectSceneCacheKey, QSSGRhiShaderPipelinePtr> m_shaderPipelines;
     QSSGRhiShaderPipeline *m_currentShaderPipeline = nullptr;
     char *m_currentUBufData = nullptr;
     QHash<QByteArray, QSSGRhiTexture> m_currentTextures;

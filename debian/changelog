@@ -1,3 +1,18 @@
+qt6-quick3d (6.6.1-1) experimental; urgency=medium
+
+  [ Patrick Franz ]
+  * New upstream release (6.6.1).
+  * Bump Qt B-Ds to 6.6.1.
+  * Update list of installed files and new binary package qml6-module-
+    qtquick3d-materialeditor.
+  * Update symbols from buildlogs.
+  * Rename QML modules.
+  * Update d/copyright.
+  * Package the private headers.
+  * Remove multiple binary packages.
+
+ -- Patrick Franz <deltaone@debian.org>  Tue, 19 Dec 2023 22:35:23 +0100
+
 qt6-quick3d (6.4.2-3) unstable; urgency=medium
 
   * Team upload ot unstable.

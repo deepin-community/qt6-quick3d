@@ -1,6 +1,0 @@
-SYNCQT.HEADER_FILES = 
-SYNCQT.GENERATED_HEADER_FILES = qtquick3diblbakerversion.h QtQuick3DIblBakerVersion QtQuick3DIblBaker 
-SYNCQT.PRIVATE_HEADER_FILES = qssgiblbaker_p.h qtquick3diblbaker_p.h 
-SYNCQT.QPA_HEADER_FILES = 
-SYNCQT.CLEAN_HEADER_FILES = 
-SYNCQT.INJECTIONS = 

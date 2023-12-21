@@ -4,7 +4,7 @@
 /*!
 
 \title Lightmaps and Global Illumination
-\page quick3d-lightmap howto
+\page quick3d-lightmap
 
 \section1 Introduction
 
@@ -39,8 +39,9 @@ perpendicular to the DirectionalLight's direction.
 On the right, the scene is rendered with lightmapping enabled, after having
 lightmaps baked for all five models. Both lights are set to fully baked,
 meaning both direct and indirect illumination is baked. Indirect lighting uses
-256 samples and a maximum of 3 bounces. The resulting lightmaps were then
-denoised. This gives a significantly more realistic image.
+256 \l{Lightmapper::}{samples} and a maximum of 3 \l{Lightmapper::}{bounces}.
+The resulting lightmaps were then denoised. This gives a significantly more
+realistic image.
 
 \b{Real-time lighting}
 
@@ -178,7 +179,7 @@ explored and tested before deciding on the final approach and the related
 settings.
 
 \note Lightmaps do not support two-sided surfaces. With real time lighting a
-material with a \l{QQuick3DMaterial::cullMode}{cull mode} of \l
+material with a \l{QQuick3DMaterial::cullMode}{cull mode} of \c
 Material.NoCulling automatically inverts the normal as appropriate based on the
 facing of the fragment. This is not an option for lightmaps since lightmap
 baking does not operate in view space. Therefore, avoid baked lighting for
@@ -281,32 +282,42 @@ lightmaps loaded. The tuning can then begin:
 
     \li The Lightmapper object exposes numerous settings that have reasonable
     defaults, but it is not unlikely that some of these will need to be tuned
-    to match the designers' expectation. For example, \l samples and \l bounces
-    can be changed to affect the quality of indirect lighting, while \l
-    indirectLightFactor allows making the indirect contribution more prominent.
-    If artifacts, in particular around shadows, occur, \l bias can be
+    to match the designers' expectation. For example, \l {Lightmapper::}{samples}
+    and \l {Lightmapper::}{bounces} can be changed to affect the quality of
+    indirect lighting, while \l {Lightmapper::}{indirectLightFactor} allows
+    making the indirect contribution more prominent. If artifacts, in
+    particular around shadows, occur, \l {Lightmapper::}{bias} can be
     fine-tuned.
 
     \li Denoising the generate lightmaps is essential. Indirect lighting is
     calculated using \l{https://en.wikipedia.org/wiki/Path_tracing}{path
-    tracing}, which produces noisy images depending on the number of the \l
-    samples used. Increasing the sample count reduces noise, but increases the
-    time needed to generate the lightmap. Regardless of the sample count, it
-    will almost always make sense to run a denoiser on the generated lightmaps,
-    which are 32-bit RGBA floating point images stored in as .exr files.
+    tracing}, which produces noisy images depending on the number of the
+    \l {Lightmapper::}{samples} used. Increasing the sample count reduces noise,
+    but increases the time needed to generate the lightmap. Regardless of the
+    sample count, it will almost always make sense to run a denoiser on the
+    generated lightmaps, which are 32-bit RGBA floating point images stored
+    in as .exr files.
 
     \endlist
 
 \endlist
 
+As of Qt 6.5, a runtime solution is provided interactively through the DebugView.
+Under Tools there is now a button that when pressed will trigger the baking process.
+A window will pop up showing the current process. Canceling can be done by
+either hitting the cancel button or closing this window. When complete, it will
+try to overwrite the existing .exr files if possible using the loadPrefix, else
+they will be written to the current directory.
+For now, Denoising is still a manual process even when using the runtime solution.
+
 \section2 Denoising
 
 Below is an example of a \l{https://en.wikipedia.org/wiki/Cornell_box}{Cornell
-box} scene, rendered first using the lightmap baked with 256 \l samples and a
-maximum of 3 \l bounces. In the second example, the generated image file has
-been run through a denoiser using the
-\l{https://www.openimagedenoise.org/}{Open Image Denoise} library. The results
-look significantly better, with the noise mostly gone.
+box} scene, rendered first using the lightmap baked with 256
+\l {Lightmapper::}{samples} and a maximum of 3 \l {Lightmapper::}{bounces}. In
+the second example, the generated image file has been run through a denoiser
+using the \l{https://www.openimagedenoise.org/}{Open Image Denoise} library.
+The results look significantly better, with the noise mostly gone.
 
 \b{Original}
 

@@ -1,3 +1,6 @@
+# Copyright (C) 2022 The Qt Company Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 cmake_minimum_required(VERSION 3.16)
 project(helloqtquick3d LANGUAGES CXX)
 
@@ -37,6 +40,8 @@ qt_add_qml_module(helloqtquick3d
         oldqtlogo.mesh
         qt_logo.png
     NO_RESOURCE_TARGET_PATH
+    IMPORTS
+        QtQuick3D
 )
 
 install(TARGETS helloqtquick3d

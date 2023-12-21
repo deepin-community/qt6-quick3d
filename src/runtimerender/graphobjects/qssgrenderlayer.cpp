@@ -15,26 +15,6 @@ QSSGRenderLayer::QSSGRenderLayer()
     , antialiasingMode(QSSGRenderLayer::AAMode::NoAA)
     , antialiasingQuality(QSSGRenderLayer::AAQuality::High)
     , background(QSSGRenderLayer::Background::Transparent)
-    , horizontalFieldValues(QSSGRenderLayer::HorizontalField::LeftWidth)
-    , m_left(0)
-    , leftUnits(QSSGRenderLayer::UnitType::Percent)
-    , m_width(100.0f)
-    , widthUnits(QSSGRenderLayer::UnitType::Percent)
-    , m_right(0)
-    , rightUnits(QSSGRenderLayer::UnitType::Percent)
-    , verticalFieldValues(QSSGRenderLayer::VerticalField::TopHeight)
-    , m_top(0)
-    , topUnits(QSSGRenderLayer::UnitType::Percent)
-    , m_height(100.0f)
-    , heightUnits(QSSGRenderLayer::UnitType::Percent)
-    , m_bottom(0)
-    , bottomUnits(QSSGRenderLayer::UnitType::Percent)
-    , aoStrength(0)
-    , aoDistance(5.0f)
-    , aoSoftness(50.0f)
-    , aoBias(0)
-    , aoSamplerate(2)
-    , aoDither(false)
     , lightProbe(nullptr)
     , probeExposure(1.0f)
     , probeHorizon(-1.0f)
@@ -47,6 +27,7 @@ QSSGRenderLayer::QSSGRenderLayer()
     , renderedCamera(nullptr)
     , tonemapMode(TonemapMode::Linear)
 {
+    flags = { FlagT(LocalState::Active) | FlagT(GlobalState::Active) }; // The layer node is alway active and not dirty.
 }
 
 QSSGRenderLayer::~QSSGRenderLayer()
@@ -69,7 +50,6 @@ void QSSGRenderLayer::addEffect(QSSGRenderEffect &inEffect)
     // Effects need to be rendered in reverse order as described in the file.
     inEffect.m_nextEffect = firstEffect;
     firstEffect = &inEffect;
-    inEffect.m_layer = this;
 }
 
 bool QSSGRenderLayer::hasEffect(QSSGRenderEffect *inEffect) const
@@ -97,7 +77,7 @@ void QSSGRenderLayer::setImportScene(QSSGRenderNode &rootNode)
     auto &importChildren = importSceneNode->children;
     Q_ASSERT(importChildren.isEmpty());
     // We don't want the list to modify our node, so we set the tail and head manually.
-    importChildren.m_head = children.m_tail = &rootNode;
+    importChildren.m_head = importChildren.m_tail = &rootNode;
 }
 
 void QSSGRenderLayer::removeImportScene(QSSGRenderNode &rootNode)
@@ -106,18 +86,6 @@ void QSSGRenderLayer::removeImportScene(QSSGRenderNode &rootNode)
         if (&importSceneNode->children.back() == &rootNode)
             importSceneNode->children.clear();
     }
-}
-
-QSSGRenderEffect *QSSGRenderLayer::getLastEffect()
-{
-    if (firstEffect) {
-        QSSGRenderEffect *theEffect = firstEffect;
-        // Empty loop intentional
-        for (; theEffect->m_nextEffect; theEffect = theEffect->m_nextEffect);
-        Q_ASSERT(theEffect->m_nextEffect == nullptr);
-        return theEffect;
-    }
-    return nullptr;
 }
 
 QT_END_NAMESPACE

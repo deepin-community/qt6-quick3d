@@ -40,20 +40,20 @@ bool QSSGShaderMaterialAdapter::hasCustomShaderSnippet(QSSGShaderCache::ShaderTy
 }
 
 QByteArray QSSGShaderMaterialAdapter::customShaderSnippet(QSSGShaderCache::ShaderType,
-                                                          const QSSGRef<QSSGShaderLibraryManager> &)
+                                                          QSSGShaderLibraryManager &)
 {
     return QByteArray();
 }
 
 bool QSSGShaderMaterialAdapter::hasCustomShaderFunction(QSSGShaderCache::ShaderType,
                                                         const QByteArray &,
-                                                        const QSSGRef<QSSGShaderLibraryManager> &)
+                                                        QSSGShaderLibraryManager &)
 {
     return false;
 }
 
 void QSSGShaderMaterialAdapter::setCustomPropertyUniforms(char *,
-                                                          QSSGRef<QSSGRhiShaderPipeline> &,
+                                                          QSSGRhiShaderPipeline &,
                                                           const QSSGRenderContextInterface &)
 {
 }
@@ -111,6 +111,11 @@ bool QSSGShaderDefaultMaterialAdapter::hasLighting()
 }
 
 bool QSSGShaderDefaultMaterialAdapter::usesCustomSkinning()
+{
+    return false;
+}
+
+bool QSSGShaderDefaultMaterialAdapter::usesCustomMorphing()
 {
     return false;
 }
@@ -281,9 +286,7 @@ bool QSSGShaderCustomMaterialAdapter::isSpecularEnabled()
 
 bool QSSGShaderCustomMaterialAdapter::isVertexColorsEnabled()
 {
-    // qt_varColor must always be present. Works also if the mesh does not have
-    // colors, it will assume vec4(1.0).
-    return true;
+    return m_material.m_renderFlags.testFlag(QSSGRenderCustomMaterial::RenderFlag::VarColor);
 }
 
 bool QSSGShaderCustomMaterialAdapter::isClearcoatEnabled()
@@ -306,6 +309,11 @@ bool QSSGShaderCustomMaterialAdapter::hasLighting()
 bool QSSGShaderCustomMaterialAdapter::usesCustomSkinning()
 {
     return m_material.m_renderFlags.testFlag(QSSGRenderCustomMaterial::RenderFlag::Skinning);
+}
+
+bool QSSGShaderCustomMaterialAdapter::usesCustomMorphing()
+{
+    return m_material.m_renderFlags.testFlag(QSSGRenderCustomMaterial::RenderFlag::Morphing);
 }
 
 QSSGRenderDefaultMaterial::MaterialSpecularModel QSSGShaderCustomMaterialAdapter::specularModel()
@@ -464,26 +472,26 @@ bool QSSGShaderCustomMaterialAdapter::hasCustomShaderSnippet(QSSGShaderCache::Sh
 }
 
 QByteArray QSSGShaderCustomMaterialAdapter::customShaderSnippet(QSSGShaderCache::ShaderType type,
-                                                                const QSSGRef<QSSGShaderLibraryManager> &shaderLibraryManager)
+                                                                QSSGShaderLibraryManager &shaderLibraryManager)
 {
     if (hasCustomShaderSnippet(type))
-        return shaderLibraryManager->getShaderSource(m_material.m_shaderPathKey, type);
+        return shaderLibraryManager.getShaderSource(m_material.m_shaderPathKey, type);
 
     return QByteArray();
 }
 
 bool QSSGShaderCustomMaterialAdapter::hasCustomShaderFunction(QSSGShaderCache::ShaderType shaderType,
                                                               const QByteArray &funcName,
-                                                              const QSSGRef<QSSGShaderLibraryManager> &shaderLibraryManager)
+                                                              QSSGShaderLibraryManager &shaderLibraryManager)
 {
     if (hasCustomShaderSnippet(shaderType))
-        return shaderLibraryManager->getShaderMetaData(m_material.m_shaderPathKey, shaderType).customFunctions.contains(funcName);
+        return shaderLibraryManager.getShaderMetaData(m_material.m_shaderPathKey, shaderType).customFunctions.contains(funcName);
 
     return false;
 }
 
 void QSSGShaderCustomMaterialAdapter::setCustomPropertyUniforms(char *ubufData,
-                                                                QSSGRef<QSSGRhiShaderPipeline> &shaderPipeline,
+                                                                QSSGRhiShaderPipeline &shaderPipeline,
                                                                 const QSSGRenderContextInterface &context)
 {
     context.customMaterialSystem()->applyRhiShaderPropertyValues(ubufData, m_material, shaderPipeline);
@@ -570,22 +578,10 @@ static const QSSGCustomMaterialVariableSubstitution qssg_var_subst_tab[] = {
     { "INSTANCE_INDEX", "gl_InstanceIndex"},
 
     // morphing
-    { "MORPH_POSITION0", "attr_tpos0"},
-    { "MORPH_POSITION1", "attr_tpos1"},
-    { "MORPH_POSITION2", "attr_tpos2"},
-    { "MORPH_POSITION3", "attr_tpos3"},
-    { "MORPH_POSITION4", "attr_tpos4"},
-    { "MORPH_POSITION5", "attr_tpos5"},
-    { "MORPH_POSITION6", "attr_tpos6"},
-    { "MORPH_POSITION7", "attr_tpos7"},
-    { "MORPH_NORMAL0", "attr_tnorm0"},
-    { "MORPH_NORMAL1", "attr_tnorm1"},
-    { "MORPH_NORMAL2", "attr_tnorm2"},
-    { "MORPH_NORMAL3", "attr_tnorm3"},
-    { "MORPH_TANGENT0", "attr_ttan0"},
-    { "MORPH_TANGENT1", "attr_ttan1"},
-    { "MORPH_BINORMAL0", "attr_tbinorm0"},
-    { "MORPH_BINORMAL1", "attr_tbinorm1"},
+    { "MORPH_POSITION", "qt_getTargetPositionFromTargetId"},
+    { "MORPH_NORMAL", "qt_getTargetNormalFromTargetId"},
+    { "MORPH_TANGENT", "qt_getTargetTangentFromTargetId"},
+    { "MORPH_BINORMAL", "qt_getTargetBinormalFromTargetId"},
     { "MORPH_WEIGHTS", "qt_morphWeights"},
 
     // custom variables
@@ -819,7 +815,11 @@ QSSGShaderCustomMaterialAdapter::prepareCustomShader(QByteArray &dst,
                             useJointNormalTexState = 0;
                             md.flags |= QSSGCustomShaderMetaData::UsesSkinning;
                         }
-
+                        if (trimmedId == QByteArrayLiteral("MORPH_POSITION") ||
+                                trimmedId == QByteArrayLiteral("MORPH_NORMAL") ||
+                                trimmedId == QByteArrayLiteral("MORPH_TANGENT") ||
+                                trimmedId == QByteArrayLiteral("MORPH_BINORMAL"))
+                            md.flags |= QSSGCustomShaderMetaData::UsesMorphing;
                         break;
                     }
                 }

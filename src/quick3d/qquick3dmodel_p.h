@@ -40,6 +40,7 @@ class Q_QUICK3D_EXPORT QQuick3DBounds3
     Q_GADGET
     Q_PROPERTY(QVector3D minimum READ minimum CONSTANT)
     Q_PROPERTY(QVector3D maximum READ maximum CONSTANT)
+    QML_VALUE_TYPE(bounds)
 
 public:
     QVector3D minimum() const
@@ -78,6 +79,9 @@ class Q_QUICK3D_EXPORT QQuick3DModel : public QQuick3DNode
     Q_PROPERTY(bool usedInBakedLighting READ isUsedInBakedLighting WRITE setUsedInBakedLighting NOTIFY usedInBakedLightingChanged REVISION(6, 4))
     Q_PROPERTY(int lightmapBaseResolution READ lightmapBaseResolution WRITE setLightmapBaseResolution NOTIFY lightmapBaseResolutionChanged REVISION(6, 4))
     Q_PROPERTY(QQuick3DBakedLightmap *bakedLightmap READ bakedLightmap WRITE setBakedLightmap NOTIFY bakedLightmapChanged REVISION(6, 4))
+    Q_PROPERTY(float instancingLodMin READ instancingLodMin WRITE setInstancingLodMin NOTIFY instancingLodMinChanged REVISION(6, 5))
+    Q_PROPERTY(float instancingLodMax READ instancingLodMax WRITE setInstancingLodMax NOTIFY instancingLodMaxChanged REVISION(6, 5))
+    Q_PROPERTY(float levelOfDetailBias READ levelOfDetailBias WRITE setLevelOfDetailBias NOTIFY levelOfDetailBiasChanged REVISION(6, 5))
 
     QML_NAMED_ELEMENT(Model)
 
@@ -111,6 +115,10 @@ public:
     Q_REVISION(6, 4) int lightmapBaseResolution() const;
     Q_REVISION(6, 4) QQuick3DBakedLightmap *bakedLightmap() const;
 
+    Q_REVISION(6, 5) float instancingLodMin() const;
+    Q_REVISION(6, 5) float instancingLodMax() const;
+    Q_REVISION(6, 5) float levelOfDetailBias() const;
+
 public Q_SLOTS:
     void setSource(const QUrl &source);
     void setCastsShadows(bool castsShadows);
@@ -129,6 +137,10 @@ public Q_SLOTS:
     Q_REVISION(6, 4) void setUsedInBakedLighting(bool enable);
     Q_REVISION(6, 4) void setLightmapBaseResolution(int resolution);
     Q_REVISION(6, 4) void setBakedLightmap(QQuick3DBakedLightmap *bakedLightmap);
+
+    Q_REVISION(6, 5) void setInstancingLodMin(float minDistance);
+    Q_REVISION(6, 5) void setInstancingLodMax(float maxDistance);
+    Q_REVISION(6, 5) void setLevelOfDetailBias(float newLevelOfDetailBias);
 
 Q_SIGNALS:
     void sourceChanged();
@@ -149,6 +161,10 @@ Q_SIGNALS:
     Q_REVISION(6, 4) void usedInBakedLightingChanged();
     Q_REVISION(6, 4) void lightmapBaseResolutionChanged();
     Q_REVISION(6, 4) void bakedLightmapChanged();
+
+    Q_REVISION(6, 5) void instancingLodMinChanged();
+    Q_REVISION(6, 5) void instancingLodMaxChanged();
+    Q_REVISION(6, 5) void levelOfDetailBiasChanged();
 
 protected:
     QSSGRenderGraphObject *updateSpatialNode(QSSGRenderGraphObject *node) override;
@@ -172,7 +188,9 @@ private:
         MorphTargetsDirty =      0x00000100,
         PropertyDirty =          0x00000200,
         ReflectionDirty =        0x00000400,
-        SkinDirty =              0x00000800
+        SkinDirty =              0x00000800,
+        LodDirty =               0x00001000,
+        InstanceRootDirty =      0x00002000,
     };
 
     QUrl m_source;
@@ -205,7 +223,6 @@ private:
     QQuick3DInstancing *m_instancing = nullptr;
     QQuick3DNode *m_instanceRoot = nullptr;
     QMetaObject::Connection m_geometryConnection;
-    QMetaObject::Connection m_skeletonConnection;
     QMetaObject::Connection m_instancingConnection;
     float m_depthBias = 0.0f;
     bool m_castsShadows = true;
@@ -218,8 +235,9 @@ private:
     QQuick3DBakedLightmap *m_bakedLightmap = nullptr;
     QMetaObject::Connection m_bakedLightmapSignalConnection;
     QQuick3DSkin *m_skin = nullptr;
-
-    QHash<QByteArray, QMetaObject::Connection> m_connections;
+    float m_instancingLodMin = -1;
+    float m_instancingLodMax = -1;
+    float m_levelOfDetailBias = 1.0f;
 };
 
 QT_END_NAMESPACE

@@ -1,3 +1,6 @@
+# Copyright (C) 2022 The Qt Company Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 # Generated from shadergen.pro.
 
 #####################################################################
@@ -10,7 +13,7 @@ qt_internal_add_test(tst_qquick3dshadergen # special case
         tst_shadergen.cpp
     INCLUDE_DIRECTORIES
         ../../../../tools/shadergen
-    PUBLIC_LIBRARIES
+    LIBRARIES
         Qt::Gui
         Qt::GuiPrivate
         Qt::QmlPrivate

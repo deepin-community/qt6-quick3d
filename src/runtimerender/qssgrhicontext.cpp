@@ -3,23 +3,33 @@
 
 #include "qssgrhicontext_p.h"
 #include <QtQuick3DUtils/private/qssgmesh_p.h>
+#include <QtQuick3DUtils/private/qssgassert_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderableimage_p.h>
+#include <QtQuick3DRuntimeRender/private/qssgrendermesh_p.h>
 #include <QtQuick3DUtils/private/qssgutils_p.h>
+#include <QtQuick3DUtils/private/qssgassert_p.h>
 #include <QtCore/QVariant>
+#include <qtquick3d_tracepoints_p.h>
 
 QT_BEGIN_NAMESPACE
+
+Q_TRACE_POINT(qtquick3d, QSSG_renderPass_entry, const QString &renderPass);
+Q_TRACE_POINT(qtquick3d, QSSG_renderPass_exit);
+Q_TRACE_POINT(qtquick3d, QSSG_drawIndexed, int indexCount, int instanceCount);
+Q_TRACE_POINT(qtquick3d, QSSG_draw, int vertexCount, int instanceCount);
 
 QSSGRhiBuffer::QSSGRhiBuffer(QSSGRhiContext &context,
                              QRhiBuffer::Type type,
                              QRhiBuffer::UsageFlags usageMask,
                              quint32 stride,
-                             int size,
+                             qsizetype size,
                              QRhiCommandBuffer::IndexFormat indexFormat)
     : m_context(context),
       m_stride(stride),
       m_indexFormat(indexFormat)
 {
-    m_buffer = m_context.rhi()->newBuffer(type, usageMask, size);
+    QSSG_ASSERT(size >= 0, size = 0);
+    m_buffer = m_context.rhi()->newBuffer(type, usageMask, quint32(size));
     if (!m_buffer->create())
         qWarning("Failed to build QRhiBuffer with size %d", m_buffer->size());
 }
@@ -44,7 +54,7 @@ QRhiVertexInputAttribute::Format QSSGRhiInputAssemblerState::toVertexInputFormat
         default:
             break;
         }
-    } else if (compType == QSSGRenderComponentType::UnsignedInteger32) {
+    } else if (compType == QSSGRenderComponentType::UnsignedInt32) {
         switch (numComps) {
         case 1:
             return QRhiVertexInputAttribute::UInt;
@@ -57,7 +67,7 @@ QRhiVertexInputAttribute::Format QSSGRhiInputAssemblerState::toVertexInputFormat
         default:
             break;
         }
-    } else if (compType == QSSGRenderComponentType::Integer32) {
+    } else if (compType == QSSGRenderComponentType::Int32) {
         switch (numComps) {
         case 1:
             return QRhiVertexInputAttribute::SInt;
@@ -90,11 +100,11 @@ QRhiGraphicsPipeline::Topology QSSGRhiInputAssemblerState::toTopology(QSSGRender
         return QRhiGraphicsPipeline::TriangleFan;
     case QSSGRenderDrawMode::Triangles:
         return QRhiGraphicsPipeline::Triangles;
-    default:
-        break;
+    case QSSGRenderDrawMode::LineLoop:
+        QSSG_ASSERT_X(false, "LineLoop draw mode is not supported", return QRhiGraphicsPipeline::Triangles);
     }
-    Q_ASSERT(false);
-    return QRhiGraphicsPipeline::Triangles;
+
+    Q_UNREACHABLE_RETURN(QRhiGraphicsPipeline::Triangles);
 }
 
 void QSSGRhiInputAssemblerState::bakeVertexInputLocations(const QSSGRhiShaderPipeline &shaders, int instanceBufferBinding)
@@ -162,11 +172,11 @@ QRhiGraphicsPipeline::CullMode QSSGRhiGraphicsPipelineState::toCullMode(QSSGCull
     case QSSGCullFaceMode::FrontAndBack:
         qWarning("FrontAndBack cull mode not supported");
         return QRhiGraphicsPipeline::None;
-    default:
-        break;
+    case QSSGCullFaceMode::Unknown:
+        return QRhiGraphicsPipeline::None;
     }
-    Q_ASSERT(false);
-    return QRhiGraphicsPipeline::None;
+
+    Q_UNREACHABLE_RETURN(QRhiGraphicsPipeline::None);
 }
 
 void QSSGRhiShaderPipeline::addStage(const QRhiShaderStage &stage, StageFlags flags)
@@ -224,56 +234,6 @@ void QSSGRhiShaderPipeline::addStage(const QRhiShaderStage &stage, StageFlags fl
                     instanceLocations.color = var.location;
                 } else if (var.name == "qt_instanceData") {
                     instanceLocations.data = var.location;
-                } else if (var.name.startsWith("attr_t")) {
-                    // it's for morphing animation and it is not common to use these
-                    // attributes. So we will check the prefix first and then remainings
-                    if (var.name.mid(6, 3) == "pos") {
-                        if (var.name.at(9) == '0')
-                            m_vertexInputs[QSSGRhiInputAssemblerState::TargetPosition0Semantic] = var;
-                        else if (var.name.at(9) == '1')
-                            m_vertexInputs[QSSGRhiInputAssemblerState::TargetPosition1Semantic] = var;
-                        else if (var.name.at(9) == '2')
-                            m_vertexInputs[QSSGRhiInputAssemblerState::TargetPosition2Semantic] = var;
-                        else if (var.name.at(9) == '3')
-                            m_vertexInputs[QSSGRhiInputAssemblerState::TargetPosition3Semantic] = var;
-                        else if (var.name.at(9) == '4')
-                            m_vertexInputs[QSSGRhiInputAssemblerState::TargetPosition4Semantic] = var;
-                        else if (var.name.at(9) == '5')
-                            m_vertexInputs[QSSGRhiInputAssemblerState::TargetPosition5Semantic] = var;
-                        else if (var.name.at(9) == '6')
-                            m_vertexInputs[QSSGRhiInputAssemblerState::TargetPosition6Semantic] = var;
-                        else if (var.name.at(9) == '7')
-                            m_vertexInputs[QSSGRhiInputAssemblerState::TargetPosition7Semantic] = var;
-                        else
-                            qWarning("Ignoring vertex input %s in shader", var.name.constData());
-                    } else if (var.name.mid(6, 4) == "norm") {
-                        if (var.name.at(10) == '0')
-                            m_vertexInputs[QSSGRhiInputAssemblerState::TargetNormal0Semantic] = var;
-                        else if (var.name.at(10) == '1')
-                            m_vertexInputs[QSSGRhiInputAssemblerState::TargetNormal1Semantic] = var;
-                        else if (var.name.at(10) == '2')
-                            m_vertexInputs[QSSGRhiInputAssemblerState::TargetNormal2Semantic] = var;
-                        else if (var.name.at(10) == '3')
-                            m_vertexInputs[QSSGRhiInputAssemblerState::TargetNormal3Semantic] = var;
-                        else
-                            qWarning("Ignoring vertex input %s in shader", var.name.constData());
-                    } else if (var.name.mid(6, 3) == "tan") {
-                        if (var.name.at(9) == '0')
-                            m_vertexInputs[QSSGRhiInputAssemblerState::TargetTangent0Semantic] = var;
-                        else if (var.name.at(9) == '1')
-                            m_vertexInputs[QSSGRhiInputAssemblerState::TargetTangent1Semantic] = var;
-                        else
-                            qWarning("Ignoring vertex input %s in shader", var.name.constData());
-                    } else if (var.name.mid(6, 6) == "binorm") {
-                        if (var.name.at(12) == '0')
-                            m_vertexInputs[QSSGRhiInputAssemblerState::TargetBinormal0Semantic] = var;
-                        else if (var.name.at(12) == '1')
-                            m_vertexInputs[QSSGRhiInputAssemblerState::TargetBinormal1Semantic] = var;
-                        else
-                            qWarning("Ignoring vertex input %s in shader", var.name.constData());
-                    } else {
-                        qWarning("Ignoring vertex input %s in shader", var.name.constData());
-                    }
                 } else {
                     qWarning("Ignoring vertex input %s in shader", var.name.constData());
                 }
@@ -290,170 +250,171 @@ void QSSGRhiShaderPipeline::addStage(const QRhiShaderStage &stage, StageFlags fl
               -1);
 }
 
-void QSSGRhiShaderPipeline::setUniformValue(char *ubufData, const char *name, const QVariant &inValue, QSSGRenderShaderDataType inType)
+void QSSGRhiShaderPipeline::setUniformValue(char *ubufData, const char *name, const QVariant &inValue, QSSGRenderShaderValue::Type inType)
 {
+    using namespace QSSGRenderShaderValue;
     switch (inType) {
-    case QSSGRenderShaderDataType::Integer:
+    case QSSGRenderShaderValue::Integer:
     {
         const qint32 v = inValue.toInt();
         setUniform(ubufData, name, &v, sizeof(qint32));
     }
         break;
-    case QSSGRenderShaderDataType::IntegerVec2:
+    case QSSGRenderShaderValue::IntegerVec2:
     {
-        const qint32_2 v = inValue.value<qint32_2>();
+        const ivec2 v = inValue.value<ivec2>();
         setUniform(ubufData, name, &v, 2 * sizeof(qint32));
     }
         break;
-    case QSSGRenderShaderDataType::IntegerVec3:
+    case QSSGRenderShaderValue::IntegerVec3:
     {
-        const qint32_3 v = inValue.value<qint32_3>();
+        const ivec3 v = inValue.value<ivec3>();
         setUniform(ubufData, name, &v, 3 * sizeof(qint32));
     }
         break;
-    case QSSGRenderShaderDataType::IntegerVec4:
+    case QSSGRenderShaderValue::IntegerVec4:
     {
-        const qint32_4 v = inValue.value<qint32_4>();
+        const ivec4 v = inValue.value<ivec4>();
         setUniform(ubufData, name, &v, 4 * sizeof(qint32));
     }
         break;
-    case QSSGRenderShaderDataType::Boolean:
+    case QSSGRenderShaderValue::Boolean:
     {
         // whatever bool is does not matter, what matters is that the GLSL bool is 4 bytes
         const qint32 v = inValue.value<bool>();
         setUniform(ubufData, name, &v, sizeof(qint32));
     }
         break;
-    case QSSGRenderShaderDataType::BooleanVec2:
+    case QSSGRenderShaderValue::BooleanVec2:
     {
-        const bool_2 b = inValue.value<bool_2>();
-        const qint32_2 v(b.x, b.y);
+        const bvec2 b = inValue.value<bvec2>();
+        const ivec2 v(b.x, b.y);
         setUniform(ubufData, name, &v, 2 * sizeof(qint32));
     }
         break;
-    case QSSGRenderShaderDataType::BooleanVec3:
+    case QSSGRenderShaderValue::BooleanVec3:
     {
-        const bool_3 b = inValue.value<bool_3>();
-        const qint32_3 v(b.x, b.y, b.z);
+        const bvec3 b = inValue.value<bvec3>();
+        const ivec3 v(b.x, b.y, b.z);
         setUniform(ubufData, name, &v, 3 * sizeof(qint32));
     }
         break;
-    case QSSGRenderShaderDataType::BooleanVec4:
+    case QSSGRenderShaderValue::BooleanVec4:
     {
-        const bool_4 b = inValue.value<bool_4>();
-        const qint32_4 v(b.x, b.y, b.z, b.w);
+        const bvec4 b = inValue.value<bvec4>();
+        const ivec4 v(b.x, b.y, b.z, b.w);
         setUniform(ubufData, name, &v, 4 * sizeof(qint32));
     }
         break;
-    case QSSGRenderShaderDataType::Float:
+    case QSSGRenderShaderValue::Float:
     {
         const float v = inValue.value<float>();
         setUniform(ubufData, name, &v, sizeof(float));
     }
         break;
-    case QSSGRenderShaderDataType::Vec2:
+    case QSSGRenderShaderValue::Vec2:
     {
         const QVector2D v = inValue.value<QVector2D>();
         setUniform(ubufData, name, &v, 2 * sizeof(float));
     }
         break;
-    case QSSGRenderShaderDataType::Vec3:
+    case QSSGRenderShaderValue::Vec3:
     {
         const QVector3D v = inValue.value<QVector3D>();
         setUniform(ubufData, name, &v, 3 * sizeof(float));
     }
         break;
-    case QSSGRenderShaderDataType::Vec4:
+    case QSSGRenderShaderValue::Vec4:
     {
         const QVector4D v = inValue.value<QVector4D>();
         setUniform(ubufData, name, &v, 4 * sizeof(float));
     }
         break;
-    case QSSGRenderShaderDataType::Rgba:
+    case QSSGRenderShaderValue::Rgba:
     {
-        const QVector4D v = color::sRGBToLinear(inValue.value<QColor>());
+        const QVector4D v = QSSGUtils::color::sRGBToLinear(inValue.value<QColor>());
         setUniform(ubufData, name, &v, 4 * sizeof(float));
     }
         break;
-    case QSSGRenderShaderDataType::UnsignedInteger:
+    case QSSGRenderShaderValue::UnsignedInteger:
     {
         const quint32 v = inValue.value<quint32>();
         setUniform(ubufData, name, &v, sizeof(quint32));
     }
         break;
-    case QSSGRenderShaderDataType::UnsignedIntegerVec2:
+    case QSSGRenderShaderValue::UnsignedIntegerVec2:
     {
-        const quint32_2 v = inValue.value<quint32_2>();
+        const uvec2 v = inValue.value<uvec2>();
         setUniform(ubufData, name, &v, 2 * sizeof(quint32));
     }
         break;
-    case QSSGRenderShaderDataType::UnsignedIntegerVec3:
+    case QSSGRenderShaderValue::UnsignedIntegerVec3:
     {
-        const quint32_3 v = inValue.value<quint32_3>();
+        const uvec3 v = inValue.value<uvec3>();
         setUniform(ubufData, name, &v, 3 * sizeof(quint32));
     }
         break;
-    case QSSGRenderShaderDataType::UnsignedIntegerVec4:
+    case QSSGRenderShaderValue::UnsignedIntegerVec4:
     {
-        const quint32_4 v = inValue.value<quint32_4>();
+        const uvec4 v = inValue.value<uvec4>();
         setUniform(ubufData, name, &v, 4 * sizeof(quint32));
     }
         break;
-    case QSSGRenderShaderDataType::Matrix3x3:
+    case QSSGRenderShaderValue::Matrix3x3:
     {
         const QMatrix3x3 m = inValue.value<QMatrix3x3>();
         setUniform(ubufData, name, m.constData(), 12 * sizeof(float), nullptr, QSSGRhiShaderPipeline::UniformFlag::Mat3);
     }
         break;
-    case QSSGRenderShaderDataType::Matrix4x4:
+    case QSSGRenderShaderValue::Matrix4x4:
     {
         const QMatrix4x4 v = inValue.value<QMatrix4x4>();
         setUniform(ubufData, name, v.constData(), 16 * sizeof(float));
     }
         break;
-    case QSSGRenderShaderDataType::Size:
+    case QSSGRenderShaderValue::Size:
     {
         const QSize s = inValue.value<QSize>();
         float v[2] = { float(s.width()), float(s.height()) };
         setUniform(ubufData, name, v, 2 * sizeof(float));
     }
         break;
-    case QSSGRenderShaderDataType::SizeF:
+    case QSSGRenderShaderValue::SizeF:
     {
         const QSizeF s = inValue.value<QSizeF>();
         float v[2] = { float(s.width()), float(s.height()) };
         setUniform(ubufData, name, v, 2 * sizeof(float));
     }
         break;
-    case QSSGRenderShaderDataType::Point:
+    case QSSGRenderShaderValue::Point:
     {
         const QPoint p = inValue.value<QPoint>();
         float v[2] = { float(p.x()), float(p.y()) };
         setUniform(ubufData, name, v, 2 * sizeof(float));
     }
         break;
-    case QSSGRenderShaderDataType::PointF:
+    case QSSGRenderShaderValue::PointF:
     {
         const QPointF p = inValue.value<QPointF>();
         float v[2] = { float(p.x()), float(p.y()) };
         setUniform(ubufData, name, v, 2 * sizeof(float));
     }
         break;
-    case QSSGRenderShaderDataType::Rect:
+    case QSSGRenderShaderValue::Rect:
     {
         const QRect r = inValue.value<QRect>();
         float v[4] = { float(r.x()), float(r.y()), float(r.width()), float(r.height()) };
         setUniform(ubufData, name, v, 4 * sizeof(float));
     }
         break;
-    case QSSGRenderShaderDataType::RectF:
+    case QSSGRenderShaderValue::RectF:
     {
         const QRectF r = inValue.value<QRectF>();
         float v[4] = { float(r.x()), float(r.y()), float(r.width()), float(r.height()) };
         setUniform(ubufData, name, v, 4 * sizeof(float));
     }
         break;
-    case QSSGRenderShaderDataType::Quaternion:
+    case QSSGRenderShaderValue::Quaternion:
     {
         const QQuaternion q = inValue.value<QQuaternion>();
         float v[4] = { float(q.x()), float(q.y()), float(q.z()), float(q.scalar()) };
@@ -473,6 +434,11 @@ int QSSGRhiShaderPipeline::offsetOfUniform(const QByteArray &name)
     if (iter != m_ub0.cend())
         return iter->offset;
     return -1;
+}
+
+static QString getUBMemberSizeWarning(QLatin1StringView name, qsizetype correctedSize, qsizetype requestedSize)
+{
+    return QStringLiteral("Uniform block member '%1' got %2 bytes whereas the true size is %3").arg(name, QString::number(correctedSize), QString::number(requestedSize));
 }
 
 void QSSGRhiShaderPipeline::setUniform(char *ubufData, const char *name, const void *data, size_t size, int *storeIndex, UniformFlags flags)
@@ -509,15 +475,7 @@ void QSSGRhiShaderPipeline::setUniform(char *ubufData, const char *name, const v
             auto it = m_ub0.constFind(QByteArray::fromRawData(u.name, strlen(u.name)));
             if (it != m_ub0.constEnd()) {
                 u.offset = it->offset;
-#ifdef QT_DEBUG
-                if (int(u.size) != it->size) {
-                    qWarning("Uniform block member '%s' got %d bytes whereas the true size is %d",
-                             it->name.constData(),
-                             int(u.size),
-                             it->size);
-                    return;
-                }
-#endif
+                QSSG_ASSERT_X(QSSG_DEBUG_COND(int(u.size) == it->size), qPrintable(getUBMemberSizeWarning(QLatin1StringView(it->name), u.size, it->size)), return);
             }
         }
         if (u.offset == SIZE_MAX) {
@@ -545,10 +503,19 @@ void QSSGRhiShaderPipeline::setUniform(char *ubufData, const char *name, const v
 // Quick3D uniform buffer is std140 type and all array data should be stored in this rule.
 // You can check it in glspec45.core.pdf's 7.6.2.2.(4)
 // https://www.khronos.org/registry/OpenGL/specs/gl/glspec45.core.pdf
-void QSSGRhiShaderPipeline::setUniformArray(char *ubufData, const char *name, const void *data, size_t itemCount, QSSGRenderShaderDataType type, int *storeIndex)
+void QSSGRhiShaderPipeline::setUniformArray(char *ubufData, const char *name, const void *data, size_t itemCount, QSSGRenderShaderValue::Type type, int *storeIndex)
 {
+    using namespace QSSGRenderShaderValue;
+
     QSSGRhiShaderUniformArray *ua = nullptr;
     constexpr size_t std140BaseTypeSize = 4 * sizeof(float);
+
+    static const auto checkSize = [std140BaseTypeSize](QSSGRhiShaderUniformArray *ua) -> bool {
+        Q_UNUSED(std140BaseTypeSize); // Silence clang warning about unneeded lambda capture (MSVC requires it be captrued).
+        const size_t uniformSize = std140BaseTypeSize < ua->typeSize ? ua->typeSize * ua->itemCount : std140BaseTypeSize * ua->itemCount;
+        QSSG_ASSERT_X(uniformSize == ua->size, qPrintable(getUBMemberSizeWarning(QLatin1StringView(ua->name), uniformSize, ua->size)), return false);
+        return true;
+    };
 
     if (!storeIndex || *storeIndex == -1) {
         int index = -1;
@@ -589,229 +556,200 @@ void QSSGRhiShaderPipeline::setUniformArray(char *ubufData, const char *name, co
         return;
     }
 
-#ifdef QT_DEBUG
-    auto checkSize = [std140BaseTypeSize](QSSGRhiShaderUniformArray *ua) -> bool {
-        Q_UNUSED(std140BaseTypeSize); // Silence clang warning about unneeded lambda capture
-        const size_t uniformSize = std140BaseTypeSize < ua->typeSize ? ua->typeSize * ua->itemCount : std140BaseTypeSize * ua->itemCount;
-        if (uniformSize != ua->size) {
-            qWarning("Uniform block member '%s' got %d bytes whereas the true size is %d",
-                     ua->name,
-                     int(uniformSize),
-                     int(ua->size));
-            return false;
-        }
-        return true;
-    };
-#endif
-
     char *p = ubufData + ua->offset;
 
     switch (type) {
-    case QSSGRenderShaderDataType::Integer:
+    case QSSGRenderShaderValue::Integer:
     {
         const qint32 *v = static_cast<const qint32 *>(data);
         if (sizeof(qint32) != ua->typeSize || itemCount != ua->itemCount) {
             ua->typeSize = sizeof(qint32);
             ua->itemCount = itemCount;
         }
-#ifdef QT_DEBUG
-        if (!checkSize(ua))
-            return;
-#endif
+
+        QSSG_ASSERT(QSSG_DEBUG_COND(checkSize(ua)), return);
+
         for (size_t i = 0; i < itemCount; ++i)
             memcpy(p + i * std140BaseTypeSize, &v[i], ua->typeSize);
     }
         break;
-    case QSSGRenderShaderDataType::IntegerVec2:
+    case QSSGRenderShaderValue::IntegerVec2:
     {
-        const qint32_2 *v = static_cast<const qint32_2 *>(data);
+        const ivec2 *v = static_cast<const ivec2 *>(data);
         if (2 * sizeof(qint32) != ua->typeSize || itemCount != ua->itemCount) {
             ua->typeSize = 2 * sizeof(qint32);
             ua->itemCount = itemCount;
         }
-#ifdef QT_DEBUG
-        if (!checkSize(ua))
-            return;
-#endif
+
+        QSSG_ASSERT(QSSG_DEBUG_COND(checkSize(ua)), return);
+
         for (size_t i = 0; i < itemCount; ++i)
             memcpy(p + i * std140BaseTypeSize, &v[i], ua->typeSize);
     }
         break;
-    case QSSGRenderShaderDataType::IntegerVec3:
+    case QSSGRenderShaderValue::IntegerVec3:
     {
-        const qint32_3 *v = static_cast<const qint32_3 *>(data);
+        const QSSGRenderShaderValue::ivec3 *v = static_cast<const QSSGRenderShaderValue::ivec3 *>(data);
         if (3 * sizeof(qint32) != ua->typeSize || itemCount != ua->itemCount) {
             ua->typeSize = 3 * sizeof(qint32);
             ua->itemCount = itemCount;
         }
-#ifdef QT_DEBUG
-        if (!checkSize(ua))
-            return;
-#endif
+
+        QSSG_ASSERT(QSSG_DEBUG_COND(checkSize(ua)), return);
+
         for (size_t i = 0; i < itemCount; ++i)
             memcpy(p + i * std140BaseTypeSize, &v[i], ua->typeSize);
     }
         break;
-    case QSSGRenderShaderDataType::IntegerVec4:
+    case QSSGRenderShaderValue::IntegerVec4:
     {
-        const qint32_4 *v = static_cast<const qint32_4 *>(data);
+        const ivec4 *v = static_cast<const ivec4 *>(data);
         if (4 * sizeof(qint32) != ua->typeSize || itemCount != ua->itemCount) {
             ua->typeSize = 4 * sizeof(qint32);
             ua->itemCount = itemCount;
         }
-#ifdef QT_DEBUG
-        if (!checkSize(ua))
-            return;
-#endif
+
+        QSSG_ASSERT(QSSG_DEBUG_COND(checkSize(ua)), return);
+
         memcpy(p, v, ua->typeSize * ua->itemCount);
     }
         break;
-    case QSSGRenderShaderDataType::Float:
+    case QSSGRenderShaderValue::Float:
     {
         const float *v = static_cast<const float *>(data);
         if (sizeof(float) != ua->typeSize || itemCount != ua->itemCount) {
             ua->typeSize = sizeof(float);
             ua->itemCount = itemCount;
         }
-#ifdef QT_DEBUG
-        if (!checkSize(ua))
-            return;
-#endif
+
+        QSSG_ASSERT(QSSG_DEBUG_COND(checkSize(ua)), return);
+
         for (size_t i = 0; i < itemCount; ++i)
             memcpy(p + i * std140BaseTypeSize, &v[i], ua->typeSize);
     }
         break;
-    case QSSGRenderShaderDataType::Vec2:
+    case QSSGRenderShaderValue::Vec2:
     {
         const QVector2D *v = static_cast<const QVector2D *>(data);
         if (2 * sizeof(float) != ua->typeSize || itemCount != ua->itemCount) {
             ua->typeSize = 2 * sizeof(float);
             ua->itemCount = itemCount;
         }
-#ifdef QT_DEBUG
-        if (!checkSize(ua))
-            return;
-#endif
+
+        QSSG_ASSERT(QSSG_DEBUG_COND(checkSize(ua)), return);
+
         for (size_t i = 0; i < itemCount; ++i)
             memcpy(p + i * std140BaseTypeSize, &v[i], ua->typeSize);
     }
         break;
-    case QSSGRenderShaderDataType::Vec3:
+    case QSSGRenderShaderValue::Vec3:
     {
         const QVector3D *v = static_cast<const QVector3D *>(data);
         if (3 * sizeof(float) != ua->typeSize || itemCount != ua->itemCount) {
             ua->typeSize = 3 * sizeof(float);
             ua->itemCount = itemCount;
         }
-#ifdef QT_DEBUG
-        if (!checkSize(ua))
-            return;
-#endif
+
+        QSSG_ASSERT(QSSG_DEBUG_COND(checkSize(ua)), return);
+
         for (size_t i = 0; i < itemCount; ++i)
             memcpy(p + i * std140BaseTypeSize, &v[i], ua->typeSize);
     }
         break;
-    case QSSGRenderShaderDataType::Vec4:
+    case QSSGRenderShaderValue::Vec4:
     {
         const QVector4D *v = static_cast<const QVector4D *>(data);
         if (4 * sizeof(float) != ua->typeSize || itemCount != ua->itemCount) {
             ua->typeSize = 4 * sizeof(float);
             ua->itemCount = itemCount;
         }
-#ifdef QT_DEBUG
-        if (!checkSize(ua))
-            return;
-#endif
+
+        QSSG_ASSERT(QSSG_DEBUG_COND(checkSize(ua)), return);
+
         memcpy(p, v, ua->typeSize * ua->itemCount);
     }
         break;
-    case QSSGRenderShaderDataType::Rgba:
+    case QSSGRenderShaderValue::Rgba:
     {
         const QColor *v = static_cast<const QColor *>(data);
         if (4 * sizeof(float) != ua->typeSize || itemCount != ua->itemCount) {
             ua->typeSize = 4 * sizeof(float);
             ua->itemCount = itemCount;
         }
-#ifdef QT_DEBUG
-        if (!checkSize(ua))
-            return;
-#endif
+
+        QSSG_ASSERT(QSSG_DEBUG_COND(checkSize(ua)), return);
+
         for (size_t i = 0; i < itemCount; ++i) {
-            const QVector4D vi = color::sRGBToLinear(v[i]);
+            const QVector4D vi = QSSGUtils::color::sRGBToLinear(v[i]);
             memcpy(p + i * std140BaseTypeSize, &vi, ua->typeSize);
         }
     }
         break;
-    case QSSGRenderShaderDataType::UnsignedInteger:
+    case QSSGRenderShaderValue::UnsignedInteger:
     {
         const quint32 *v = static_cast<const quint32 *>(data);
         if (sizeof(quint32) != ua->typeSize || itemCount != ua->itemCount) {
             ua->typeSize = sizeof(quint32);
             ua->itemCount = itemCount;
         }
-#ifdef QT_DEBUG
-        if (!checkSize(ua))
-            return;
-#endif
+
+        QSSG_ASSERT(QSSG_DEBUG_COND(checkSize(ua)), return);
+
         for (size_t i = 0; i < itemCount; ++i)
             memcpy(p + i * std140BaseTypeSize, &v[i], ua->typeSize);
     }
         break;
-    case QSSGRenderShaderDataType::UnsignedIntegerVec2:
+    case QSSGRenderShaderValue::UnsignedIntegerVec2:
     {
-        const quint32_2 *v = static_cast<const quint32_2 *>(data);
+        const uvec2 *v = static_cast<const uvec2 *>(data);
         if (2 * sizeof(quint32) != ua->typeSize || itemCount != ua->itemCount) {
             ua->typeSize = 2 * sizeof(quint32);
             ua->itemCount = itemCount;
         }
-#ifdef QT_DEBUG
-        if (!checkSize(ua))
-            return;
-#endif
+
+        QSSG_ASSERT(QSSG_DEBUG_COND(checkSize(ua)), return);
+
         for (size_t i = 0; i < itemCount; ++i)
             memcpy(p + i * std140BaseTypeSize, &v[i], ua->typeSize);
     }
         break;
-    case QSSGRenderShaderDataType::UnsignedIntegerVec3:
+    case QSSGRenderShaderValue::UnsignedIntegerVec3:
     {
-        const quint32_3 *v = static_cast<const quint32_3 *>(data);
+        const uvec3 *v = static_cast<const uvec3 *>(data);
         if (3 * sizeof(quint32) != ua->typeSize || itemCount != ua->itemCount) {
             ua->typeSize = 3 * sizeof(quint32);
             ua->itemCount = itemCount;
         }
-#ifdef QT_DEBUG
-        if (!checkSize(ua))
-            return;
-#endif
+
+        QSSG_ASSERT(QSSG_DEBUG_COND(checkSize(ua)), return);
+
         for (size_t i = 0; i < itemCount; ++i)
             memcpy(p + i * std140BaseTypeSize, &v[i], ua->typeSize);
     }
         break;
-    case QSSGRenderShaderDataType::UnsignedIntegerVec4:
+    case QSSGRenderShaderValue::UnsignedIntegerVec4:
     {
-        const quint32_4 *v = static_cast<const quint32_4 *>(data);
+        const uvec4 *v = static_cast<const uvec4 *>(data);
         if (4 * sizeof(quint32) != ua->typeSize || itemCount != ua->itemCount) {
             ua->typeSize = 4 * sizeof(quint32);
             ua->itemCount = itemCount;
         }
-#ifdef QT_DEBUG
-        if (!checkSize(ua))
-            return;
-#endif
+
+        QSSG_ASSERT(QSSG_DEBUG_COND(checkSize(ua)), return);
+
         memcpy(p, v, ua->typeSize * ua->itemCount);
     }
         break;
-    case QSSGRenderShaderDataType::Matrix3x3:
+    case QSSGRenderShaderValue::Matrix3x3:
     {
         const QMatrix3x3 *v = static_cast<const QMatrix3x3 *>(data);
         if (12 * sizeof(float) != ua->typeSize || itemCount != ua->itemCount) {
             ua->typeSize = 12 * sizeof(float);
             ua->itemCount = itemCount;
         }
-#ifdef QT_DEBUG
-        if (!checkSize(ua))
-            return;
-#endif
+
+        QSSG_ASSERT(QSSG_DEBUG_COND(checkSize(ua)), return);
+
         for (uint i = 0; i < ua->itemCount; ++i) {
             memcpy(p + i * ua->typeSize, v[i].constData(), 3 * sizeof(float));
             memcpy(p + i * ua->typeSize + 4 * sizeof(float), v[i].constData() + 3, 3 * sizeof(float));
@@ -819,32 +757,31 @@ void QSSGRhiShaderPipeline::setUniformArray(char *ubufData, const char *name, co
         }
     }
         break;
-    case QSSGRenderShaderDataType::Matrix4x4:
+    case QSSGRenderShaderValue::Matrix4x4:
     {
         const QMatrix4x4 *v = static_cast<const QMatrix4x4 *>(data);
         if (16 * sizeof(float) != ua->typeSize || itemCount != ua->itemCount) {
             ua->typeSize = 16 * sizeof(float);
             ua->itemCount = itemCount;
         }
-#ifdef QT_DEBUG
-        if (!checkSize(ua))
-            return;
-#endif
+
+        QSSG_ASSERT(QSSG_DEBUG_COND(checkSize(ua)), return);
+
         for (uint i = 0; i < ua->itemCount; ++i)
             memcpy(p + i * ua->typeSize, &v[i] , ua->typeSize);
     }
         break;
-    case QSSGRenderShaderDataType::Boolean:
-    case QSSGRenderShaderDataType::BooleanVec2:
-    case QSSGRenderShaderDataType::BooleanVec3:
-    case QSSGRenderShaderDataType::BooleanVec4:
-    case QSSGRenderShaderDataType::Size:
-    case QSSGRenderShaderDataType::SizeF:
-    case QSSGRenderShaderDataType::Point:
-    case QSSGRenderShaderDataType::PointF:
-    case QSSGRenderShaderDataType::Rect:
-    case QSSGRenderShaderDataType::RectF:
-    case QSSGRenderShaderDataType::Quaternion:
+    case QSSGRenderShaderValue::Boolean:
+    case QSSGRenderShaderValue::BooleanVec2:
+    case QSSGRenderShaderValue::BooleanVec3:
+    case QSSGRenderShaderValue::BooleanVec4:
+    case QSSGRenderShaderValue::Size:
+    case QSSGRenderShaderValue::SizeF:
+    case QSSGRenderShaderValue::Point:
+    case QSSGRenderShaderValue::PointF:
+    case QSSGRenderShaderValue::Rect:
+    case QSSGRenderShaderValue::RectF:
+    case QSSGRenderShaderValue::Quaternion:
     default:
         qWarning("Attempted to set uniform %s value with type %d that is unsupported for uniform arrays",
                  name, int(type));
@@ -854,7 +791,7 @@ void QSSGRhiShaderPipeline::setUniformArray(char *ubufData, const char *name, co
 
 void QSSGRhiShaderPipeline::ensureCombinedMainLightsUniformBuffer(QRhiBuffer **ubuf)
 {
-    const int totalBufferSize = m_ub0NextUBufOffset + int(sizeof(QSSGShaderLightsUniformData));
+    const quint32 totalBufferSize = m_ub0NextUBufOffset + sizeof(QSSGShaderLightsUniformData);
     if (!*ubuf) {
         *ubuf = m_context.rhi()->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, totalBufferSize);
         (*ubuf)->create();
@@ -889,29 +826,69 @@ int QSSGRhiShaderPipeline::bindingForTexture(const char *name, int hint)
     return binding;
 }
 
-QSSGRhiContext::QSSGRhiContext()
+QSSGRhiContext::QSSGRhiContext(QRhi *rhi)
+    : m_rhi(rhi)
+    , m_stats(*this)
 {
     Q_STATIC_ASSERT(int(QSSGRhiSamplerBindingHints::LightProbe) > int(QSSGRenderableImage::Type::Occlusion));
 }
 
+
 QSSGRhiContext::~QSSGRhiContext()
 {
-    for (QSSGRhiDrawCallData &dcd : m_drawCallData)
+    releaseCachedResources();
+
+    qDeleteAll(m_textures);
+    qDeleteAll(m_meshes);
+}
+
+void QSSGRhiContext::releaseCachedResources()
+{
+    for (QSSGRhiDrawCallData &dcd : m_drawCallData) {
+        // We don't call releaseDrawCallData() here, since we're anyways
+        // are going to delete the non-owned resources further down and
+        // there's no point in removing each of those one-by-one, as is
+        // the case with releaseDrawCallData().
+        // This speeds up the release of cached resources greatly when there
+        // are many entries in the map, also at application shutdown.
         dcd.reset();
+    }
+
+    m_drawCallData.clear();
 
     qDeleteAll(m_pipelines);
     qDeleteAll(m_computePipelines);
     qDeleteAll(m_srbCache);
-    qDeleteAll(m_textures);
+    qDeleteAll(m_dummyTextures);
+
+    m_pipelines.clear();
+    m_computePipelines.clear();
+    m_srbCache.clear();
+    m_dummyTextures.clear();
+
     for (const auto &samplerInfo : std::as_const(m_samplers))
         delete samplerInfo.second;
+
+    m_samplers.clear();
+
+    for (const auto &particleData : std::as_const(m_particleData))
+        delete particleData.texture;
+
+    m_particleData.clear();
+
     for (const auto &instanceData : std::as_const(m_instanceBuffers)) {
         if (instanceData.owned)
             delete instanceData.buffer;
     }
-    for (const auto &particleData : std::as_const(m_particleData))
-        delete particleData.texture;
-    qDeleteAll(m_dummyTextures);
+
+    m_instanceBuffers.clear();
+
+    for (const auto &instanceData : std::as_const(m_instanceBuffersLod)) {
+        if (instanceData.owned)
+            delete instanceData.buffer;
+    }
+
+    m_instanceBuffersLod.clear();
 }
 
 void QSSGRhiContext::initialize(QRhi *rhi)
@@ -938,6 +915,17 @@ QRhiShaderResourceBindings *QSSGRhiContext::srb(const QSSGRhiShaderResourceBindi
     return srb;
 }
 
+void QSSGRhiContext::releaseDrawCallData(QSSGRhiDrawCallData &dcd)
+{
+    delete dcd.ubuf;
+    dcd.ubuf = nullptr;
+    auto srb = m_srbCache.take(dcd.bindings);
+    QSSG_CHECK(srb == dcd.srb);
+    delete srb;
+    dcd.srb = nullptr;
+    dcd.pipeline = nullptr;
+}
+
 QRhiGraphicsPipeline *QSSGRhiContext::pipeline(const QSSGGraphicsPipelineStateKey &key,
                                                QRhiRenderPassDescriptor *rpDesc,
                                                QRhiShaderResourceBindings *srb)
@@ -954,7 +942,10 @@ QRhiGraphicsPipeline *QSSGRhiContext::pipeline(const QSSGGraphicsPipelineStateKe
     ps->setShaderResourceBindings(srb);
     ps->setRenderPassDescriptor(rpDesc);
 
-    QRhiGraphicsPipeline::Flags flags; // ### QRhiGraphicsPipeline::UsesScissor -> we will need setScissor once this flag is set
+    QRhiGraphicsPipeline::Flags flags;
+    if (key.state.scissorEnable)
+        flags |= QRhiGraphicsPipeline::UsesScissor;
+
     static const bool shaderDebugInfo = qEnvironmentVariableIntValue("QT_QUICK3D_SHADER_DEBUG_INFO");
     if (shaderDebugInfo)
         flags |= QRhiGraphicsPipeline::CompileShadersWithDebugInfo;
@@ -980,6 +971,14 @@ QRhiGraphicsPipeline *QSSGRhiContext::pipeline(const QSSGGraphicsPipelineStateKe
 
     ps->setDepthBias(key.state.depthBias);
     ps->setSlopeScaledDepthBias(key.state.slopeScaledDepthBias);
+    ps->setPolygonMode(key.state.polygonMode);
+
+    if (key.state.usesStencilRef)
+        flags |= QRhiGraphicsPipeline::UsesStencilRef;
+    ps->setFlags(flags);
+    ps->setStencilFront(key.state.stencilOpFrontState);
+    ps->setStencilTest(key.state.usesStencilRef);
+    ps->setStencilWriteMask(key.state.stencilWriteMask);
 
     if (!ps->create()) {
         qWarning("Failed to build graphics pipeline state");
@@ -1075,6 +1074,23 @@ void QSSGRhiContext::releaseTexture(QRhiTexture *texture)
     delete texture;
 }
 
+void QSSGRhiContext::registerMesh(QSSGRenderMesh *mesh)
+{
+    m_meshes.insert(mesh);
+}
+
+void QSSGRhiContext::releaseMesh(QSSGRenderMesh *mesh)
+{
+    if (mesh) {
+        for (const auto &subset : std::as_const(mesh->subsets)) {
+            if (subset.rhi.targetsTexture)
+                releaseTexture(subset.rhi.targetsTexture);
+        }
+    }
+    m_meshes.remove(mesh);
+    delete mesh;
+}
+
 void QSSGRhiContext::cleanupDrawCallData(const QSSGRenderModel *model)
 {
     // Find all QSSGRhiUniformBufferSet that reference model
@@ -1083,7 +1099,7 @@ void QSSGRhiContext::cleanupDrawCallData(const QSSGRenderModel *model)
     auto it = m_drawCallData.begin();
     while (it != m_drawCallData.end()) {
         if (it.key().model == modelNode) {
-            it.value().reset();
+            releaseDrawCallData(*it);
             it = m_drawCallData.erase(it);
         } else {
             ++it;
@@ -1121,6 +1137,114 @@ bool QSSGRhiContext::editorMode()
 {
     static const bool isSet = (qEnvironmentVariableIntValue("QT_QUICK3D_EDITORMODE") != 0);
     return isSet;
+}
+
+void QSSGRhiContextStats::start(QSSGRenderLayer *layer)
+{
+    layerKey = layer;
+    PerLayerInfo &info(perLayerInfo[layerKey]);
+    info.renderPasses.clear();
+    info.externalRenderPass = {};
+    info.currentRenderPassIndex = -1;
+}
+
+void QSSGRhiContextStats::stop(QSSGRenderLayer *layer)
+{
+    if (rendererDebugEnabled()) {
+        PerLayerInfo &info(perLayerInfo[layer]);
+        const int rpCount = info.renderPasses.size();
+        qDebug("%d render passes in 3D renderer %p", rpCount, layer);
+        for (int i = 0; i < rpCount; ++i) {
+            const RenderPassInfo &rp(info.renderPasses[i]);
+            qDebug("Render pass %d: rt name='%s' target size %dx%d pixels",
+                   i, rp.rtName.constData(), rp.pixelSize.width(), rp.pixelSize.height());
+            printRenderPass(rp);
+        }
+        if (info.externalRenderPass.indexedDraws.callCount || info.externalRenderPass.instancedIndexedDraws.callCount
+                || info.externalRenderPass.draws.callCount || info.externalRenderPass.instancedDraws.callCount)
+        {
+            qDebug("Within external render passes:");
+            printRenderPass(info.externalRenderPass);
+        }
+    }
+
+    // a new start() may preceed stop() for the previous View3D, must handle this gracefully
+    if (layerKey == layer)
+        layerKey = nullptr;
+
+    // The data must stay valid until the next start() with the same key, the
+    // QQuick3DRenderStats and DebugView may read it.
+}
+
+void QSSGRhiContextStats::cleanupLayerInfo(QSSGRenderLayer *layer)
+{
+    perLayerInfo.remove(layer);
+    dynamicDataSources.remove(layer);
+}
+
+void QSSGRhiContextStats::beginRenderPass(QRhiTextureRenderTarget *rt)
+{
+    PerLayerInfo &info(perLayerInfo[layerKey]);
+    Q_TRACE(QSSG_renderPass_entry, QString::fromUtf8(rt->name()));
+    info.renderPasses.append({ rt->name(), rt->pixelSize(), {}, {}, {}, {} });
+    info.currentRenderPassIndex = info.renderPasses.size() - 1;
+}
+
+void QSSGRhiContextStats::endRenderPass()
+{
+    Q_TRACE(QSSG_renderPass_exit);
+    PerLayerInfo &info(perLayerInfo[layerKey]);
+    info.currentRenderPassIndex = -1;
+}
+
+bool QSSGRhiContextStats::isEnabled() const
+{
+    return !dynamicDataSources.isEmpty() || profilingEnabled() || rendererDebugEnabled()
+            || Q_TRACE_ENABLED(QSSG_draw);
+}
+
+void QSSGRhiContextStats::drawIndexed(quint32 indexCount, quint32 instanceCount)
+{
+    Q_TRACE(QSSG_drawIndexed, indexCount, instanceCount);
+    PerLayerInfo &info(perLayerInfo[layerKey]);
+    RenderPassInfo &rp(info.currentRenderPassIndex >= 0 ? info.renderPasses[info.currentRenderPassIndex] : info.externalRenderPass);
+    if (instanceCount > 1) {
+        rp.instancedIndexedDraws.callCount += 1;
+        rp.instancedIndexedDraws.vertexOrIndexCount += indexCount;
+        rp.instancedIndexedDraws.instanceCount += instanceCount;
+    } else {
+        rp.indexedDraws.callCount += 1;
+        rp.indexedDraws.vertexOrIndexCount += indexCount;
+    }
+}
+
+void QSSGRhiContextStats::draw(quint32 vertexCount, quint32 instanceCount)
+{
+    Q_TRACE(QSSG_draw, vertexCount, instanceCount);
+    PerLayerInfo &info(perLayerInfo[layerKey]);
+    RenderPassInfo &rp(info.currentRenderPassIndex >= 0 ? info.renderPasses[info.currentRenderPassIndex] : info.externalRenderPass);
+    if (instanceCount > 1) {
+        rp.instancedDraws.callCount += 1;
+        rp.instancedDraws.vertexOrIndexCount += vertexCount;
+        rp.instancedDraws.instanceCount += instanceCount;
+    } else {
+        rp.draws.callCount += 1;
+        rp.draws.vertexOrIndexCount += vertexCount;
+    }
+}
+
+void QSSGRhiContextStats::printRenderPass(const QSSGRhiContextStats::RenderPassInfo &rp)
+{
+    qDebug("%llu indexed draw calls with %llu indices in total, "
+           "%llu non-indexed draw calls with %llu vertices in total",
+           rp.indexedDraws.callCount, rp.indexedDraws.vertexOrIndexCount,
+           rp.draws.callCount, rp.draws.vertexOrIndexCount);
+    if (rp.instancedIndexedDraws.callCount || rp.instancedDraws.callCount) {
+        qDebug("%llu instanced indexed draw calls with %llu indices and %llu instances in total, "
+               "%llu instanced non-indexed draw calls with %llu indices and %llu instances in total",
+               rp.instancedIndexedDraws.callCount, rp.instancedIndexedDraws.vertexOrIndexCount, rp.instancedIndexedDraws.instanceCount,
+               rp.instancedDraws.callCount, rp.instancedDraws.vertexOrIndexCount, rp.instancedDraws.instanceCount);
+    }
 }
 
 QT_END_NAMESPACE

@@ -232,12 +232,7 @@ void QQuick3DParticleSpriteParticle::setSprite(QQuick3DTexture *sprite)
     if (m_sprite == sprite)
         return;
 
-    auto sceneManager = QQuick3DObjectPrivate::get(this)->sceneManager;
-    QQuick3DObjectPrivate::updatePropertyListener(sprite, m_sprite, sceneManager,
-                                                  QByteArrayLiteral("sprite"), m_connections,
-                                                  [this](QQuick3DObject *n) {
-        setSprite(qobject_cast<QQuick3DTexture *>(n));
-    });
+    QQuick3DObjectPrivate::attachWatcher(this, &QQuick3DParticleSpriteParticle::setSprite, sprite, m_sprite);
 
     m_sprite = sprite;
     markNodesDirty();
@@ -278,12 +273,7 @@ void QQuick3DParticleSpriteParticle::setColorTable(QQuick3DTexture *colorTable)
     if (m_colorTable == colorTable)
         return;
 
-    auto sceneManager = QQuick3DObjectPrivate::get(this)->sceneManager;
-    QQuick3DObjectPrivate::updatePropertyListener(colorTable, m_colorTable, sceneManager,
-                                                  QByteArrayLiteral("colorTable"), m_connections,
-                                                  [this](QQuick3DObject *n) {
-        setColorTable(qobject_cast<QQuick3DTexture *>(n));
-    });
+    QQuick3DObjectPrivate::attachWatcher(this, &QQuick3DParticleSpriteParticle::setColorTable, colorTable, m_colorTable);
 
     m_colorTable = colorTable;
     updateFeatureLevel();
@@ -333,10 +323,9 @@ static QSSGRenderParticles::BlendMode mapBlendMode(QQuick3DParticleSpriteParticl
         return QSSGRenderParticles::BlendMode::Screen;
     case QQuick3DParticleSpriteParticle::Multiply:
         return QSSGRenderParticles::BlendMode::Multiply;
-    default:
-        Q_ASSERT(false);
-        return QSSGRenderParticles::BlendMode::SourceOver;
     }
+
+    Q_UNREACHABLE_RETURN(QSSGRenderParticles::BlendMode::SourceOver);
 }
 
 QSSGRenderParticles::FeatureLevel QQuick3DParticleSpriteParticle::mapFeatureLevel(QQuick3DParticleSpriteParticle::FeatureLevel level)
@@ -354,10 +343,9 @@ QSSGRenderParticles::FeatureLevel QQuick3DParticleSpriteParticle::mapFeatureLeve
         return QSSGRenderParticles::FeatureLevel::MappedVLight;
     case QQuick3DParticleSpriteParticle::AnimatedVLight:
         return QSSGRenderParticles::FeatureLevel::AnimatedVLight;
-    default:
-        Q_ASSERT(false);
-        return QSSGRenderParticles::FeatureLevel::Simple;
     }
+
+    Q_UNREACHABLE_RETURN(QSSGRenderParticles::FeatureLevel::Simple);
 }
 
 QSSGRenderGraphObject *QQuick3DParticleSpriteParticle::ParticleUpdateNode::updateSpatialNode(QSSGRenderGraphObject *node)
@@ -365,7 +353,7 @@ QSSGRenderGraphObject *QQuick3DParticleSpriteParticle::ParticleUpdateNode::updat
     if (m_particle) {
         node = m_particle->updateParticleNode(this, node);
         QQuick3DNode::updateSpatialNode(node);
-
+        Q_QUICK3D_PROFILE_ASSIGN_ID_SG(m_particle, node);
         auto particles = static_cast<QSSGRenderParticles *>(node);
 
         if (m_particle->m_featureLevel == QQuick3DParticleSpriteParticle::Animated || m_particle->m_featureLevel == QQuick3DParticleSpriteParticle::AnimatedVLight)
@@ -446,7 +434,7 @@ QSSGRenderGraphObject *QQuick3DParticleSpriteParticle::updateParticleNode(const 
 
     particles->m_blendMode = mapBlendMode(m_blendMode);
     particles->m_billboard = m_billboard;
-    particles->m_depthBias = perEmitter.emitter->depthBias();
+    particles->m_depthBiasSq = QSSGRenderNode::signedSquared(perEmitter.emitter->depthBias());
     particles->m_featureLevel = mapFeatureLevel(m_featureLevel);
     particles->m_depthSorting = sortMode() == QQuick3DParticle::SortDistance;
     particles->m_castsReflections = m_castsReflections;

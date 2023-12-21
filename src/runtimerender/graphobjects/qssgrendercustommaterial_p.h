@@ -16,15 +16,18 @@
 // We mean it.
 //
 
-#include <QtQuick3DRuntimeRender/private/qssgrenderimage_p.h>
-
 #include <QtCore/qurl.h>
 #include <QtCore/qvariant.h>
 #include <QtCore/qvector.h>
-#include <QtGui/private/qrhi_p.h>
+#include <rhi/qrhi.h>
+
+#include <QtQuick3DRuntimeRender/private/qtquick3druntimerenderexports_p.h>
+#include <QtQuick3DRuntimeRender/private/qssgrendergraphobject_p.h>
+#include <QtQuick3DUtils/private/qssgrenderbasetypes_p.h>
 
 QT_BEGIN_NAMESPACE
 
+struct QSSGRenderImage;
 struct QSSGShaderMaterialAdapter;
 class QQuick3DShaderUtilsTextureInput;
 class QQuick3DTexture;
@@ -39,7 +42,7 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderCustomMaterial : public QSSGRende
         QQuick3DShaderUtilsTextureInput *texInput = nullptr;
         QSSGRenderImage *texImage = nullptr;
         QByteArray name;
-        QSSGRenderShaderDataType shaderDataType;
+        QSSGRenderShaderValue::Type shaderDataType;
         QSSGRenderTextureFilterOp minFilterType = QSSGRenderTextureFilterOp::Linear;
         QSSGRenderTextureFilterOp magFilterType = QSSGRenderTextureFilterOp::Linear;
         QSSGRenderTextureFilterOp mipFilterType = QSSGRenderTextureFilterOp::Linear;
@@ -57,12 +60,12 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderCustomMaterial : public QSSGRende
     struct Property
     {
         Property() = default;
-        Property(const QByteArray &name, const QVariant &value, QSSGRenderShaderDataType shaderDataType, int pid = -1)
+        Property(const QByteArray &name, const QVariant &value, QSSGRenderShaderValue::Type shaderDataType, int pid = -1)
             : name(name), value(value), shaderDataType(shaderDataType), pid(pid)
         { }
         QByteArray name;
         QVariant value;
-        QSSGRenderShaderDataType shaderDataType;
+        QSSGRenderShaderValue::Type shaderDataType;
         int pid;
     };
     using PropertyList = QList<Property>;
@@ -98,7 +101,8 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderCustomMaterial : public QSSGRende
         VarColor = 1 << 8,
         IblOrientation = 1 << 9,
         Lightmap = 1 << 10,
-        Skinning = 1 << 11
+        Skinning = 1 << 11,
+        Morphing = 1 << 12
     };
     Q_DECLARE_FLAGS(RenderFlags, RenderFlag)
 
@@ -131,6 +135,8 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderCustomMaterial : public QSSGRende
     [[nodiscard]] inline bool isDirty() const { return ((m_flags & (FlagT(Flags::Dirty) | FlagT(Flags::AlwaysDirty))) != 0); }
 
     QSSGShaderMaterialAdapter *adapter = nullptr;
+
+    QString debugObjectName;
 };
 
 

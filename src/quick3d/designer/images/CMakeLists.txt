@@ -1,3 +1,6 @@
+# Copyright (C) 2022 The Qt Company Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 qt_path_join(destination ${QT_INSTALL_DIR} "${INSTALL_QMLDIR}/QtQuick3D/designer/images")
 qt_copy_or_install(
     FILES
@@ -19,6 +22,9 @@ qt_copy_or_install(
         cylinder.png
         cylinder16.png
         cylinder@2x.png
+        debugsettings.png
+        debugsettings16.png
+        debugsettings@2x.png
         dummy.png
         dummy16.png
         dummy@2x.png
@@ -28,6 +34,9 @@ qt_copy_or_install(
         fileinstancing.png
         fileinstancing16.png
         fileinstancing@2x.png
+        fog.png
+        fog16.png
+        fog@2x.png
         group.png
         group16.png
         group@2x.png
@@ -43,6 +52,9 @@ qt_copy_or_install(
         lightdirectional.png
         lightdirectional16.png
         lightdirectional@2x.png
+        lightmapper.png
+        lightmapper16.png
+        lightmapper@2x.png
         lightpoint.png
         lightpoint16.png
         lightpoint@2x.png
@@ -68,6 +80,9 @@ qt_copy_or_install(
         repeater3d.png
         repeater3d16.png
         repeater3d@2x.png
+        resourceloader.png
+        resourceloader16.png
+        resourceloader@2x.png
         scene.png
         scene16.png
         scene@2x.png
@@ -80,6 +95,9 @@ qt_copy_or_install(
         skeleton.png
         skeleton16.png
         skeleton@2x.png
+        skin.png
+        skin16.png
+        skin@2x.png
         sphere.png
         sphere16.png
         sphere@2x.png

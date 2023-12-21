@@ -1,3 +1,6 @@
+# Copyright (C) 2022 The Qt Company Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 # Generated from invasivelist.pro.
 
 #####################################################################
@@ -7,7 +10,7 @@
 qt_internal_add_test(tst_qquick3dinvasivelist
     SOURCES
         tst_invasivelist.cpp
-    PUBLIC_LIBRARIES
+    LIBRARIES
         Qt::Quick3DUtilsPrivate
 )
 

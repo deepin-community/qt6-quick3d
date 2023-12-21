@@ -8,6 +8,7 @@
 #include <QtQuick3D/qquick3dgeometry.h>
 
 #include <QVector3D>
+#include <QVector4D>
 #include <QtCore/QList>
 
 //! [class definition]
@@ -32,14 +33,17 @@ private:
 
     QList<QVector3D> m_positions;
     QList<QVector3D> m_normals;
+    QList<QVector4D> m_colors;
 
     QList<QVector3D> m_targetPositions;
     QList<QVector3D> m_targetNormals;
+    QList<QVector4D> m_targetColors;
 
     QList<quint32> m_indexes;
 
     QByteArray m_vertexBuffer;
     QByteArray m_indexBuffer;
+    QByteArray m_targetBuffer;
 
     int m_gridSize = 50;
     QVector3D boundsMin;

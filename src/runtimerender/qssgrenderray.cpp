@@ -9,15 +9,17 @@
 #include <QtQuick3DUtils/private/qssgmeshbvh_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendermesh_p.h>
 
+#include <optional>
+
 QT_BEGIN_NAMESPACE
 
 // http://www.siggraph.org/education/materials/HyperGraph/raytrace/rayplane_intersection.htm
 
-QSSGOption<QVector3D> QSSGRenderRay::intersect(const QSSGPlane &inPlane, const QSSGRenderRay &ray)
+std::optional<QVector3D> QSSGRenderRay::intersect(const QSSGPlane &inPlane, const QSSGRenderRay &ray)
 {
     float Vd = QVector3D::dotProduct(inPlane.n, ray.direction);
     if (std::abs(Vd) < .0001f)
-        return QSSGEmpty();
+        return std::nullopt;
     float V0 = -1.0f * (QVector3D::dotProduct(inPlane.n, ray.origin) + inPlane.d);
     float t = V0 / Vd;
     return ray.origin + (ray.direction * t);
@@ -28,10 +30,10 @@ QSSGRenderRay::RayData QSSGRenderRay::createRayData(const QMatrix4x4 &globalTran
 {
     using DirectionOp = RayData::DirectionOp;
     QMatrix4x4 originTransform = globalTransform.inverted();
-    QVector3D transformedOrigin = mat44::transform(originTransform, ray.origin);
+    QVector3D transformedOrigin = QSSGUtils::mat44::transform(originTransform, ray.origin);
     float *outOriginTransformPtr(originTransform.data());
     outOriginTransformPtr[12] = outOriginTransformPtr[13] = outOriginTransformPtr[14] = 0.0f;
-    const QVector3D &transformedDirection = mat44::rotate(originTransform, ray.direction).normalized();
+    const QVector3D &transformedDirection = QSSGUtils::mat44::rotate(originTransform, ray.direction).normalized();
     static auto getInverseAndDirOp = [](const QVector3D &dir, QVector3D &invDir, DirectionOp (&dirOp)[3]) {
         for (int i = 0; i != 3; ++i) {
             const float axisDir = dir[i];
@@ -58,9 +60,9 @@ QSSGRenderRay::IntersectionResult QSSGRenderRay::createIntersectionResult(const 
     const QVector3D &scaledDir = data.direction * hit.min;
     const QVector3D &localPosition = scaledDir + data.origin;
     // ray length squared
-    const QVector3D &globalPosition = mat44::transform(data.globalTransform, localPosition);
+    const QVector3D &globalPosition = QSSGUtils::mat44::transform(data.globalTransform, localPosition);
     const QVector3D &cameraToLocal = data.ray.origin - globalPosition;
-    const float rayLenSquared = vec3::magnitudeSquared(cameraToLocal);
+    const float rayLenSquared = QSSGUtils::vec3::magnitudeSquared(cameraToLocal);
     // UV coordinates
     const auto &boundsMin = bounds.minimum;
     const auto &boundsMax = bounds.maximum;
@@ -107,6 +109,9 @@ QSSGRenderRay::HitResult QSSGRenderRay::intersectWithAABBv2(const QSSGRenderRay:
     return { tmin, tmax, &bounds };
 }
 
+// Möller-Trumbore ray-triangle intersection
+// https://www.graphics.cornell.edu/pubs/1997/MT97.pdf
+// https://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/raytri/
 bool QSSGRenderRay::triangleIntersect(const QSSGRenderRay &ray,
                                       const QVector3D &v0,
                                       const QVector3D &v1,
@@ -115,60 +120,73 @@ bool QSSGRenderRay::triangleIntersect(const QSSGRenderRay &ray,
                                       float &v,
                                       QVector3D &normal)
 {
-    // Compute the Triangle's Normal (N)
-    const QVector3D v0v1 = v1 - v0;
-    const QVector3D v0v2 = v2 - v0;
-    normal = QVector3D::crossProduct(v0v1, v0v2);
-    const float denominator = QVector3D::dotProduct(normal, normal);
+    const float epsilon = std::numeric_limits<float>::epsilon();
 
-    // Find the Intersection point (P)
+    // Compute the Triangle's Edges
+    const QVector3D edge1 = v1 - v0;
+    const QVector3D edge2 = v2 - v0;
 
-    // Check for the case where the ray and plane are parallel
-    const float Vd = QVector3D::dotProduct(normal, ray.direction);
-    if (std::abs(Vd) < 0.0001f)
+    // Compute the vector P as the cross product of the ray direction and edge2
+    const QVector3D P = QVector3D::crossProduct(ray.direction, edge2);
+
+    // Compute the determinant
+    const float determinant = QVector3D::dotProduct(edge1, P);
+
+    QVector3D Q;
+
+    // If determinant is near zero, the ray lies in the plane of the triangle
+    if (determinant > epsilon) {
+        // Compute the vector T from the ray origin to the first vertex of the triangle
+        const QVector3D T = ray.origin - v0;
+
+        // Calculate coordinate u and test bounds
+        u = QVector3D::dotProduct(T, P);
+        if (u < 0.0f || u > determinant)
+            return false;
+
+        // Compute the vector Q as the cross product of vector T and edge1
+        Q = QVector3D::crossProduct(T, edge1);
+
+        // Calculate coordinate v and test bounds
+        v = QVector3D::dotProduct(ray.direction, Q);
+        if (v < 0.0f || ((u + v) > determinant))
+            return false;
+    } /*else if (determinant < -epsilon) { // This would be if we cared about backfaces
+        // Compute the vector T from the ray origin to the first vertex of the triangle
+        const QVector3D T = ray.origin - v0;
+
+        // Calculate coordinate u and test bounds
+        u = QVector3D::dotProduct(T, P);
+        if (u > 0.0f || u < determinant)
+            return false;
+
+        // Compute the vector Q as the cross product of vector T and edge1
+        Q = QVector3D::crossProduct(T, edge1);
+
+        // Calculate coordinate v and test bounds
+        v = QVector3D::dotProduct(ray.direction, Q);
+        if (v > 0.0f || ((u + v) < determinant))
+            return false;
+    } */else {
+        // Ray is parallel to the plane of the triangle
         return false;
+    }
 
-    const float d = QVector3D::dotProduct(normal, v0);
+    const float invDeterminant = 1.0f / determinant;
 
-    // Check if the triangle is behind the ray start
-    const float t = -(QVector3D::dotProduct(normal, ray.origin) - d) / Vd;
-    if (t < 0)
-        return false;
+    // Calculate the value of t, the parameter of the intersection point along the ray
+    const float t = QVector3D::dotProduct(edge2, Q) * invDeterminant;
 
-    // Get the intersetion Point (P) on Triangle Plane
-    const QVector3D P = ray.origin + t * ray.direction;
+    if (t > epsilon) {
+        normal = QVector3D::crossProduct(edge1, edge2).normalized();
+        u *= invDeterminant;
+        v *= invDeterminant;
+        return true;
+    }
 
-    // Test if P is inside of the triangle
-    QVector3D C;
-
-    // Edge 0
-    const QVector3D edge0 = v1 - v0;
-    const QVector3D vp0 = P - v0;
-    C = QVector3D::crossProduct(edge0, vp0);
-    if (QVector3D::dotProduct(normal, C) < 0)
-        return false;
-
-    // Edge 1
-    const QVector3D edge1 = v2 - v1;
-    const QVector3D vp1 = P - v1;
-    C = QVector3D::crossProduct(edge1, vp1);
-    u = QVector3D::dotProduct(normal, C);
-    if (u < 0)
-        return false;
-
-    // Edge 2
-    const QVector3D edge2 = v0 - v2;
-    const QVector3D vp2 = P - v2;
-    C = QVector3D::crossProduct(edge2, vp2);
-    v = QVector3D::dotProduct(normal, C);
-    if (v < 0)
-        return false;
-
-    u /= denominator;
-    v /= denominator;
-
-    return true;
+    return false;
 }
+
 
 void QSSGRenderRay::intersectWithBVH(const RayData &data,
                                      const QSSGMeshBVHNode *bvh,
@@ -226,19 +244,19 @@ QVector<QSSGRenderRay::IntersectionResult> QSSGRenderRay::intersectWithBVHTriang
                                                   normal);
         if (intersects) {
             const float w = 1.0f - u - v;
-            const QVector3D localIntersectionPoint = u * triangle->vertex1 +
-                                                     v * triangle->vertex2 +
-                                                     w * triangle->vertex3;
+            const QVector3D localIntersectionPoint = w * triangle->vertex1 +
+                                                     u * triangle->vertex2 +
+                                                     v * triangle->vertex3;
 
-            const QVector2D uvCoordinate = u * triangle->uvCoord1 +
-                                           v * triangle->uvCoord2 +
-                                           w * triangle->uvCoord3;
+            const QVector2D uvCoordinate = w * triangle->uvCoord1 +
+                                           u * triangle->uvCoord2 +
+                                           v * triangle->uvCoord3;
             // Get the intersection point in scene coordinates
-            const QVector3D sceneIntersectionPos = mat44::transform(data.globalTransform,
+            const QVector3D sceneIntersectionPos = QSSGUtils::mat44::transform(data.globalTransform,
                                                                     localIntersectionPoint);
             const QVector3D hitVector = data.ray.origin - sceneIntersectionPos;
             // Get the magnitude of the hit vector
-            const float rayLengthSquared = vec3::magnitudeSquared(hitVector);
+            const float rayLengthSquared = QSSGUtils::vec3::magnitudeSquared(hitVector);
             results.append(IntersectionResult(rayLengthSquared,
                                               uvCoordinate,
                                               sceneIntersectionPos,
@@ -251,16 +269,16 @@ QVector<QSSGRenderRay::IntersectionResult> QSSGRenderRay::intersectWithBVHTriang
     return results;
 }
 
-QSSGOption<QVector2D> QSSGRenderRay::relative(const QMatrix4x4 &inGlobalTransform,
+std::optional<QVector2D> QSSGRenderRay::relative(const QMatrix4x4 &inGlobalTransform,
                                                      const QSSGBounds3 &inBounds,
                                                      QSSGRenderBasisPlanes inPlane) const
 {
     QMatrix4x4 theOriginTransform = inGlobalTransform.inverted();
 
-    QVector3D theTransformedOrigin = mat44::transform(theOriginTransform, origin);
+    QVector3D theTransformedOrigin = QSSGUtils::mat44::transform(theOriginTransform, origin);
     float *outOriginTransformPtr(theOriginTransform.data());
     outOriginTransformPtr[12] = outOriginTransformPtr[13] = outOriginTransformPtr[14] = 0.0f;
-    QVector3D theTransformedDirection = mat44::rotate(theOriginTransform, direction);
+    QVector3D theTransformedDirection = QSSGUtils::mat44::rotate(theOriginTransform, direction);
 
     // The XY plane is going to be a plane with either positive or negative Z direction that runs
     // through
@@ -285,8 +303,8 @@ QSSGOption<QVector2D> QSSGRenderRay::relative(const QMatrix4x4 &inGlobalTransfor
                                  : QVector3D::dotProduct(theDirection, inBounds.minimum));
 
     const QSSGRenderRay relativeRay(theTransformedOrigin, theTransformedDirection);
-    QSSGOption<QVector3D> localIsect = QSSGRenderRay::intersect(thePlane, relativeRay);
-    if (localIsect.hasValue()) {
+    std::optional<QVector3D> localIsect = QSSGRenderRay::intersect(thePlane, relativeRay);
+    if (localIsect.has_value()) {
         float xRange = QVector3D::dotProduct(theRight, inBounds.maximum) - QVector3D::dotProduct(theRight, inBounds.minimum);
         float yRange = QVector3D::dotProduct(theUp, inBounds.maximum) - QVector3D::dotProduct(theUp, inBounds.minimum);
         float xOrigin = xRange / 2.0f + QVector3D::dotProduct(theRight, inBounds.minimum);
@@ -294,7 +312,7 @@ QSSGOption<QVector2D> QSSGRenderRay::relative(const QMatrix4x4 &inGlobalTransfor
         return QVector2D((QVector3D::dotProduct(theRight, *localIsect) - xOrigin) / xRange,
                          (QVector3D::dotProduct(theUp, *localIsect) - yOrigin) / yRange);
     }
-    return QSSGEmpty();
+    return std::nullopt;
 }
 
 QT_END_NAMESPACE

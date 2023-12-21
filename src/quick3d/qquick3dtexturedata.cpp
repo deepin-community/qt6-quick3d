@@ -275,6 +275,26 @@ void QQuick3DTextureData::setSize(const QSize &size)
 }
 
 /*!
+    Returns the depth of the texture data in pixels.
+*/
+int QQuick3DTextureData::depth() const
+{
+    const Q_D(QQuick3DTextureData);
+    return d->depth;
+}
+
+/*!
+    Sets the \a depth of the texture data in pixels. Setting the depth above
+    0 means that the texture is handled as a 3D texture.
+*/
+void QQuick3DTextureData::setDepth(int depth)
+{
+    Q_D(QQuick3DTextureData);
+    d->depth = depth;
+    update();
+}
+
+/*!
     Returns the format of the texture data.
 */
 QQuick3DTextureData::Format QQuick3DTextureData::format() const
@@ -413,7 +433,7 @@ QSSGRenderGraphObject *QQuick3DTextureData::updateSpatialNode(QSSGRenderGraphObj
         markAllDirty();
         node = new QSSGRenderTextureData();
     }
-
+    QQuick3DObject::updateSpatialNode(node);
     auto *textureData = static_cast<QSSGRenderTextureData*>(node);
 
     bool changed = false;
@@ -431,6 +451,11 @@ QSSGRenderGraphObject *QQuick3DTextureData::updateSpatialNode(QSSGRenderGraphObj
         changed = true;
     }
 
+    if (d->depth != textureData->depth()) {
+        textureData->setDepth(d->depth);
+        changed = true;
+    }
+
     QSSGRenderTextureFormat format = convertToBackendFormat(d->format);
     if (format != textureData->format()) {
         textureData->setFormat(format);
@@ -444,6 +469,8 @@ QSSGRenderGraphObject *QQuick3DTextureData::updateSpatialNode(QSSGRenderGraphObj
 
     if (changed)
         emit textureDataNodeDirty();
+
+    DebugViewHelpers::ensureDebugObjectName(textureData, this);
 
     return node;
 }

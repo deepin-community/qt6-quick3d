@@ -42,14 +42,11 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderModel : public QSSGRenderNode
     QSSGRenderSkeleton *skeleton = nullptr;
     QSSGRenderSkin *skin = nullptr;
     QVector<QMatrix4x4> inverseBindPoses;
-    float m_depthBias = 0.0f;
+    float m_depthBiasSq = 0.0f; // Depth bias is expected to be squared!
     bool castsShadows = true;
     bool receivesShadows = true;
-    bool skinningDirty = false;
-    bool skeletonContainsNonJointNodes = false;
-    QByteArray boneData;
-    QRhiTexture *boneTexture = nullptr;
-    quint32 boneCount = 0;
+    float instancingLodMin = -1;
+    float instancingLodMax = -1;
 
     QSSGRenderInstanceTable *instanceTable = nullptr;
     int instanceCount() const { return instanceTable ? instanceTable->count() : 0; }
@@ -69,6 +66,9 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderModel : public QSSGRenderNode
     QString lightmapLoadPath;
     uint lightmapBaseResolution = 0;
     bool hasLightmap() const { return !lightmapKey.isEmpty(); }
+    bool usesBoneTexture() const { return ((skin != nullptr) || (skeleton != nullptr)); }
+
+    float levelOfDetailBias = 1.0f; // values < 1.0 will decrease usage of LODs, values > 1.0 will increase usage of LODs
 
     QSSGRenderModel();
 };

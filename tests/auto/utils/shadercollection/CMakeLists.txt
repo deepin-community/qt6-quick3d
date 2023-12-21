@@ -1,3 +1,6 @@
+# Copyright (C) 2022 The Qt Company Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 # Generated from shadercollection.pro.
 
 if(NOT TARGET Qt::ShaderTools)
@@ -11,7 +14,7 @@ endif()
 qt_internal_add_test(tst_qquick3dshadercollection
     SOURCES
         tst_shadercollection.cpp
-    PUBLIC_LIBRARIES
+    LIBRARIES
         Qt::Gui
         Qt::GuiPrivate
         Qt::Quick3DUtilsPrivate

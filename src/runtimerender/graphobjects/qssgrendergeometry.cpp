@@ -82,7 +82,7 @@ void QSSGRenderGeometry::addAttribute(QSSGMesh::RuntimeMeshData::Attribute::Sema
 
 void QSSGRenderGeometry::addAttribute(const Attribute &att)
 {
-    int index = m_meshData.m_attributeCount;
+    const int index = m_meshData.m_attributeCount;
     if (index == QSSGMesh::RuntimeMeshData::MAX_ATTRIBUTES) {
         qWarning("Maximum number (%d) of vertex attributes in custom geometry has been reached; ignoring extra attributes",
                  QSSGMesh::RuntimeMeshData::MAX_ATTRIBUTES);
@@ -96,9 +96,39 @@ void QSSGRenderGeometry::addAttribute(const Attribute &att)
     markDirty();
 }
 
+void QSSGRenderGeometry::addTargetAttribute(quint32 targetId,
+                                            QSSGMesh::RuntimeMeshData::Attribute::Semantic semantic,
+                                            int offset,
+                                            int stride)
+{
+    TargetAttribute tAttr;
+    tAttr.targetId = targetId;
+    tAttr.attr.semantic = semantic;
+    tAttr.attr.offset = offset;
+    tAttr.stride = stride;
+    addTargetAttribute(tAttr);
+}
+
+void QSSGRenderGeometry::addTargetAttribute(const TargetAttribute &att)
+{
+    const int index = m_meshData.m_targetAttributeCount;
+    if (index == QSSGMesh::RuntimeMeshData::MAX_TARGET_ATTRIBUTES) {
+        qWarning("Maximum number (%d) of morph target attributes in custom geometry has been reached; ignoring extra attributes",
+                 QSSGMesh::RuntimeMeshData::MAX_TARGET_ATTRIBUTES);
+        return;
+    }
+    m_meshData.m_targetAttributes[index].attr.semantic
+            = static_cast<QSSGMesh::RuntimeMeshData::Attribute::Semantic>(att.attr.semantic);
+    m_meshData.m_targetAttributes[index].attr.offset = att.attr.offset;
+    m_meshData.m_targetAttributes[index].targetId = att.targetId;
+    m_meshData.m_targetAttributes[index].stride = att.stride;
+    ++m_meshData.m_targetAttributeCount;
+    markDirty();
+}
+
 void QSSGRenderGeometry::addSubset(quint32 offset, quint32 count, const QVector3D &boundsMin, const QVector3D &boundsMax, const QString &name)
 {
-    m_meshData.m_subsets.append({name, {boundsMin, boundsMax}, count, offset, {}});
+    m_meshData.m_subsets.append({name, {boundsMin, boundsMax}, count, offset, {}, {}});
 }
 
 void QSSGRenderGeometry::setStride(int stride)
@@ -121,8 +151,23 @@ void QSSGRenderGeometry::setBounds(const QVector3D &min, const QVector3D &max)
 
 void QSSGRenderGeometry::clear()
 {
-    m_meshData.clear();
+    m_meshData.clearVertexAndIndex();
+    m_meshData.clearTarget();
     m_bounds.setEmpty();
+    markDirty();
+}
+
+void QSSGRenderGeometry::clearVertexAndIndex()
+{
+    m_meshData.clearVertexAndIndex();
+    m_bounds.setEmpty();
+    markDirty();
+}
+
+
+void QSSGRenderGeometry::clearTarget()
+{
+    m_meshData.clearTarget();
     markDirty();
 }
 
@@ -150,6 +195,12 @@ void QSSGRenderGeometry::setVertexData(const QByteArray &data)
 void QSSGRenderGeometry::setIndexData(const QByteArray &data)
 {
     m_meshData.m_indexBuffer = data;
+    markDirty();
+}
+
+void QSSGRenderGeometry::setTargetData(const QByteArray &data)
+{
+    m_meshData.m_targetBuffer = data;
     markDirty();
 }
 

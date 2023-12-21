@@ -29,6 +29,9 @@ struct QSSGRenderImage;
 class QSSGLayerRenderData;
 struct QSSGRenderResourceLoader;
 
+class QQuick3DObject;
+class QSSGRenderExtension;
+
 class QRhiShaderResourceBindings;
 
 // A layer is a special node.  It *always* presents its global transform
@@ -98,16 +101,28 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderLayer : public QSSGRenderNode
     };
     Q_DECLARE_FLAGS(LayerFlags, LayerFlag)
 
+    enum class MaterialDebugMode : quint8
+    {
+        None = 0, // Bypass
+        BaseColor = 1,
+        Roughness,
+        Metalness,
+        Diffuse,
+        Specular,
+        ShadowOcclusion,
+        Emission,
+        AmbientOcclusion,
+        Normal,
+        Tangent,
+        Binormal,
+        F0
+    };
+
     // First effect in a list of effects.
     QSSGRenderEffect *firstEffect;
     QSSGLayerRenderData *renderData = nullptr;
-
-    // If a layer has a valid texture path (one that resolves to either a
-    // an on-disk image or a offscreen renderer), then it does not render its
-    // own source path.  Instead, it renders the offscreen renderer.  Used in this manner,
-    // offscreen renderer's also have the option (if they support it) to render directly to the
-    // render target given a specific viewport (that is also scissored if necessary).
-    QString texturePath;
+    enum RenderExtensionMode { Underlay, Overlay, Count };
+    QList<QSSGRenderExtension *> renderExtensions[RenderExtensionMode::Count];
 
     QSSGRenderLayer::AAMode antialiasingMode;
     QSSGRenderLayer::AAQuality antialiasingQuality;
@@ -115,30 +130,16 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderLayer : public QSSGRenderNode
     QSSGRenderLayer::Background background;
     QVector3D clearColor;
 
-    // TODO: pack
-    HorizontalField horizontalFieldValues;
-    float m_left;
-    UnitType leftUnits;
-    float m_width;
-    UnitType widthUnits;
-    float m_right;
-    UnitType rightUnits;
-
-    VerticalField verticalFieldValues;
-    float m_top;
-    UnitType topUnits;
-    float m_height;
-    UnitType heightUnits;
-    float m_bottom;
-    UnitType bottomUnits;
-
     // Ambient occlusion
-    float aoStrength;
-    float aoDistance;
-    float aoSoftness;
-    float aoBias;
-    qint32 aoSamplerate;
-    bool aoDither;
+    float aoStrength = 0.0f;
+    float aoDistance = 5.0f;
+    float aoSoftness = 50.0f;
+    float aoBias = 0.0f;
+    qint32 aoSamplerate = 2;
+    bool aoDither = false;
+    bool aoEnabled = false;
+
+    constexpr bool ssaoEnabled() const { return aoEnabled && (aoStrength > 0.0f && aoDistance > 0.0f); }
 
     // IBL
     QSSGRenderImage *lightProbe;
@@ -181,10 +182,40 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderLayer : public QSSGRenderNode
     // Skybox
     float skyboxBlurAmount = 0.0f;
 
+    // Grid
+    bool gridEnabled = false;
+    float gridScale = 1.0f;
+    quint32 gridFlags = 0;
+    QRhiShaderResourceBindings *gridSrb = nullptr;
+
     // Lightmapper config
     QSSGLightmapperOptions lmOptions;
 
+    // Scissor
+    QRect scissorRect;
+
+    // Fog
+    struct FogOptions {
+        bool enabled = false;
+        QVector3D color = QVector3D(0.5f, 0.6f, 0.7f);
+        float density = 1.0f;
+        bool depthEnabled = false;
+        float depthBegin = 10.0f;
+        float depthEnd = 1000.0f;
+        float depthCurve = 1.0f;
+        bool heightEnabled = false;
+        float heightMin = 10.0f;
+        float heightMax = 0.0f;
+        float heightCurve = 1.0f;
+        bool transmitEnabled = false;
+        float transmitCurve = 1.0f;
+    } fog;
+
     QVector<QSSGRenderGraphObject *> resourceLoaders;
+
+    MaterialDebugMode debugMode = MaterialDebugMode::None;
+
+    bool wireframeMode = false;
 
     QSSGRenderLayer();
     ~QSSGRenderLayer();
@@ -193,8 +224,6 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderLayer : public QSSGRenderNode
 
     void addEffect(QSSGRenderEffect &inEffect);
     bool hasEffect(QSSGRenderEffect *inEffect) const;
-
-    QSSGRenderEffect *getLastEffect();
 
     QSSGRenderNode *importSceneNode = nullptr;
 

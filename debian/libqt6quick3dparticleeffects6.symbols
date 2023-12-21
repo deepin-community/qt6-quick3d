@@ -1,4 +1,0 @@
-# SymbolsHelper-Confirmed: 6.3.0 amd64
-libQt6Quick3DParticleEffects.so.6 libqt6quick3dparticleeffects6 #MINVER#
-* Build-Depends-Package: qt6-quick3d-dev
- _Z44qml_register_types_QtQuick3D_ParticleEffectsv@Base 6.3.0

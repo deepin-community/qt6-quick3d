@@ -44,54 +44,62 @@ QT_BEGIN_NAMESPACE
 
     \section2 Custom geometry
 
-    In addition to using static meshes, it is possible to implement a \l {QQuick3DGeometry}{custom geometry} provider that
-    provides the model with custom vertex data at run-time. See the \l {Qt Quick 3D - Custom Geometry Example}{Custom Geometry Example}
-    for an example on how to create and use a custom material with your model.
+    In addition to using static meshes, you can implement a
+    \l {QQuick3DGeometry}{custom geometry} provider that provides the model with
+    custom vertex data at run-time. See the
+    \l {Qt Quick 3D - Custom Geometry Example}{Custom Geometry Example} for an
+    example on how to create and use a custom material with your model.
 
     \section1 Materials
 
-    A model can consist of several sub-meshes, each of which can have its own material.
-    The sub-mesh uses a material from the \l{materials} list, corresponding to its index.
-    If the number of materials is less than the sub-meshes, the last material in the list is used
-    for subsequent sub-meshes. This is demonstrated in the \l {Qt Quick 3D - Sub-mesh Example}{Sub-mesh example}.
+    A model can consist of several sub-meshes, each of which can have its own
+    material. The sub-mesh uses a material from the \l{materials} list,
+    corresponding to its index. If the number of materials is less than the
+    sub-meshes, the last material in the list is used for subsequent sub-meshes.
+    This is demonstrated in the
+    \l {Qt Quick 3D - Sub-mesh Example}{Sub-mesh example}.
 
-    There are currently three different materials that can be used with the model item,
-    the \l {PrincipledMaterial}, the \l {DefaultMaterial}, and the \l {CustomMaterial}.
+    You can use the following materials with the model item:
+    \l {PrincipledMaterial}, \l {DefaultMaterial}, and \l {CustomMaterial}.
 
     \section1 Picking
 
-    Picking is the process of sending a ray through the scene from some starting position to find which model(s) intersects
-    with the ray. In QtQuick3D the ray is normally sent from the view using 2D coordinates resulting from a touch or mouse
-    event. If a model was hit by the ray a \l {PickResult} will be returned with a handle to the model and information about
-    where the ray hit the model. For models that use \l {QQuick3DGeometry}{custom geometry} the picking is less accurate then
-    for static mesh data, as picking is only done against the models \l {Bounds}{bounding volume}.
-    If the ray goes through more then one model, the closest \l {Model::pickable}{pickable} model is selected.
+    \e Picking is the process of sending a ray through the scene from some
+    starting position to find which models intersect with the ray. In
+    Qt Quick 3D, the ray is normally sent from the view using 2D coordinates
+    resulting from a touch or mouse event. If a model was hit by the ray,
+    \l {PickResult} will be returned with a handle to the model and information
+    about where the ray hit the model. For models that use
+    \l {QQuick3DGeometry}{custom geometry}, the picking is less accurate than
+    for static mesh data, as picking is only done against the model's
+    \l {bounds}{bounding volume}. If the ray goes through more than one model,
+    the closest \l {Model::pickable}{pickable} model is selected.
 
-    Note that models are not \l {Model::pickable}{pickable} by default, so to be able to \l {View3D::pick}{pick} a model
-    in the scene, the model will need to make it self discoverable by setting the \l {Model::pickable}{pickable} property to true.
-    Visit the \l {Qt Quick 3D - Picking example} to see how picking can be enabled.
+    Note that for models to be \l {Model::pickable}{pickable}, their
+    \l {Model::pickable}{pickable} property must be set to \c true. For more
+    information, see \l {Qt Quick 3D - Picking example}.
 
 */
 
 /*!
-    \qmltype Bounds
+    \qmltype bounds
     \inqmlmodule QtQuick3D
     \since 5.15
     \brief Specifies the bounds of a model.
 
-    Bounds specify a bounding box with minimum and maximum points.
-    Bounds is a readonly property of the model.
+    bounds specify a bounding box with minimum and maximum points.
+    bounds is a readonly property of the model.
 */
 
 /*!
-    \qmlproperty vector3d Bounds::minimum
+    \qmlproperty vector3d bounds::minimum
 
     Specifies the minimum point of the model bounds.
     \sa maximum
 */
 
 /*!
-    \qmlproperty vector3d Bounds::maximum
+    \qmlproperty vector3d bounds::maximum
 
     Specifies the maximum point of the model bounds.
     \sa minimum
@@ -102,10 +110,7 @@ QQuick3DModel::QQuick3DModel(QQuick3DNode *parent)
 
 QQuick3DModel::~QQuick3DModel()
 {
-    disconnect(m_skeletonConnection);
     disconnect(m_geometryConnection);
-    for (const auto &connection : std::as_const(m_connections))
-        disconnect(connection);
 
     auto matList = materials();
     qmlClearMaterials(&matList);
@@ -161,15 +166,8 @@ QQmlListProperty<QQuick3DMaterial> QQuick3DModel::materials()
 
     This property contains a list of \l [QtQuick3D QML] {MorphTarget}{MorphTarget}s used to
     render the provided geometry. Meshes should have at least one attribute
-    among positions, normals, tangent, bitangent for the morph targets.
-    Quick3D supports maximum 8 morph targets and remains will be ignored.
-
-    \note First 2 morph targets can have maximum 4 attributes among position,
-    normal, tangent, and binormal.
-    \note 3rd and 4th  morph targets can have maximum 2 attributes among
-    position, and normal.
-    \note Remaining morph targets can have only the position attribute.
-    \note This property is not used when the model is shaded by \l {CustomMaterial}.
+    among positions, normals, tangents, binormals, texture coordinates,
+    and vertex colors for the morph targets.
 
     \sa {MorphTarget}
 */
@@ -496,10 +494,10 @@ int QQuick3DModel::lightmapBaseResolution() const
     consistent state between the baking run and the subsequent runs that use
     the generated data is essential. For example, changing the lightmap key
     will make it impossible to load the previously generated data. An exception
-    is \l enabled, which can be used to dynamically toggle the usage of
-    lightmaps (outside of the baking run), but be aware that the rendered
-    results will depend on the Lights' \l{Light::bakeMode}{bakeMode} settings
-    in the scene.
+    is \l {BakedLightmap::}{enabled}, which can be used to dynamically toggle
+    the usage of lightmaps (outside of the baking run), but be aware that the
+    rendered results will depend on the Lights' \l{Light::bakeMode}{bakeMode}
+    settings in the scene.
 
     \sa usedInBakedLighting, Lightmapper
  */
@@ -507,6 +505,28 @@ int QQuick3DModel::lightmapBaseResolution() const
 QQuick3DBakedLightmap *QQuick3DModel::bakedLightmap() const
 {
     return m_bakedLightmap;
+}
+
+/*!
+    \qmlproperty real Model::instancingLodMin
+
+    Defines the minimum distance from camera that an instance of this model is shown.
+    Used for a level of detail implementation.
+*/
+float QQuick3DModel::instancingLodMin() const
+{
+    return m_instancingLodMin;
+}
+
+/*!
+    \qmlproperty real Model::instancingLodMax
+
+    Defines the maximum distance from camera that an instance of this model is shown.
+    Used for a level of detail implementation.
+*/
+float QQuick3DModel::instancingLodMax() const
+{
+    return m_instancingLodMax;
 }
 
 void QQuick3DModel::setSource(const QUrl &source)
@@ -557,9 +577,7 @@ void QQuick3DModel::setGeometry(QQuick3DGeometry *geometry)
         return;
 
     // Make sure to disconnect if the geometry gets deleted out from under us
-    QQuick3DObjectPrivate::updatePropertyListener(geometry, m_geometry, QQuick3DObjectPrivate::get(this)->sceneManager, QByteArrayLiteral("geometry"), m_connections, [this](QQuick3DObject *n) {
-        setGeometry(qobject_cast<QQuick3DGeometry *>(n));
-    });
+    QQuick3DObjectPrivate::attachWatcher(this, &QQuick3DModel::setGeometry, geometry, m_geometry);
 
     if (m_geometry)
         QObject::disconnect(m_geometryConnection);
@@ -581,21 +599,10 @@ void QQuick3DModel::setSkeleton(QQuick3DSkeleton *skeleton)
         return;
 
     // Make sure to disconnect if the skeleton gets deleted out from under us
-    QQuick3DObjectPrivate::updatePropertyListener(skeleton, m_skeleton, QQuick3DObjectPrivate::get(this)->sceneManager, QByteArrayLiteral("skeleton"), m_connections, [this](QQuick3DObject *n) {
-        setSkeleton(qobject_cast<QQuick3DSkeleton *>(n));
-    });
+    QQuick3DObjectPrivate::attachWatcher(this, &QQuick3DModel::setSkeleton, skeleton, m_skeleton);
 
-    if (m_skeleton)
-        QObject::disconnect(m_skeletonConnection);
     m_skeleton = skeleton;
-    if (m_skeleton) {
-        m_skeletonConnection
-                = QObject::connect(m_skeleton, &QQuick3DSkeleton::skeletonNodeDirty, [this]() {
-            auto modelNode = static_cast<QSSGRenderModel *>(QQuick3DNodePrivate::get(this)->spatialNode);
-            if (modelNode)
-                modelNode->skinningDirty = true;
-        });
-    }
+
     emit skeletonChanged();
     markDirty(SkeletonDirty);
 }
@@ -606,9 +613,7 @@ void QQuick3DModel::setSkin(QQuick3DSkin *skin)
         return;
 
     // Make sure to disconnect if the skin gets deleted out from under us
-    QQuick3DObjectPrivate::updatePropertyListener(skin, m_skin, QQuick3DObjectPrivate::get(this)->sceneManager, QByteArrayLiteral("skin"), m_connections, [this](QQuick3DObject *n) {
-        setSkin(qobject_cast<QQuick3DSkin *>(n));
-    });
+    QQuick3DObjectPrivate::attachWatcher(this, &QQuick3DModel::setSkin, skin, m_skin);
 
     m_skin = skin;
     emit skinChanged();
@@ -641,9 +646,7 @@ void QQuick3DModel::setInstancing(QQuick3DInstancing *instancing)
         return;
 
     // Make sure to disconnect if the instance table gets deleted out from under us
-    QQuick3DObjectPrivate::updatePropertyListener(instancing, m_instancing, QQuick3DObjectPrivate::get(this)->sceneManager, QByteArrayLiteral("instancing"), m_connections, [this](QQuick3DObject *n) {
-        setInstancing(qobject_cast<QQuick3DInstancing *>(n));
-    });
+    QQuick3DObjectPrivate::attachWatcher(this, &QQuick3DModel::setInstancing, instancing, m_instancing);
     if (m_instancing)
         QObject::disconnect(m_instancingConnection);
     m_instancing = instancing;
@@ -661,7 +664,10 @@ void QQuick3DModel::setInstanceRoot(QQuick3DNode *instanceRoot)
     if (m_instanceRoot == instanceRoot)
         return;
 
+    QQuick3DObjectPrivate::attachWatcher(this, &QQuick3DModel::setInstanceRoot, instanceRoot, m_instanceRoot);
+
     m_instanceRoot = instanceRoot;
+    markDirty(InstanceRootDirty);
     emit instanceRootChanged();
 }
 
@@ -823,7 +829,21 @@ QSSGRenderGraphObject *QQuick3DModel::updateSpatialNode(QSSGRenderGraphObject *n
         }
     }
 
-    if (m_dirtyAttributes & InstancesDirty) {
+    if (m_dirtyAttributes & quint32(InstancesDirty | InstanceRootDirty)) {
+        // If we have an instance root set we have lower priority and the instance root node should already
+        // have been created.
+        QSSGRenderNode *instanceRootNode = nullptr;
+        if (m_instanceRoot) {
+            if (m_instanceRoot == this)
+                instanceRootNode = modelNode;
+            else
+                instanceRootNode = static_cast<QSSGRenderNode *>(QQuick3DObjectPrivate::get(m_instanceRoot)->spatialNode);
+        }
+        if (instanceRootNode != modelNode->instanceRoot) {
+            modelNode->instanceRoot = instanceRootNode;
+            modelNode->markDirty(QSSGRenderNode::DirtyFlag::TransformDirty);
+        }
+
         if (m_instancing) {
             modelNode->instanceTable = static_cast<QSSGRenderInstanceTable *>(QQuick3DObjectPrivate::get(m_instancing)->spatialNode);
         } else {
@@ -842,11 +862,13 @@ QSSGRenderGraphObject *QQuick3DModel::updateSpatialNode(QSSGRenderGraphObject *n
     }
 
     if (m_dirtyAttributes & SkeletonDirty) {
-        modelNode->skinningDirty = true;
-        if (m_skeleton)
+        if (m_skeleton) {
             modelNode->skeleton = static_cast<QSSGRenderSkeleton *>(QQuick3DObjectPrivate::get(m_skeleton)->spatialNode);
-        else
+            if (modelNode->skeleton)
+                modelNode->skeleton->skinningDirty = true;
+        } else {
             modelNode->skeleton = nullptr;
+        }
     }
 
     if (m_dirtyAttributes & SkinDirty) {
@@ -856,13 +878,19 @@ QSSGRenderGraphObject *QQuick3DModel::updateSpatialNode(QSSGRenderGraphObject *n
             modelNode->skin = nullptr;
     }
 
+    if (m_dirtyAttributes & LodDirty) {
+        modelNode->instancingLodMin = m_instancingLodMin;
+        modelNode->instancingLodMax = m_instancingLodMax;
+    }
+
     if (m_dirtyAttributes & PoseDirty) {
         modelNode->inverseBindPoses = m_inverseBindPoses.toVector();
-        modelNode->skinningDirty = true;
+        if (modelNode->skeleton)
+            modelNode->skeleton->skinningDirty = true;
     }
 
     if (m_dirtyAttributes & PropertyDirty) {
-        modelNode->m_depthBias = m_depthBias;
+        modelNode->m_depthBiasSq = QSSGRenderModel::signedSquared(m_depthBias);
         modelNode->usedInBakedLighting = m_usedInBakedLighting;
         modelNode->lightmapBaseResolution = uint(m_lightmapBaseResolution);
         if (m_bakedLightmap && m_bakedLightmap->isEnabled()) {
@@ -876,6 +904,7 @@ QSSGRenderGraphObject *QQuick3DModel::updateSpatialNode(QSSGRenderGraphObject *n
             modelNode->lightmapKey.clear();
             modelNode->lightmapLoadPath.clear();
         }
+        modelNode->levelOfDetailBias = m_levelOfDetailBias;
     }
 
     if (m_dirtyAttributes & ReflectionDirty) {
@@ -890,6 +919,9 @@ QSSGRenderGraphObject *QQuick3DModel::updateSpatialNode(QSSGRenderGraphObject *n
 
 void QQuick3DModel::markDirty(QQuick3DModel::QSSGModelDirtyType type)
 {
+    if (InstanceRootDirty & quint32(type))
+        QQuick3DObjectPrivate::get(this)->dirty(QQuick3DObjectPrivate::InstanceRootChanged);
+
     if (!(m_dirtyAttributes & quint32(type))) {
         m_dirtyAttributes |= quint32(type);
         update();
@@ -1002,7 +1034,14 @@ void QQuick3DModel::qmlClearMaterials(QQmlListProperty<QQuick3DMaterial> *list)
 
 void QQuick3DModel::onMorphTargetDestroyed(QObject *object)
 {
-    if (m_morphTargets.removeAll(static_cast<QQuick3DMorphTarget *>(object)) > 0) {
+    bool found = false;
+    for (int i = 0; i < m_morphTargets.size(); ++i) {
+        if (m_morphTargets.at(i) == object) {
+            m_morphTargets.removeAt(i--);
+            found = true;
+        }
+    }
+    if (found) {
         markDirty(QQuick3DModel::MorphTargetsDirty);
         m_numMorphAttribs = 0;
     }
@@ -1069,6 +1108,62 @@ void QQuick3DModel::qmlClearMorphTargets(QQmlListProperty<QQuick3DMorphTarget> *
     self->m_morphTargets.clear();
     self->m_numMorphAttribs = 0;
     self->markDirty(QQuick3DModel::MorphTargetsDirty);
+}
+
+void QQuick3DModel::setInstancingLodMin(float minDistance)
+{
+    if (qFuzzyCompare(m_instancingLodMin, minDistance))
+        return;
+    m_instancingLodMin = minDistance;
+    emit instancingLodMinChanged();
+    markDirty(LodDirty);
+}
+
+void QQuick3DModel::setInstancingLodMax(float maxDistance)
+{
+    if (qFuzzyCompare(m_instancingLodMax, maxDistance))
+        return;
+    m_instancingLodMax = maxDistance;
+    emit instancingLodMaxChanged();
+    markDirty(LodDirty);
+}
+
+/*!
+    \qmlproperty real Model::levelOfDetailBias
+    \since 6.5
+
+    This property changes the size the model needs to be when rendered before the
+    automatic level of detail meshes are used. Each generated level of detail
+    mesh contains an ideal size value that each level should be shown, which is
+    a ratio of how much of the rendered scene will be that mesh. A model that
+    represents only a few pixels on screen will not require the full geometry
+    to look correct, so a lower level of detail mesh will be used instead in
+    this case. This value is a bias to the ideal value such that a value smaller
+    than \c 1.0 will require an even smaller rendered size before switching to
+    a lesser level of detail. Values above \c 1.0 will lead to lower levels of detail
+    being used sooner. A value of \c 0.0 will disable the usage of levels of detail
+    completely.
+
+    The default value is \c 1.0
+
+    \note This property will only have an effect when the Model's geometry contains
+    levels of detail.
+
+    \sa Camera::levelOfDetailBias
+*/
+
+float QQuick3DModel::levelOfDetailBias() const
+{
+    return m_levelOfDetailBias;
+}
+
+void QQuick3DModel::setLevelOfDetailBias(float newLevelOfDetailBias)
+{
+    if (qFuzzyCompare(m_levelOfDetailBias, newLevelOfDetailBias))
+        return;
+    m_levelOfDetailBias = newLevelOfDetailBias;
+    emit levelOfDetailBiasChanged();
+    markDirty(QQuick3DModel::PropertyDirty);
 }
 
 QT_END_NAMESPACE

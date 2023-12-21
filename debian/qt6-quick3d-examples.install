@@ -7,13 +7,12 @@ usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/custommaterial/custommaterial
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/custommorphing/custommorphing
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/customshaders/customshaders
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/dynamiccreation/dynamiccreation
-usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/dynamictexture/dynamictexture
-usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/effects/effects
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/hellocube/hellocube
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/helloqtquick3d/helloqtquick3d
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/instancing/instancing
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/intro/intro
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/lights/lights
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/lodhelper/lodhelper
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/morphing/morphing
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/offlineshaders/offlineshaders
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/particles3d/particles3d
@@ -24,7 +23,9 @@ usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/quickball/quickball
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/quickitems/quickitems
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/reflectionprobes/reflectionprobes
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/runtimeloader/runtimeloader
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/sceneeffects/sceneeffects
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/screenspacereflections/screenspacereflections
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/simplefog/simplefog
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/skinning/skinning
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/submeshes/submeshes
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/view3d/view3d

@@ -538,9 +538,6 @@ struct QSSGShaderDefaultMaterialKeyProperties
         TransmissionChannel,
         ThicknessChannel
     };
-    enum {
-        MorphTargetCount = 8,
-    };
 
     QSSGShaderKeyBoolean m_hasLighting;
     QSSGShaderKeyBoolean m_hasIbl;
@@ -567,14 +564,22 @@ struct QSSGShaderDefaultMaterialKeyProperties
     QSSGShaderKeyBoolean m_usesFloatJointIndices;
     qsizetype m_stringBufferSizeHint = 0;
     QSSGShaderKeyBoolean m_usesInstancing;
-    QSSGShaderKeyUnsigned<4> m_morphTargetCount;
-    QSSGShaderKeyVertexAttribute m_morphTargetAttributes[MorphTargetCount];
+    QSSGShaderKeyUnsigned<8> m_targetCount;
+    QSSGShaderKeyUnsigned<8> m_targetPositionOffset;
+    QSSGShaderKeyUnsigned<8> m_targetNormalOffset;
+    QSSGShaderKeyUnsigned<8> m_targetTangentOffset;
+    QSSGShaderKeyUnsigned<8> m_targetBinormalOffset;
+    QSSGShaderKeyUnsigned<8> m_targetTexCoord0Offset;
+    QSSGShaderKeyUnsigned<8> m_targetTexCoord1Offset;
+    QSSGShaderKeyUnsigned<8> m_targetColorOffset;
     QSSGShaderKeyBoolean m_blendParticles;
     QSSGShaderKeyBoolean m_clearcoatEnabled;
     QSSGShaderKeyBoolean m_transmissionEnabled;
     QSSGShaderKeyBoolean m_specularAAEnabled;
     QSSGShaderKeyBoolean m_lightmapEnabled;
     QSSGShaderKeyBoolean m_specularGlossyEnabled;
+    QSSGShaderKeyUnsigned<4> m_debugMode;
+    QSSGShaderKeyBoolean m_fogEnabled;
 
     QSSGShaderDefaultMaterialKeyProperties()
         : m_hasLighting("hasLighting")
@@ -595,13 +600,22 @@ struct QSSGShaderDefaultMaterialKeyProperties
         , m_vertexAttributes("vertexAttributes")
         , m_usesFloatJointIndices("usesFloatJointIndices")
         , m_usesInstancing("usesInstancing")
-        , m_morphTargetCount("morphTargetCount")
+        , m_targetCount("targetCount")
+        , m_targetPositionOffset("targetPositionOffset")
+        , m_targetNormalOffset("targetNormalOffset")
+        , m_targetTangentOffset("targetTangentOffset")
+        , m_targetBinormalOffset("targetBinormalOffset")
+        , m_targetTexCoord0Offset("targetTexCoord0Offset")
+        , m_targetTexCoord1Offset("targetTexCoord1Offset")
+        , m_targetColorOffset("targetColorOffset")
         , m_blendParticles("blendParticles")
         , m_clearcoatEnabled("clearcoatEnabled")
         , m_transmissionEnabled("transmissionEnabled")
         , m_specularAAEnabled("specularAAEnabled")
         , m_lightmapEnabled("lightmapEnabled")
         , m_specularGlossyEnabled("specularGlossyEnabled")
+        , m_debugMode("debugMode")
+        , m_fogEnabled("fogEnabled")
     {
         m_lightFlags[0].name = "light0HasPosition";
         m_lightFlags[1].name = "light1HasPosition";
@@ -697,15 +711,6 @@ struct QSSGShaderDefaultMaterialKeyProperties
         m_textureChannels[8].name = "transmissionMap_channel";
         m_textureChannels[9].name = "thicknessMap_channel";
 
-        m_morphTargetAttributes[0].name = "morphTarget0Attributes";
-        m_morphTargetAttributes[1].name = "morphTarget1Attributes";
-        m_morphTargetAttributes[2].name = "morphTarget2Attributes";
-        m_morphTargetAttributes[3].name = "morphTarget3Attributes";
-        m_morphTargetAttributes[4].name = "morphTarget4Attributes";
-        m_morphTargetAttributes[5].name = "morphTarget5Attributes";
-        m_morphTargetAttributes[6].name = "morphTarget6Attributes";
-        m_morphTargetAttributes[7].name = "morphTarget7Attributes";
-
         init();
     }
 
@@ -750,15 +755,22 @@ struct QSSGShaderDefaultMaterialKeyProperties
         inVisitor.visit(m_vertexAttributes);
         inVisitor.visit(m_usesFloatJointIndices);
         inVisitor.visit(m_usesInstancing);
-        inVisitor.visit(m_morphTargetCount);
-        for (quint32 idx = 0, end = MorphTargetCount; idx < end; ++idx)
-            inVisitor.visit(m_morphTargetAttributes[idx]);
+        inVisitor.visit(m_targetCount);
+        inVisitor.visit(m_targetPositionOffset);
+        inVisitor.visit(m_targetNormalOffset);
+        inVisitor.visit(m_targetTangentOffset);
+        inVisitor.visit(m_targetBinormalOffset);
+        inVisitor.visit(m_targetTexCoord0Offset);
+        inVisitor.visit(m_targetTexCoord1Offset);
+        inVisitor.visit(m_targetColorOffset);
         inVisitor.visit(m_blendParticles);
         inVisitor.visit(m_clearcoatEnabled);
         inVisitor.visit(m_transmissionEnabled);
         inVisitor.visit(m_specularAAEnabled);
         inVisitor.visit(m_lightmapEnabled);
         inVisitor.visit(m_specularGlossyEnabled);
+        inVisitor.visit(m_debugMode);
+        inVisitor.visit(m_fogEnabled);
     }
 
     struct OffsetVisitor

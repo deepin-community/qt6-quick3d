@@ -1,5 +1,5 @@
-// Copyright (C) 2020 The Qt Company Ltd.
-// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Copyright (C) 2022 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 
 #include <QtTest>
 
@@ -21,17 +21,15 @@ private Q_SLOTS:
     void bench_picking1in1kMiss();
 
 private:
-    QSSGRef<QSSGRhiContext> renderContext;
-    QSSGRef<QSSGShaderCache> shaderCache;
-    QSSGRef<QSSGBufferManager> bufferManager;
+    std::unique_ptr<QSSGRhiContext> renderContext;
+    std::unique_ptr<QSSGBufferManager> bufferManager;
 
     void benchImpl(int count, bool hit);
 };
 
 picking::picking()
     : renderContext(new QSSGRhiContext)
-    , shaderCache(new QSSGShaderCache(renderContext))
-    , bufferManager(new QSSGBufferManager(renderContext, shaderCache))
+    , bufferManager(new QSSGBufferManager)
 {
 }
 
@@ -68,19 +66,17 @@ void picking::benchImpl(int count, bool hit)
     QSSGRenderLayer dummyLayer;
     QMatrix4x4 globalTransform;
 
-    QSSGRenderCamera dummyCamera;
-    dummyCamera.position = QVector3D(0.0f, 0.0f, 600.0f);
-    dummyCamera.flags.setFlag(QSSGRenderCamera::Flag::Orthographic);
-    dummyCamera.markDirty(QSSGRenderCamera::TransformDirtyFlag::TransformIsDirty);
+    QSSGRenderCamera dummyCamera(QSSGRenderCamera::Type::OrthographicCamera);
+    dummyCamera.localTransform.translate(QVector3D(0.0f, 0.0f, 600.0f));
+    static_cast<QSSGRenderNode &>(dummyCamera).markDirty(QSSGRenderNode::DirtyFlag::TransformDirty);
     dummyCamera.calculateGlobalVariables(QRectF(QPointF(), QSizeF(viewportDim.x(), viewportDim.y())));
     dummyCamera.calculateViewProjectionMatrix(globalTransform);
 
-    dummyLayer.flags.setFlag(QSSGRenderNode::Flag::LayerRenderToTarget, true);
     dummyLayer.renderedCamera = &dummyCamera;
 
     static const auto setModelPosition = [](QSSGRenderModel &model, const QVector3D &pos) {
-        model.position = pos;
-        model.markDirty(QSSGRenderModel::TransformDirtyFlag::TransformIsDirty);
+        model.localTransform.translate(pos);
+        model.markDirty(QSSGRenderNode::DirtyFlag::TransformDirty);
         model.calculateGlobalVariables();
     };
 
@@ -91,7 +87,7 @@ void picking::benchImpl(int count, bool hit)
     for (int i = 0; i != count; ++i) {
         auto &model = models[i];
         model.meshPath = cubeMeshPath;
-        model.flags.setFlag(QSSGRenderNode::Flag::LocallyPickable, true);
+        model.setState(QSSGRenderModel::LocalState::Pickable);
         setModelPosition(model, { 0.0f + i, 0.0f + i, 0.0f + i });
         dummyLayer.addChild(model);
     }
@@ -100,9 +96,9 @@ void picking::benchImpl(int count, bool hit)
     bufferManager->loadMesh(models);
 
     QSSGRenderPickResult res;
-    QVector2D mouseCoords = hit ? QVector2D{ 200.0f, 200.0f} : QVector2D{ 0.0f, 0.0f};
+    QSSGRenderRay ray = hit ? QSSGRenderRay{ { 0.0f, 0.0f, -100.0f }, { 0.0f, 0.0f, 1.0f } } : QSSGRenderRay{ { 0.0f, 0.0f, -100.0f }, { 1.0f, 0.0f, 0.0f } };
     QBENCHMARK {
-        res = renderer.syncPick(dummyLayer, bufferManager, viewportDim, { 200.0f, 200.0f});
+        res = renderer.syncPick(dummyLayer, *bufferManager, ray);
     }
     QVERIFY(res.m_hitObject != nullptr);
 }

@@ -3,8 +3,10 @@
 
 /*!
     \example reflectionprobes
+    \examplecategory {Data Visualization & 3D}
     \ingroup quick3d-examples
     \title Qt Quick 3D - Reflection Probes Example
+    \examplecategory {Data Visualization & 3D}
     \brief Demonstrates the use of reflection probes in Qt Quick 3D.
     \image reflectionprobes-example.jpg
 
@@ -15,9 +17,8 @@
 
     \section1 The scene
 
-    The scene consists of some models, two particle systems, a light probe, two
-    reflection probes and a camera controller that can be used to move the camera
-    around using the keyboard.
+    The scene consists of some models, two particle systems, a light probe, and
+    two reflection probes.
     There are three spheres in the middle of the scene as well as two cubes that
     act as a floor and a wall.
     The two particle systems in the middle of the scene are disabled by default

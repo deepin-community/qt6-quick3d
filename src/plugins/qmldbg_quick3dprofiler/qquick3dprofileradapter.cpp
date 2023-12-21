@@ -42,61 +42,40 @@ QQuick3DProfilerAdapter::~QQuick3DProfilerAdapter()
 
 // convert to QByteArrays that can be sent to the debug client
 static void QQuick3DProfilerDataToByteArrays(const QQuick3DProfilerData &data,
-                                           QList<QByteArray> &messages)
+                                             QList<QByteArray> &messages,
+                                             const QHash<int, QByteArray> &eventData)
 {
     QQmlDebugPacket ds;
-    Q_ASSERT_X(((data.messageType | data.detailType) & (1 << 31)) == 0, Q_FUNC_INFO,
-               "You can use at most 31 message types and 31 detail types.");
-    for (uint decodedMessageType = 0; (data.messageType >> decodedMessageType) != 0;
-         ++decodedMessageType) {
-        if ((data.messageType & (1 << decodedMessageType)) == 0)
-            continue;
 
-        for (uint decodedDetailType = 0; (data.detailType >> decodedDetailType) != 0;
-             ++decodedDetailType) {
-            if ((data.detailType & (1 << decodedDetailType)) == 0)
-                continue;
-
-            ds << data.time << decodedMessageType << decodedDetailType;
-            switch (decodedMessageType) {
-            case QQuick3DProfiler::Event:
-                break;
-            case QQuick3DProfiler::Quick3DFrame:
-                switch (decodedDetailType) {
-                case QQuick3DProfiler::Quick3DSynchronizeFrame:
-                case QQuick3DProfiler::Quick3DPrepareFrame:
-                case QQuick3DProfiler::Quick3DLoadShader:
-                case QQuick3DProfiler::Quick3DGenerateShader:
-                    ds << data.subdata1;
-                    break;
-                case QQuick3DProfiler::Quick3DRenderFrame:
-                case QQuick3DProfiler::Quick3DMeshLoad:
-                case QQuick3DProfiler::Quick3DCustomMeshLoad:
-                case QQuick3DProfiler::Quick3DTextureLoad:
-                case QQuick3DProfiler::Quick3DParticleUpdate:
-                    ds << data.subdata1 << data.subdata2;
-                    break;
-                default:
-                    Q_ASSERT_X(false, Q_FUNC_INFO, "Invalid decoded detail type");
-                }
-                break;
-            default:
-                Q_ASSERT_X(false, Q_FUNC_INFO, "Invalid message type.");
-                break;
-
-            }
-
-            messages.append(ds.squeezedData());
-            ds.clear();
+    // packet header
+    ds << data.time << data.messageType << data.detailType;
+    // packet data
+    switch (data.messageType) {
+    case QQuick3DProfiler::Event:
+        break;
+    case QQuick3DProfiler::Quick3DFrame:
+        if (data.detailType == QQuick3DProfiler::Quick3DEventData) {
+            ds << eventData[data.subdata1];
+        } else {
+            ds << data.subdata1 << data.subdata2;
+            if (data.ids[0] || data.ids[1])
+                ds << data.ids[0] << data.ids[1];
         }
+        break;
+    default:
+        Q_ASSERT_X(false, Q_FUNC_INFO, "Invalid message type.");
+        break;
     }
+
+    messages.append(ds.squeezedData());
+    ds.clear();
 }
 
 qint64 QQuick3DProfilerAdapter::sendMessages(qint64 until, QList<QByteArray> &messages)
 {
     while (next < m_data.size()) {
         if (m_data[next].time <= until && messages.size() <= s_numMessagesPerBatch)
-            QQuick3DProfilerDataToByteArrays(m_data[next++], messages);
+            QQuick3DProfilerDataToByteArrays(m_data[next++], messages, m_eventData);
         else
             return m_data[next].time;
     }
@@ -105,12 +84,13 @@ qint64 QQuick3DProfilerAdapter::sendMessages(qint64 until, QList<QByteArray> &me
     return -1;
 }
 
-void QQuick3DProfilerAdapter::receiveData(const QVector<QQuick3DProfilerData> &new_data)
+void QQuick3DProfilerAdapter::receiveData(const QVector<QQuick3DProfilerData> &new_data, const QHash<int, QByteArray> &eventData)
 {
     if (m_data.isEmpty())
         m_data = new_data;
     else
         m_data.append(new_data);
+    m_eventData = eventData;
     service->dataReady(this);
 }
 

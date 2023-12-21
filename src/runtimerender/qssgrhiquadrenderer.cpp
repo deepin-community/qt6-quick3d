@@ -43,11 +43,11 @@ void QSSGRhiQuadRenderer::ensureBuffers(QSSGRhiContext *rhiCtx, QRhiResourceUpda
 {
     if (!m_vbuf) {
         constexpr int vertexCount = 8;
-        m_vbuf = new QSSGRhiBuffer(*rhiCtx,
-                                   QRhiBuffer::Immutable,
-                                   QRhiBuffer::VertexBuffer,
-                                   5 * sizeof(float),
-                                   5 * vertexCount * sizeof(float));
+        m_vbuf = std::make_shared<QSSGRhiBuffer>(*rhiCtx,
+                                                 QRhiBuffer::Immutable,
+                                                 QRhiBuffer::VertexBuffer,
+                                                 quint32(5 * sizeof(float)),
+                                                 5 * vertexCount * sizeof(float));
         m_vbuf->buffer()->setName(QByteArrayLiteral("quad vertex buffer"));
         float buf[5 * vertexCount];
         float *p = buf;
@@ -61,12 +61,12 @@ void QSSGRhiQuadRenderer::ensureBuffers(QSSGRhiContext *rhiCtx, QRhiResourceUpda
         rub->uploadStaticBuffer(m_vbuf->buffer(), buf);
     }
     if (!m_ibuf) {
-        m_ibuf = new QSSGRhiBuffer(*rhiCtx,
-                                   QRhiBuffer::Immutable,
-                                   QRhiBuffer::IndexBuffer,
-                                   0,
-                                   6 * sizeof(quint16),
-                                   QRhiCommandBuffer::IndexUInt16);
+        m_ibuf = std::make_shared<QSSGRhiBuffer>(*rhiCtx,
+                                                 QRhiBuffer::Immutable,
+                                                 QRhiBuffer::IndexBuffer,
+                                                 0,
+                                                 6 * sizeof(quint16),
+                                                 QRhiCommandBuffer::IndexUInt16);
         m_ibuf->buffer()->setName(QByteArrayLiteral("quad index buffer"));
         const quint16 buf[] = { 0, 1, 2, 0, 2, 3 };
         rub->uploadStaticBuffer(m_ibuf->buffer(), buf);
@@ -107,20 +107,32 @@ void QSSGRhiQuadRenderer::recordRenderQuad(QSSGRhiContext *rhiCtx,
         ps->targetBlend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
         ps->targetBlend.srcAlpha = QRhiGraphicsPipeline::One;
         ps->targetBlend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+    } else { // set to default, since we may not have had a renderable previously
+        ps->targetBlend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
+        ps->targetBlend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+        ps->targetBlend.srcAlpha = QRhiGraphicsPipeline::One;
+        ps->targetBlend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
     }
 
+    QRhiGraphicsPipeline *pipeline = rhiCtx->pipeline(QSSGGraphicsPipelineStateKey::create(*ps, rpDesc, srb), rpDesc, srb);
+    // Make sure that we were able to create the pipeline before trying to use it
+    // When GraphicsPipeline creation fails it should return nullptr and print a warning
+    if (!pipeline)
+        return;
+
     QRhiCommandBuffer *cb = rhiCtx->commandBuffer();
-    cb->setGraphicsPipeline(rhiCtx->pipeline(QSSGGraphicsPipelineStateKey::create(*ps, rpDesc, srb), rpDesc, srb));
+    cb->setGraphicsPipeline(pipeline);
     cb->setShaderResources(srb);
     cb->setViewport(ps->viewport);
 
     quint32 vertexOffset = flags.testAnyFlags(RenderBehind) ? 5 * 4 * sizeof(float) : 0;
 
     QRhiCommandBuffer::VertexInput vb(m_vbuf->buffer(), vertexOffset);
-
+    Q_QUICK3D_PROFILE_START(QQuick3DProfiler::Quick3DRenderCall);
     cb->setVertexInput(0, 1, &vb, m_ibuf->buffer(), m_ibuf->indexFormat());
     cb->drawIndexed(6);
     QSSGRHICTX_STAT(rhiCtx, drawIndexed(6, 1));
+    Q_QUICK3D_PROFILE_END_WITH_STRING(QQuick3DProfiler::Quick3DRenderCall, 36llu | (1llu << 32), QByteArrayLiteral("render_quad"));
 }
 
 void QSSGRhiQuadRenderer::recordRenderQuadPass(QSSGRhiContext *rhiCtx,
@@ -160,29 +172,41 @@ void QSSGRhiCubeRenderer::recordRenderCube(QSSGRhiContext *rhiCtx, QSSGRhiGraphi
         ps->targetBlend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
         ps->targetBlend.srcAlpha = QRhiGraphicsPipeline::One;
         ps->targetBlend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+    } else { // set to default, since we may not have had a renderable previously
+        ps->targetBlend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
+        ps->targetBlend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+        ps->targetBlend.srcAlpha = QRhiGraphicsPipeline::One;
+        ps->targetBlend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
     }
 
+    QRhiGraphicsPipeline *pipeline = rhiCtx->pipeline(QSSGGraphicsPipelineStateKey::create(*ps, rpDesc, srb), rpDesc, srb);
+    // Make sure that we were able to create the pipeline before trying to use it
+    // When GraphicsPipeline creation fails it should return nullptr and print a warning
+    if (!pipeline)
+        return;
+
     QRhiCommandBuffer *cb = rhiCtx->commandBuffer();
-    cb->setGraphicsPipeline(rhiCtx->pipeline(QSSGGraphicsPipelineStateKey::create(*ps, rpDesc, srb), rpDesc, srb));
+    cb->setGraphicsPipeline(pipeline);
     cb->setShaderResources(srb);
     cb->setViewport(ps->viewport);
 
     QRhiCommandBuffer::VertexInput vb(m_vbuf->buffer(), 0);
-
+    Q_QUICK3D_PROFILE_START(QQuick3DProfiler::Quick3DRenderCall);
     cb->setVertexInput(0, 1, &vb, m_ibuf->buffer(), m_ibuf->indexFormat());
     cb->drawIndexed(36);
     QSSGRHICTX_STAT(rhiCtx, drawIndexed(36, 1));
+    Q_QUICK3D_PROFILE_END_WITH_STRING(QQuick3DProfiler::Quick3DRenderCall, 36, QByteArrayLiteral("render_cube"));
 }
 
 void QSSGRhiCubeRenderer::ensureBuffers(QSSGRhiContext *rhiCtx, QRhiResourceUpdateBatch *rub)
 {
     if (!m_vbuf) {
         constexpr int vertexCount = 8;
-        m_vbuf = new QSSGRhiBuffer(*rhiCtx,
-                                   QRhiBuffer::Immutable,
-                                   QRhiBuffer::VertexBuffer,
-                                   3 * sizeof(float),
-                                   3 * vertexCount * sizeof(float));
+        m_vbuf = std::make_shared<QSSGRhiBuffer>(*rhiCtx,
+                                                 QRhiBuffer::Immutable,
+                                                 QRhiBuffer::VertexBuffer,
+                                                 quint32(3 * sizeof(float)),
+                                                 3 * vertexCount * sizeof(float));
         m_vbuf->buffer()->setName(QByteArrayLiteral("cube vertex buffer"));
 
         float buf[3 * vertexCount];
@@ -195,12 +219,12 @@ void QSSGRhiCubeRenderer::ensureBuffers(QSSGRhiContext *rhiCtx, QRhiResourceUpda
         rub->uploadStaticBuffer(m_vbuf->buffer(), buf);
     }
     if (!m_ibuf) {
-        m_ibuf = new QSSGRhiBuffer(*rhiCtx,
-                                   QRhiBuffer::Immutable,
-                                   QRhiBuffer::IndexBuffer,
-                                   0,
-                                   sizeof(g_rectIndex),
-                                   QRhiCommandBuffer::IndexUInt16);
+        m_ibuf = std::make_shared<QSSGRhiBuffer>(*rhiCtx,
+                                                 QRhiBuffer::Immutable,
+                                                 QRhiBuffer::IndexBuffer,
+                                                 0,
+                                                 sizeof(g_rectIndex),
+                                                 QRhiCommandBuffer::IndexUInt16);
         m_ibuf->buffer()->setName(QByteArrayLiteral("cube index buffer"));
         rub->uploadStaticBuffer(m_ibuf->buffer(), g_rectIndex);
     }

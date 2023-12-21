@@ -89,7 +89,7 @@ struct QSSGAllocateBuffer : public QSSGCommand
     {
     }
     void addDebug(QDebug &stream) const {
-        stream << "name:" <<  m_name << "format:" << m_format.toString() << "size multiplier:" << m_sizeMultiplier << "filter:" << toString(m_filterOp) << "tiling:" << toString(m_texCoordOp) << "sceneLifetime:" << m_bufferFlags.isSceneLifetime();
+        stream << "name:" <<  m_name << "format:" << m_format.toString() << "size multiplier:" << m_sizeMultiplier << "filter:" << QSSGBaseTypeHelpers::toString(m_filterOp) << "tiling:" << QSSGBaseTypeHelpers::toString(m_texCoordOp) << "sceneLifetime:" << m_bufferFlags.isSceneLifetime();
     }
 };
 
@@ -120,12 +120,10 @@ struct QSSGBindBuffer : public QSSGCommand
 
 struct QSSGBindShader : public QSSGCommand
 {
-    QByteArray m_shaderPathKey; // something like "vertex_filename>fragment_filename"
-    size_t m_hkey = 0;
+    QByteArray m_shaderPathKey; // something like "prefix>vertex_filename>fragment_filename:source_sha:y_up_in_fbo[:tonemapping]"
     QSSGBindShader(const QByteArray &inShaderPathKey)
         : QSSGCommand(CommandType::BindShader),
-          m_shaderPathKey(inShaderPathKey),
-          m_hkey(QSSGShaderCacheKey::generateHashCode(inShaderPathKey, QSSGShaderFeatures()))
+          m_shaderPathKey(inShaderPathKey)
     {
     }
     QSSGBindShader() : QSSGCommand(CommandType::BindShader) {}
@@ -143,16 +141,16 @@ struct QSSGApplyInstanceValue : public QSSGCommand
     // Name of value to apply in shader
     QByteArray m_propertyName;
     // type of value
-    QSSGRenderShaderDataType m_valueType;
+    QSSGRenderShaderValue::Type m_valueType;
     // offset in the effect data section of value.
     quint32 m_valueOffset;
-    QSSGApplyInstanceValue(const QByteArray &inName, QSSGRenderShaderDataType inValueType, quint32 inValueOffset)
+    QSSGApplyInstanceValue(const QByteArray &inName, QSSGRenderShaderValue::Type inValueType, quint32 inValueOffset)
         : QSSGCommand(CommandType::ApplyInstanceValue), m_propertyName(inName), m_valueType(inValueType), m_valueOffset(inValueOffset)
     {
     }
     // Default will attempt to apply all effect values to the currently bound shader
     QSSGApplyInstanceValue()
-        : QSSGCommand(CommandType::ApplyInstanceValue), m_valueType(QSSGRenderShaderDataType::Unknown), m_valueOffset(0)
+        : QSSGCommand(CommandType::ApplyInstanceValue), m_valueType(QSSGRenderShaderValue::Unknown), m_valueOffset(0)
     {
     }
     void addDebug(QDebug &stream) const {

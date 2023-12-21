@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only WITH Qt-GPL-exception-1.0
 
 #include <QTest>
+#include <QSignalSpy>
 #include <QQuickView>
 #include <QQmlEngine>
 #include <QQmlComponent>
-#include <QtGui/private/qrhi_p.h>
+#include <rhi/qrhi.h>
 
 #include "../shared/util.h"
 
@@ -144,27 +145,38 @@ void tst_MultiWindow::cubeMultiViewportMultiWindow()
     QVERIFY(comparePixelNormPos(result, 0.5, 0.5, QColor::fromRgb(59, 192, 77), FUZZ));
 
     {
+
         QQuick3DTestMessageHandler msgCatcher;
+
+        QSignalSpy sceneUpdate1(window1, &QQuickWindow::afterFrameEnd);
+        QSignalSpy sceneUpdate2(window2, &QQuickWindow::afterFrameEnd);
 
         QMetaObject::invokeMethod(window1, "changeToSourceItemBasedTexture");
 
+        bool b = QTest::qWaitFor([&](){ return sceneUpdate1.size() > 1; });
+
         result = grab(window1);
-        if (result.isNull())
+        if (!b || result.isNull()) {
+            qWarning("Test skipped!");
             return;
+        }
 
         QVERIFY(comparePixelNormPos(result, 0.5, 0.5, QColor::fromRgb(239, 0, 0), FUZZ));
 
-        result = grab(window2);
-        if (result.isNull())
-            return;
+        b = QTest::qWaitFor([&](){ return sceneUpdate2.size() > 1; });
 
-        // Have to check if we are using the threaded render loop
-        // since using a Texture with sourceItem from multiple windows
-        // is only a problem with separate render threads.
-        QRhi *rhi = static_cast<QRhi *>(window1->rendererInterface()->getResource(window1, QSGRendererInterface::RhiResource));
-        QVERIFY(rhi);
-        if (rhi->thread() != QThread::currentThread()) {
-            QVERIFY(msgCatcher.messageString().contains(QLatin1String("Cannot use QSGTexture")));
+        result = grab(window2);
+        if (!b || result.isNull()) {
+            qWarning("Test skipped!");
+            return;
+        }
+
+        QRhi *rhi1 = static_cast<QRhi *>(window1->rendererInterface()->getResource(window1, QSGRendererInterface::RhiResource));
+        QVERIFY(rhi1);
+        QRhi *rhi2 = static_cast<QRhi *>(window2->rendererInterface()->getResource(window2, QSGRendererInterface::RhiResource));
+        QVERIFY(rhi2);
+        if (rhi1 != rhi2) {
+            QVERIFY(!msgCatcher.messageString().contains(QLatin1String("Cannot use QSGTexture")));
         } else {
             QVERIFY(comparePixelNormPos(result, 0.5, 0.5, QColor::fromRgb(239, 0, 0), FUZZ));
         }

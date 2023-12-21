@@ -14,10 +14,6 @@ Window {
     visible: true
     title: qsTr("Reflection Probes")
 
-    WasdController {
-        controlledObject: camera
-    }
-
     View3D {
         id: view
         anchors.fill: parent
@@ -32,14 +28,14 @@ Window {
 
         PerspectiveCamera {
             id: camera
-            position: Qt.vector3d(-100, 500, 600)
-            eulerRotation.x: -30
+            position: Qt.vector3d(-50, 700, 475)
+            eulerRotation.x: -50
         }
 
         DirectionalLight { }
 
         Model {
-            property real angle: 0
+            property real angle
             source: "#Sphere"
             x: Math.cos(angle) * 100
             z: Math.sin(angle) * 100
@@ -58,6 +54,7 @@ Window {
             }
 
             ReflectionProbe {
+                objectName: "sphereReflProbe"
                 timeSlicing: {
                     if (settingsPanel.timeSlicingIndex == 0) ReflectionProbe.None
                     else if (settingsPanel.timeSlicingIndex == 1) ReflectionProbe.AllFacesAtOnce
@@ -117,6 +114,7 @@ Window {
         }
 
         ReflectionProbe {
+            objectName: "reflProbe"
             position: settingsPanel.probePosition
             timeSlicing: {
                 if (settingsPanel.timeSlicingIndex == 0) ReflectionProbe.None
@@ -210,8 +208,30 @@ Window {
 
     SettingsPanel {
         id: settingsPanel
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.bottom: parent.bottom
+        iconSize: 16 + Math.max(window.width, window.height) * 0.05
+    }
+
+    Item {
+        width: debugViewToggleText.implicitWidth
+        height: debugViewToggleText.implicitHeight
+        anchors.right: parent.right
+        Label {
+            id: debugViewToggleText
+            text: "Click here " + (dbg.visible ? "to hide DebugView" : "for DebugView")
+            color: "white"
+            anchors.right: parent.right
+            anchors.top: parent.top
+        }
+        MouseArea {
+            anchors.fill: parent
+            onClicked: dbg.visible = !dbg.visible
+            DebugView {
+                y: debugViewToggleText.height * 2
+                anchors.right: parent.right
+                source: view
+                id: dbg
+                visible: false
+            }
+        }
     }
 }

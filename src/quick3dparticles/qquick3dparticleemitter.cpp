@@ -361,15 +361,15 @@ void QQuick3DParticleEmitter::setParticle(QQuick3DParticle *particle)
         return;
     }
 
-    QObject::connect(this, &QQuick3DParticleEmitter::depthBiasChanged, [this](){
-        m_particle->setDepthBias(m_depthBias);
-    });
     if (m_particle && m_system && !m_system->isShared(m_particle))
         m_particle->setSystem(nullptr);
     m_particle = particle;
     if (particle) {
         particle->setDepthBias(m_depthBias);
         particle->setSystem(system());
+        QObject::connect(this, &QQuick3DParticleEmitter::depthBiasChanged, m_particle, [this]() {
+            m_particle->setDepthBias(m_depthBias);
+        });
     }
     Q_EMIT particleChanged();
 }
@@ -716,11 +716,11 @@ void QQuick3DParticleEmitter::emitParticle(QQuick3DParticle *particle, float sta
         // max value 127*127 = 16129 degrees/second
         float sign;
         sign = rotVelX < 0.0f ? -1.0f : 1.0f;
-        rotVelX = std::max(-127.0f, std::min(127.0f, sign * std::sqrt(abs(rotVelX))));
+        rotVelX = std::max(-127.0f, std::min<float>(127.0f, sign * std::sqrt(abs(rotVelX))));
         sign = rotVelY < 0.0f ? -1.0f : 1.0f;
-        rotVelY = std::max(-127.0f, std::min(127.0f, sign * std::sqrt(abs(rotVelY))));
+        rotVelY = std::max(-127.0f, std::min<float>(127.0f, sign * std::sqrt(abs(rotVelY))));
         sign = rotVelZ < 0.0f ? -1.0f : 1.0f;
-        rotVelZ = std::max(-127.0f, std::min(127.0f, sign * std::sqrt(abs(rotVelZ))));
+        rotVelZ = std::max(-127.0f, std::min<float>(127.0f, sign * std::sqrt(abs(rotVelZ))));
         d->startRotationVelocity = { qint8(rotVelX), qint8(rotVelY), qint8(rotVelZ) };
     }
 

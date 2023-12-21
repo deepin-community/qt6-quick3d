@@ -11,6 +11,12 @@ QSSGRenderTextureData::QSSGRenderTextureData()
 
 }
 
+QSSGRenderTextureData::QSSGRenderTextureData(QSSGRenderGraphObject::Type type)
+    : QSSGRenderGraphObject(type)
+{
+
+}
+
 QSSGRenderTextureData::~QSSGRenderTextureData()
 {
 
@@ -37,6 +43,19 @@ void QSSGRenderTextureData::setSize(const QSize &size)
     if (m_size == size)
         return;
     m_size = size;
+    markDirty();
+}
+
+int QSSGRenderTextureData::depth() const
+{
+    return m_depth;
+}
+
+void QSSGRenderTextureData::setDepth(int depth)
+{
+    if (m_depth == depth)
+        return;
+    m_depth = depth;
     markDirty();
 }
 

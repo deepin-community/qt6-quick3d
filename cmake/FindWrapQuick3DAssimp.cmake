@@ -1,3 +1,6 @@
+# Copyright (C) 2022 The Qt Company Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 if(TARGET WrapQuick3DAssimp::WrapQuick3DAssimp)
   set(WrapQuick3DAssimp_FOUND TRUE)
   return()

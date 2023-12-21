@@ -1,3 +1,6 @@
+# Copyright (C) 2022 The Qt Company Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 qt_path_join(destination ${QT_INSTALL_DIR} "${INSTALL_QMLDIR}/QtQuick3D/Particles3D/designer")
 qt_copy_or_install(
     FILES
@@ -23,7 +26,6 @@ qt_copy_or_install(
         ModelParticle3DSpecifics.qml
         NodeSection.qml
         NodeSpecifics.qml
-        IdComboBox.qml
         ParticleCustomShape3DSection.qml
         ParticleCustomShape3DSpecifics.qml
         ParticleModelShape3DSection.qml

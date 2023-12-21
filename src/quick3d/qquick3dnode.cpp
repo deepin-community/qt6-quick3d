@@ -110,6 +110,8 @@ QQuick3DNode::QQuick3DNode(QQuick3DNode *parent)
 QQuick3DNode::QQuick3DNode(QQuick3DNodePrivate &dd, QQuick3DNode *parent)
     : QQuick3DObject(dd, parent)
 {
+    Q_ASSERT_X(QSSGRenderGraphObject::isNodeType(dd.type), "", "Type needs to be identified as a node type!");
+
     Q_D(QQuick3DNode);
     d->init();
 }
@@ -310,7 +312,7 @@ QVector3D QQuick3DNode::right() const
 */
 QVector3D QQuick3DNode::scenePosition() const
 {
-    return mat44::getPosition(sceneTransform());
+    return QSSGUtils::mat44::getPosition(sceneTransform());
 }
 
 /*!
@@ -322,7 +324,7 @@ QVector3D QQuick3DNode::scenePosition() const
 QQuaternion QQuick3DNode::sceneRotation() const
 {
     Q_D(const QQuick3DNode);
-    return QQuaternion::fromRotationMatrix(mat44::getUpper3x3(d->sceneRotationMatrix())).normalized();
+    return QQuaternion::fromRotationMatrix(QSSGUtils::mat44::getUpper3x3(d->sceneRotationMatrix())).normalized();
 }
 
 /*!
@@ -333,7 +335,7 @@ QQuaternion QQuick3DNode::sceneRotation() const
 */
 QVector3D QQuick3DNode::sceneScale() const
 {
-    return mat44::getScale(sceneTransform());
+    return QSSGUtils::mat44::getScale(sceneTransform());
 }
 
 /*!
@@ -396,7 +398,7 @@ QMatrix4x4 QQuick3DNodePrivate::sceneRotationMatrix() const
         // rotation directly from the sceneTransform(). This is optimizing, since we reuse that
         // matrix for more than just calculating the sceneRotation.
         QMatrix4x4 rotationMatrix = q->sceneTransform();
-        mat44::normalize(rotationMatrix);
+        QSSGUtils::mat44::normalize(rotationMatrix);
         return rotationMatrix;
     }
 
@@ -410,9 +412,9 @@ QMatrix4x4 QQuick3DNodePrivate::sceneRotationMatrix() const
 void QQuick3DNodePrivate::emitChangesToSceneTransform()
 {
     Q_Q(QQuick3DNode);
-    const QVector3D prevPosition = mat44::getPosition(m_sceneTransform);
-    const QQuaternion prevRotation = QQuaternion::fromRotationMatrix(mat44::getUpper3x3(m_sceneTransform)).normalized();
-    const QVector3D prevScale = mat44::getScale(m_sceneTransform);
+    const QVector3D prevPosition = QSSGUtils::mat44::getPosition(m_sceneTransform);
+    const QQuaternion prevRotation = QQuaternion::fromRotationMatrix(QSSGUtils::mat44::getUpper3x3(m_sceneTransform)).normalized();
+    const QVector3D prevScale = QSSGUtils::mat44::getScale(m_sceneTransform);
     QVector3D prevForward, prevUp, prevRight;
     QVector3D newForward, newUp, newRight;
     // Do direction (forward, up, right) calculations only if they have connections
@@ -422,21 +424,21 @@ void QQuick3DNodePrivate::emitChangesToSceneTransform()
         // This way m_sceneTransform isn't updated due to m_sceneTransformDirty and
         // common theDirMatrix operations are not duplicated.
         QMatrix3x3 theDirMatrix = m_sceneTransform.normalMatrix();
-        prevForward = mat33::transform(theDirMatrix, QVector3D(0, 0, -1)).normalized();
-        prevUp = mat33::transform(theDirMatrix, QVector3D(0, 1, 0)).normalized();
-        prevRight = mat33::transform(theDirMatrix, QVector3D(1, 0, 0)).normalized();
+        prevForward = QSSGUtils::mat33::transform(theDirMatrix, QVector3D(0, 0, -1)).normalized();
+        prevUp = QSSGUtils::mat33::transform(theDirMatrix, QVector3D(0, 1, 0)).normalized();
+        prevRight = QSSGUtils::mat33::transform(theDirMatrix, QVector3D(1, 0, 0)).normalized();
     }
 
     calculateGlobalVariables();
 
-    const QVector3D newPosition = mat44::getPosition(m_sceneTransform);
-    const QQuaternion newRotation = QQuaternion::fromRotationMatrix(mat44::getUpper3x3(m_sceneTransform)).normalized();
-    const QVector3D newScale = mat44::getScale(m_sceneTransform);
+    const QVector3D newPosition = QSSGUtils::mat44::getPosition(m_sceneTransform);
+    const QQuaternion newRotation = QQuaternion::fromRotationMatrix(QSSGUtils::mat44::getUpper3x3(m_sceneTransform)).normalized();
+    const QVector3D newScale = QSSGUtils::mat44::getScale(m_sceneTransform);
     if (emitDirectionChanges) {
         QMatrix3x3 theDirMatrix = m_sceneTransform.normalMatrix();
-        newForward = mat33::transform(theDirMatrix, QVector3D(0, 0, -1)).normalized();
-        newUp = mat33::transform(theDirMatrix, QVector3D(0, 1, 0)).normalized();
-        newRight = mat33::transform(theDirMatrix, QVector3D(1, 0, 0)).normalized();
+        newForward = QSSGUtils::mat33::transform(theDirMatrix, QVector3D(0, 0, -1)).normalized();
+        newUp = QSSGUtils::mat33::transform(theDirMatrix, QVector3D(0, 1, 0)).normalized();
+        newRight = QSSGUtils::mat33::transform(theDirMatrix, QVector3D(1, 0, 0)).normalized();
     }
 
     const bool positionChanged = prevPosition != newPosition;
@@ -702,7 +704,7 @@ void QQuick3DNode::setEulerRotation(const QVector3D &eulerRotation) {
 }
 
 /*!
-    \qmlmethod QQuick3D::Node::rotate(real degrees, vector3d axis, enumeration space)
+    \qmlmethod QtQuick3D::Node::rotate(real degrees, vector3d axis, enumeration space)
 
     Rotates this node around an \a axis by the given \a degrees. The specified
     rotation will be added to the node's current rotation. The axis can
@@ -742,7 +744,7 @@ void QQuick3DNode::rotate(qreal degrees, const QVector3D &axis, TransformSpace s
         break;
     }
 
-    const QQuaternion newRotationQuaternion = QQuaternion::fromRotationMatrix(mat44::getUpper3x3(newRotationMatrix)).normalized();
+    const QQuaternion newRotationQuaternion = QQuaternion::fromRotationMatrix(QSSGUtils::mat44::getUpper3x3(newRotationMatrix)).normalized();
 
     if (d->m_rotation == newRotationQuaternion)
         return;
@@ -763,7 +765,7 @@ QSSGRenderGraphObject *QQuick3DNode::updateSpatialNode(QSSGRenderGraphObject *no
         markAllDirty();
         node = new QSSGRenderNode();
     }
-
+    QQuick3DObject::updateSpatialNode(node);
     auto spacialNode = static_cast<QSSGRenderNode *>(node);
     bool transformIsDirty = false;
 
@@ -777,13 +779,13 @@ QSSGRenderGraphObject *QQuick3DNode::updateSpatialNode(QSSGRenderGraphObject *no
         spacialNode->markDirty(QSSGRenderNode::DirtyFlag::OpacityDirty);
     }
 
-    if (!transformIsDirty && !qFuzzyCompare(d->m_position, mat44::getPosition(spacialNode->localTransform)))
+    if (!transformIsDirty && !qFuzzyCompare(d->m_position, QSSGUtils::mat44::getPosition(spacialNode->localTransform)))
         transformIsDirty = true;
 
-    if (!transformIsDirty && !qFuzzyCompare(d->m_scale, mat44::getScale(spacialNode->localTransform)))
+    if (!transformIsDirty && !qFuzzyCompare(d->m_scale, QSSGUtils::mat44::getScale(spacialNode->localTransform)))
         transformIsDirty = true;
 
-    if (!transformIsDirty && !qFuzzyCompare(d->m_rotation, QQuaternion::fromRotationMatrix(mat44::getUpper3x3(spacialNode->localTransform))))
+    if (!transformIsDirty && !qFuzzyCompare(d->m_rotation, QQuaternion::fromRotationMatrix(QSSGUtils::mat44::getUpper3x3(spacialNode->localTransform))))
         transformIsDirty = true;
 
     if (transformIsDirty) {
@@ -794,19 +796,12 @@ QSSGRenderGraphObject *QQuick3DNode::updateSpatialNode(QSSGRenderGraphObject *no
     spacialNode->staticFlags = d->m_staticFlags;
 
     // The Hidden in Editor flag overrides the visible value
-    const bool nodeActive = spacialNode->getLocalState(QSSGRenderNode::LocalState::Active);
-    if (nodeActive && d->m_isHiddenInEditor)
+    if (d->m_isHiddenInEditor)
         spacialNode->setState(QSSGRenderNode::LocalState::Active, false);
     else
         spacialNode->setState(QSSGRenderNode::LocalState::Active, d->m_visible);
 
-    if (spacialNode->isDirty(QSSGRenderNode::DirtyFlag::GlobalValuesDirty)) {
-        spacialNode->calculateGlobalVariables();
-        // calculateGlobalVariables clears the dirty flag so transform has to be set dirty again
-        // so that the layer can check node dirtiness afterwards
-        if (transformIsDirty)
-            spacialNode->markDirty(QSSGRenderNode::DirtyFlag::TransformDirty);
-    }
+    DebugViewHelpers::ensureDebugObjectName(spacialNode, this);
 
     return spacialNode;
 }
@@ -824,7 +819,7 @@ QSSGRenderGraphObject *QQuick3DNode::updateSpatialNode(QSSGRenderGraphObject *no
 */
 QVector3D QQuick3DNode::mapPositionToScene(const QVector3D &localPosition) const
 {
-    return mat44::transform(sceneTransform(), localPosition);
+    return QSSGUtils::mat44::transform(sceneTransform(), localPosition);
 }
 
 /*!
@@ -836,7 +831,7 @@ QVector3D QQuick3DNode::mapPositionToScene(const QVector3D &localPosition) const
 */
 QVector3D QQuick3DNode::mapPositionFromScene(const QVector3D &scenePosition) const
 {
-    return mat44::transform(sceneTransform().inverted(), scenePosition);
+    return QSSGUtils::mat44::transform(sceneTransform().inverted(), scenePosition);
 }
 
 /*!
@@ -886,7 +881,7 @@ QVector3D QQuick3DNode::mapPositionFromNode(const QQuick3DNode *node, const QVec
 QVector3D QQuick3DNode::mapDirectionToScene(const QVector3D &localDirection) const
 {
     QMatrix3x3 theDirMatrix = sceneTransform().normalMatrix();
-    return mat33::transform(theDirMatrix, localDirection);
+    return QSSGUtils::mat33::transform(theDirMatrix, localDirection);
 }
 
 /*!
@@ -903,9 +898,9 @@ QVector3D QQuick3DNode::mapDirectionToScene(const QVector3D &localDirection) con
 */
 QVector3D QQuick3DNode::mapDirectionFromScene(const QVector3D &sceneDirection) const
 {
-    QMatrix3x3 theDirMatrix = mat44::getUpper3x3(sceneTransform());
+    QMatrix3x3 theDirMatrix = QSSGUtils::mat44::getUpper3x3(sceneTransform());
     theDirMatrix = theDirMatrix.transposed();
-    return mat33::transform(theDirMatrix, sceneDirection);
+    return QSSGUtils::mat33::transform(theDirMatrix, sceneDirection);
 }
 
 /*!

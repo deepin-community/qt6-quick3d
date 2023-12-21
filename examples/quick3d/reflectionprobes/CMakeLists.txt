@@ -1,3 +1,6 @@
+# Copyright (C) 2022 The Qt Company Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 cmake_minimum_required(VERSION 3.16)
 project(reflectionprobes LANGUAGES CXX)
 
@@ -36,6 +39,7 @@ qt_add_qml_module(reflectionprobes
     RESOURCES
         res/OpenfootageNET_lowerAustria01-1024.hdr
         res/snowflake.png
+        res/icon_settings.png
     NO_RESOURCE_TARGET_PATH
 )
 

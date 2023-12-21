@@ -29,6 +29,7 @@
 
 QT_BEGIN_NAMESPACE
 
+class QSSGRenderContextInterface;
 class QSSGRhiShaderPipeline;
 class QShaderBaker;
 class QRhi;
@@ -105,6 +106,21 @@ void disableTonemapping()
     set(Feature::HejlDawsonTonemapping, false);
 }
 
+inline friend QDebug operator<<(QDebug stream, const QSSGShaderFeatures &features)
+{
+    QVarLengthArray<const char *, Count> enabledFeatureStrings;
+    for (quint32 idx = 0; idx < Count; ++idx) {
+        const Feature feature = fromIndex(idx);
+        if (features.isSet(feature))
+            enabledFeatureStrings.append(asDefineString(feature));
+    }
+    stream.nospace() << "QSSGShaderFeatures(";
+    for (int i = 0; i < enabledFeatureStrings.size(); ++i)
+        stream.nospace() << (i > 0 ? ", " : "") << enabledFeatureStrings[i];
+    stream.nospace() << ")";
+    return stream;
+}
+
 };
 
 Q_QUICK3DRUNTIMERENDER_EXPORT size_t qHash(QSSGShaderFeatures features) noexcept;
@@ -125,11 +141,6 @@ struct QSSGShaderCacheKey
         return qHash(key) ^ qHash(features);
     }
 
-    static QByteArray hashString(const QByteArray &key, QSSGShaderFeatures features)
-    {
-        return  QCryptographicHash::hash(QByteArray::number(generateHashCode(key, features)), QCryptographicHash::Algorithm::Sha1).toHex();
-    }
-
     void updateHashCode()
     {
         m_hashCode = generateHashCode(m_key, m_features);
@@ -141,8 +152,14 @@ struct QSSGShaderCacheKey
     }
 };
 
+inline size_t qHash(const QSSGShaderCacheKey &key)
+{
+    return key.m_hashCode;
+}
+
 class Q_QUICK3DRUNTIMERENDER_EXPORT QSSGShaderCache
 {
+    Q_DISABLE_COPY(QSSGShaderCache)
 public:
     enum class ShaderType
     {
@@ -150,21 +167,15 @@ public:
         Fragment = 1
     };
 
-    QAtomicInt ref;
-
     using InitBakerFunc = void (*)(QShaderBaker *baker, QRhi *rhi);
 private:
-    typedef QHash<QSSGShaderCacheKey, QSSGRef<QSSGRhiShaderPipeline>> TRhiShaderMap;
-    QSSGRef<QSSGRhiContext> m_rhiContext;
+    typedef QHash<QSSGShaderCacheKey, QSSGRhiShaderPipelinePtr> TRhiShaderMap;
+    QSSGRhiContext &m_rhiContext; // Not own, the RCI owns us and the QSSGRhiContext.
     TRhiShaderMap m_rhiShaders;
-    QString m_cacheFilePath;
-    QByteArray m_vertexCode;
-    QByteArray m_fragmentCode;
-    QByteArray m_insertStr;
-    QString m_flagString;
-    QString m_contextTypeString;
-    QSSGShaderCacheKey m_tempKey;
-    const InitBakerFunc m_initBaker;
+    QByteArray m_insertStr; // member to potentially reuse the allocation after clear
+    InitBakerFunc m_initBaker;
+    QQsbInMemoryCollection m_persistentShaderBakingCache;
+    QString m_persistentShaderStorageFileName;
 
     void addShaderPreprocessor(QByteArray &str,
                                const QByteArray &inKey,
@@ -172,21 +183,35 @@ private:
                                const QSSGShaderFeatures &inFeatures);
 
 public:
-    QSSGShaderCache(const QSSGRef<QSSGRhiContext> &ctx,
+    QSSGShaderCache(QSSGRhiContext &ctx,
                     const InitBakerFunc initBakeFn = nullptr);
     ~QSSGShaderCache();
 
-    QSSGRef<QSSGRhiShaderPipeline> getRhiShaderPipeline(const QByteArray &inKey,
-                                                        const QSSGShaderFeatures &inFeatures);
+    void releaseCachedResources();
 
-    QSSGRef<QSSGRhiShaderPipeline> compileForRhi(const QByteArray &inKey,
-                                               const QByteArray &inVert,
-                                               const QByteArray &inFrag,
-                                               const QSSGShaderFeatures &inFeatures,
-                                               QSSGRhiShaderPipeline::StageFlags stageFlags);
+    QQsbInMemoryCollection &persistentShaderBakingCache() { return m_persistentShaderBakingCache; }
 
-    QSSGRef<QSSGRhiShaderPipeline> loadGeneratedShader(const QByteArray &inKey, QQsbCollection::Entry entry);
-    QSSGRef<QSSGRhiShaderPipeline> loadBuiltinForRhi(const QByteArray &inKey);
+    QSSGRhiShaderPipelinePtr tryGetRhiShaderPipeline(const QByteArray &inKey,
+                                                     const QSSGShaderFeatures &inFeatures);
+
+    QSSGRhiShaderPipelinePtr tryNewPipelineFromPersistentCache(const QByteArray &qsbcKey,
+                                                               const QByteArray &inKey,
+                                                               const QSSGShaderFeatures &inFeatures,
+                                                               QSSGRhiShaderPipeline::StageFlags stageFlags = {});
+
+    QSSGRhiShaderPipelinePtr newPipelineFromPregenerated(const QByteArray &inKey,
+                                                         const QSSGShaderFeatures &inFeatures,
+                                                         QQsbCollection::Entry entry,
+                                                         const QSSGRenderGraphObject &obj,
+                                                         QSSGRhiShaderPipeline::StageFlags stageFlags = {});
+
+    QSSGRhiShaderPipelinePtr compileForRhi(const QByteArray &inKey,
+                                           const QByteArray &inVert,
+                                           const QByteArray &inFrag,
+                                           const QSSGShaderFeatures &inFeatures,
+                                           QSSGRhiShaderPipeline::StageFlags stageFlags);
+
+    QSSGRhiShaderPipelinePtr loadBuiltinForRhi(const QByteArray &inKey);
 
     static QByteArray resourceFolder();
     static QByteArray shaderCollectionFile();
@@ -203,6 +228,15 @@ namespace ShaderBaker
     using StatusCallback = void(*)(const QByteArray &descKey, Status status, const QString &err, QShader::Stage stage);
     Q_QUICK3DRUNTIMERENDER_EXPORT void setStatusCallback(StatusCallback cb);
 }
+
+namespace ShaderCache
+{
+    // Used by DS and the QML puppet!
+    // Note: Needs to be called before any QSSGShaderCache instance is created.
+    Q_QUICK3DRUNTIMERENDER_EXPORT void setAutomaticDiskCache(bool enable);
+    Q_QUICK3DRUNTIMERENDER_EXPORT bool isAutomaticDiskCacheEnabled();
+}
+
 }
 
 QT_END_NAMESPACE

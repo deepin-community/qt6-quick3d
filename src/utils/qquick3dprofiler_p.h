@@ -40,6 +40,12 @@ struct QQuick3DProfiler {
 };
 
 #define Q_QUICK3D_PROFILING_ENABLED false
+#define Q_QUICK3D_PROFILE_REGISTER_D(obj)
+#define Q_QUICK3D_PROFILE_REGISTER(obj)
+#define Q_QUICK3D_PROFILE_ID
+#define Q_QUICK3D_PROFILE_GET_ID
+#define Q_QUICK3D_PROFILE_ASSIGN_ID_SG(obj, bgnode)
+#define Q_QUICK3D_PROFILE_ASSIGN_ID(bgnode, obj)
 
 #else
 
@@ -50,27 +56,33 @@ struct QQuick3DProfiler {
         (void)0
 
 #define Q_QUICK3D_PROFILING_ENABLED (QQuick3DProfiler::featuresEnabled > 0)
+#define Q_QUICK3D_PROFILE_REGISTER_D(obj) d->profilingId = QQuick3DProfiler::registerObject(obj)
+#define Q_QUICK3D_PROFILE_REGISTER(obj) profilingId = QQuick3DProfiler::registerObject(obj)
+#define Q_QUICK3D_PROFILE_ID int profilingId = -1;
+#define Q_QUICK3D_PROFILE_GET_ID(Object) \
+    QQuick3DObjectPrivate::get(Object)->profilingId
+#define Q_QUICK3D_PROFILE_ASSIGN_ID_SG(obj, bgnode) \
+    if (bgnode) \
+        (bgnode)->profilingId = Q_QUICK3D_PROFILE_GET_ID(obj);
+#define Q_QUICK3D_PROFILE_ASSIGN_ID(bgnode, obj) \
+    (obj)->profilingId = (bgnode)->profilingId;
 
-// This struct is somewhat dangerous to use:
-// You can save values either with 32 or 64 bit precision. toByteArrays will
-// guess the precision from messageType. If you state the wrong messageType
-// you will get undefined results.
-// The messageType is itself a bit field. You can pack multiple messages into
-// one object, e.g. RangeStart and RangeLocation. Each one will be read
-// independently by toByteArrays. Thus you can only pack messages if their data
-// doesn't overlap. Again, it's up to you to figure that out.
-struct Q_AUTOTEST_EXPORT QQuick3DProfilerData
+
+struct Q_QUICK3DUTILS_EXPORT QQuick3DProfilerData
 {
+    static constexpr int s_numSupportedIds = 2;
     QQuick3DProfilerData() {}
 
-    QQuick3DProfilerData(qint64 time, int messageType, int detailType, qint64 d1, qint64 d2) :
-        time(time), messageType(messageType), detailType(detailType), subdata1(d1), subdata2(d2) {}
+    QQuick3DProfilerData(qint64 time, int messageType, int detailType, qint64 d1, qint64 d2)
+        : time(time), messageType(messageType), detailType(detailType), subdata1(d1), subdata2(d2) {}
+    QQuick3DProfilerData(qint64 time, int messageType, int detailType, qint64 d1, qint64 d2, const QList<int> &ids);
 
-    qint64 time;
-    int messageType;
-    int detailType;
-    qint64 subdata1;
-    qint64 subdata2;
+    qint64 time = 0;
+    qint32 messageType = 0;
+    qint32 detailType = 0;
+    qint64 subdata1 = 0;
+    qint64 subdata2 = 0;
+    qint32 ids[s_numSupportedIds] = {0}; // keep this even sized
 };
 
 Q_DECLARE_TYPEINFO(QQuick3DProfilerData, Q_RELOCATABLE_TYPE);
@@ -78,23 +90,33 @@ Q_DECLARE_TYPEINFO(QQuick3DProfilerData, Q_RELOCATABLE_TYPE);
 class QQuick3DProfilerSceneGraphData : public QQmlProfilerDefinitions {
 private:
     static const uint s_numSceneGraphTimings = 2;
-
-    template<uint size>
-    struct TimingData {
-        qint64 values[size][s_numSceneGraphTimings + 1];
+    static const uint s_numNestedTimings = 5;
+    struct Timings {
+        uint nesting = 0;
+        qint64 values[s_numNestedTimings][s_numSceneGraphTimings + 1];
     };
-
-    QThreadStorage<TimingData<NumQuick3DRenderThreadFrameTypes> > renderThreadTimings;
-    TimingData<NumQuick3DGUIThreadFrameTypes> guiThreadTimings;
-
+    template<uint size>
+    struct TimingData
+    {
+        Timings timings[size];
+    };
+    QThreadStorage<TimingData<MaximumQuick3DFrameType>> eventTimings;
 public:
-    template<Quick3DFrameType type>
+    template<int type, bool inc>
     qint64 *timings()
     {
-        if (type < NumQuick3DRenderThreadFrameTypes)
-            return renderThreadTimings.localData().values[type];
-        else
-            return guiThreadTimings.values[type - NumQuick3DRenderThreadFrameTypes];
+        Timings *timings;
+        qint64 *t;
+        timings = &eventTimings.localData().timings[type];
+        if (inc) {
+            Q_ASSERT(timings->nesting < s_numNestedTimings);
+            t = timings->values[timings->nesting];
+            timings->nesting++;
+        } else {
+            timings->nesting--;
+            t = timings->values[timings->nesting];
+        }
+        return t;
     }
 };
 
@@ -107,30 +129,74 @@ public:
         Quick3DStageEnd
     };
 
-    template<Quick3DFrameType FrameType>
+    template<int FrameType>
     static void recordSceneGraphTimestamp(uint position)
     {
-        s_instance->m_sceneGraphData.timings<FrameType>()[position] = s_instance->timestamp();
+        s_instance->m_sceneGraphData.timings<FrameType, true>()[position] = s_instance->timestamp();
     }
-    template<Quick3DFrameType FrameType, bool Record>
-    static void reportQuick3DFrame(uint position, quint64 payload = ~0)
+    template<int FrameType>
+    static void reportQuick3DFrame(uint position, quint64 payload)
     {
-        qint64 *timings = s_instance->m_sceneGraphData.timings<FrameType>();
-        if (Record)
-            timings[position] = s_instance->timestamp();
+        qint64 *timings = s_instance->m_sceneGraphData.timings<FrameType, false>();
+        timings[position] = s_instance->timestamp();
         s_instance->processMessage(QQuick3DProfilerData(
-                timings[position], 1 << Quick3DFrame, 1 << FrameType,
-                position > 0 ? timings[1] - timings[0] : payload,
-                position > 1 ? timings[2] - timings[1] : payload));
+                timings[position], Quick3DFrame, FrameType,
+                timings[1] - timings[0],
+                payload));
+    }
+    template<int FrameType>
+    static void reportQuick3DFrame(uint position, quint64 payload, const QByteArray str)
+    {
+        qint64 *timings = s_instance->m_sceneGraphData.timings<FrameType, false>();
+        timings[position] = s_instance->timestamp();
+        int sid = registerString(str);
+        QList<int> poids;
+        poids << sid;
+        s_instance->processMessage(QQuick3DProfilerData(
+                timings[position], Quick3DFrame, FrameType,
+                timings[1] - timings[0],
+                payload,
+                poids));
+    }
+    template<int FrameType>
+    static void reportQuick3DFrame(uint position, quint64 payload, int poid)
+    {
+        qint64 *timings = s_instance->m_sceneGraphData.timings<FrameType, false>();
+        timings[position] = s_instance->timestamp();
+        QList<int> poids;
+        poids << poid;
+        s_instance->processMessage(QQuick3DProfilerData(
+                timings[position], Quick3DFrame, FrameType,
+                timings[1] - timings[0],
+                payload,
+                poids));
+    }
+    template<int FrameType>
+    static void reportQuick3DFrame(uint position, quint64 payload, int poid, const QByteArray str)
+    {
+        qint64 *timings = s_instance->m_sceneGraphData.timings<FrameType, false>();
+        timings[position] = s_instance->timestamp();
+        int sid = registerString(str);
+        QList<int> poids;
+        poids << poid << sid;
+        s_instance->processMessage(QQuick3DProfilerData(
+                timings[position], Quick3DFrame, FrameType,
+                timings[1] - timings[0],
+                payload,
+                poids));
+    }
+    template<int FrameType>
+    static void reportQuick3DFrame(uint position, quint64 payload, const QList<int> &poids)
+    {
+        qint64 *timings = s_instance->m_sceneGraphData.timings<FrameType, false>();
+        timings[position] = s_instance->timestamp();
+        s_instance->processMessage(QQuick3DProfilerData(
+                timings[position], Quick3DFrame, FrameType,
+                timings[1] - timings[0],
+                payload,
+                poids));
     }
 
-    template<Quick3DFrameType FrameType, bool Record, Quick3DFrameType SwitchTo>
-    static void reportQuick3DFrame(uint position, quint64 payload = ~0)
-    {
-        reportQuick3DFrame<FrameType, Record>(position, payload);
-        s_instance->m_sceneGraphData.timings<SwitchTo>()[0] =
-                s_instance->m_sceneGraphData.timings<FrameType>()[position];
-    }
 
     qint64 timestamp() { return m_timer.nsecsElapsed(); }
 
@@ -140,12 +206,17 @@ public:
 
     ~QQuick3DProfiler() override;
 
+    static int registerObject(const QObject *object);
+    static int registerString(const QByteArray &string);
+
 signals:
-    void dataReady(const QVector<QQuick3DProfilerData> &data);
+    void dataReady(const QVector<QQuick3DProfilerData> &data, const QHash<int, QByteArray> &eventData);
 
 protected:
     friend class QQuick3DProfilerAdapter;
-
+    static QMutex s_eventDataMutex;
+    static QHash<QByteArray, int> s_eventData;
+    static QHash<int, QByteArray> s_eventDataRev;
     static QQuick3DProfiler *s_instance;
     QMutex m_dataMutex;
     QElapsedTimer m_timer;
@@ -175,19 +246,35 @@ protected:
     Q_QUICK3D_PROFILE_IF_ENABLED(QQuick3DProfiler::ProfileQuick3D, \
                                (QQuick3DProfiler::recordSceneGraphTimestamp<Type>(QQuick3DProfiler::Quick3DStageBegin)))
 
-// report \a Type, using data points 0 to \a position, including \a position, and setting the
-// timestamp at \a position to the current one.
 #define Q_QUICK3D_PROFILE_END(Type) \
     Q_QUICK3D_PROFILE_IF_ENABLED(QQuick3DProfiler::ProfileQuick3D, \
-                               (QQuick3DProfiler::reportQuick3DFrame<Type, true>(QQuick3DProfiler::Quick3DStageEnd)))
+                               (QQuick3DProfiler::reportQuick3DFrame<Type>(QQuick3DProfiler::Quick3DStageEnd, 0, 0)))
 
-// report \a Type, using data points 0 to \a position, including \a position, and setting the
-// timestamp at \a position to the current one. Remaining data points up to position 5 are filled
-// with \a Payload.
 #define Q_QUICK3D_PROFILE_END_WITH_PAYLOAD(Type, Payload) \
     Q_QUICK3D_PROFILE_IF_ENABLED(QQuick3DProfiler::ProfileQuick3D, \
-                               (QQuick3DProfiler::reportQuick3DFrame<Type, true>(QQuick3DProfiler::Quick3DStageEnd, \
+                               (QQuick3DProfiler::reportQuick3DFrame<Type>(QQuick3DProfiler::Quick3DStageEnd, \
                                                                                   Payload)))
+
+#define Q_QUICK3D_PROFILE_END_WITH_STRING(Type, Payload, Str) \
+    Q_QUICK3D_PROFILE_IF_ENABLED(QQuick3DProfiler::ProfileQuick3D, \
+                               (QQuick3DProfiler::reportQuick3DFrame<Type>(QQuick3DProfiler::Quick3DStageEnd, \
+                                                                                  Payload, Str)))
+#define Q_QUICK3D_PROFILE_END_WITH_ID(Type, Payload, POID) \
+    Q_QUICK3D_PROFILE_IF_ENABLED(QQuick3DProfiler::ProfileQuick3D, \
+                               (QQuick3DProfiler::reportQuick3DFrame<Type>(QQuick3DProfiler::Quick3DStageEnd, \
+                                                                                  Payload, POID)))
+#define Q_QUICK3D_PROFILE_END_WITH_IDS(Type, Payload, POIDs) \
+    Q_QUICK3D_PROFILE_IF_ENABLED(QQuick3DProfiler::ProfileQuick3D, \
+                               (QQuick3DProfiler::reportQuick3DFrame<Type>(QQuick3DProfiler::Quick3DStageEnd, \
+                                                                                  Payload, POIDs)))
+#define Q_QUICK3D_PROFILE_END_WITH_ALL(Type, Payload, POID, Str) \
+    Q_QUICK3D_PROFILE_IF_ENABLED(QQuick3DProfiler::ProfileQuick3D, \
+                               (QQuick3DProfiler::reportQuick3DFrame<Type>(QQuick3DProfiler::Quick3DStageEnd, \
+                                                                                  Payload, POID, Str)))
+
+#define QSSG_RENDERPASS_NAME(passName, level, face) \
+    QByteArrayLiteral(passName)+ QByteArrayLiteral("_level_") + QByteArray::number(level) \
+    + QByteArrayLiteral("_face_") + QByteArrayView(QSSGBaseTypeHelpers::toString(QSSGRenderTextureCubeFace(face)))
 
 QT_END_NAMESPACE
 

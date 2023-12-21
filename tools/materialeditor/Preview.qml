@@ -1,18 +1,16 @@
-// Copyright (C) 2021 The Qt Company Ltd.
+// Copyright (C) 2023 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 import QtQuick
 import QtQuick.Window
-import QtQuick.Controls
-import QtQuick.Layouts
-import Qt.labs.settings
+import QtCore
 import QtQuick3D
 import QtQuick3D.Helpers
 
 Item {
     id: previewRoot
 
-    property url skyBoxTexturePath: "qrc:/assets/skybox/OpenfootageNET_lowerAustria01-1024.hdr"
+    property url skyBoxTexturePath: "assets/skybox/OpenfootageNET_lowerAustria01-1024.hdr"
     property CustomMaterial currentMaterial: CustomMaterial {
 
     }
@@ -70,10 +68,11 @@ Item {
         Model {
             id: model
             source: previewControls.modelSource
-            materials: [ currentMaterial, fallbackMaterial ]
+            materials: [ previewRoot.currentMaterial, previewRoot.fallbackMaterial ]
         }
 
         OrbitCameraController {
+            id: cameraController
             origin: originNode
             camera: sceneCamera
             panEnabled: false
@@ -84,5 +83,6 @@ Item {
         id: previewControls
         width: parent.width
         targetView: view
+        orbitCamera: cameraController
     }
 }

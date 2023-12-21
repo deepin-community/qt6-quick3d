@@ -348,7 +348,7 @@ QSSGRenderGraphObject *QQuick3DInstancing::updateSpatialNode(QSSGRenderGraphObje
         emit instanceNodeDirty();
         d->m_instanceDataChanged = true;
     }
-
+    QQuick3DObject::updateSpatialNode(node);
     auto effectiveInstanceCount = [d]() {
         if (d->m_instanceCountOverride >= 0)
             return qMin(d->m_instanceCount, d->m_instanceCountOverride);
@@ -385,7 +385,7 @@ static inline QQuick3DInstancing::InstanceTableEntry calculate(const QVector3D &
     xform(1, 3) += position[1];
     xform(2, 3) += position[2];
 
-    auto linearColor = color::sRGBToLinear(color);
+    auto linearColor = QSSGUtils::color::sRGBToLinear(color);
 
     return {
         xform.row(0),
@@ -451,7 +451,7 @@ QQuick3DInstancing::InstanceTableEntry QQuick3DInstancing::calculateTableEntryFr
     xform(1, 3) += position[1];
     xform(2, 3) += position[2];
 
-    auto linearColor = color::sRGBToLinear(color);
+    auto linearColor = QSSGUtils::color::sRGBToLinear(color);
 
     return {
         xform.row(0),
@@ -664,7 +664,7 @@ void QQuick3DInstanceListEntry::setScale(QVector3D scale)
 */
 void QQuick3DInstanceListEntry::setEulerRotation(QVector3D eulerRotation)
 {
-    if (m_eulerRotation == eulerRotation)
+    if (m_useEulerRotation && m_eulerRotation == eulerRotation)
         return;
     m_eulerRotation = eulerRotation;
     m_useEulerRotation = true;
@@ -679,7 +679,7 @@ void QQuick3DInstanceListEntry::setEulerRotation(QVector3D eulerRotation)
 */
 void QQuick3DInstanceListEntry::setRotation(QQuaternion rotation)
 {
-    if (m_rotation == rotation)
+    if (!m_useEulerRotation && m_rotation == rotation)
         return;
 
     m_rotation = rotation;

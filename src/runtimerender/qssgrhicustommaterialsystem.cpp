@@ -18,10 +18,14 @@
 #include <QtQuick3DRuntimeRender/private/qssgrendermodel_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgruntimerenderlogging_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrhiparticles_p.h>
+#include <qtquick3d_tracepoints_p.h>
 
 #include <QtCore/qbitarray.h>
 
 QT_BEGIN_NAMESPACE
+
+Q_TRACE_POINT(qtquick3d, QSSG_generateShader_entry)
+Q_TRACE_POINT(qtquick3d, QSSG_generateShader_exit)
 
 QSSGCustomMaterialSystem::QSSGCustomMaterialSystem() = default;
 
@@ -41,38 +45,62 @@ void QSSGCustomMaterialSystem::setRenderContextInterface(QSSGRenderContextInterf
     context = inContext;
 }
 
-QSSGRef<QSSGRhiShaderPipeline> QSSGCustomMaterialSystem::shadersForCustomMaterial(QSSGRhiGraphicsPipelineState *ps,
-                                                                                  const QSSGRenderCustomMaterial &material,
-                                                                                  QSSGSubsetRenderable &renderable,
-                                                                                  const QSSGShaderFeatures &featureSet)
+void QSSGCustomMaterialSystem::releaseCachedResources()
 {
+    shaderMap.clear();
+}
+
+QSSGRhiShaderPipelinePtr QSSGCustomMaterialSystem::shadersForCustomMaterial(QSSGRhiGraphicsPipelineState *ps,
+                                                                            const QSSGRenderCustomMaterial &material,
+                                                                            QSSGSubsetRenderable &renderable,
+                                                                            const QSSGShaderFeatures &featureSet)
+{
+    QElapsedTimer timer;
+    timer.start();
+
+    QSSGRhiShaderPipelinePtr shaderPipeline;
+
     // This just references inFeatureSet and inRenderable.shaderDescription -
-    // cheap to construct and is good enough for the find()
+    // cheap to construct and is good enough for the find(). This is the first
+    // level, fast lookup. (equivalent to what
+    // QSSGRenderer::getShaderPipelineForDefaultMaterial does for the
+    // default/principled material)
     QSSGShaderMapKey skey = QSSGShaderMapKey(material.m_shaderPathKey,
                                              featureSet,
                                              renderable.shaderDescription);
-
-    QSSGRef<QSSGRhiShaderPipeline> shaderPipeline;
     auto it = shaderMap.find(skey);
     if (it == shaderMap.end()) {
-        Q_QUICK3D_PROFILE_START(QQuick3DProfiler::Quick3DGenerateShader);
-        QSSGMaterialVertexPipeline pipeline(context->shaderProgramGenerator(),
-                                            context->renderer()->defaultMaterialShaderKeyProperties(),
-                                            material.adapter);
+        // NB this key calculation must replicate exactly what the generator does in generateMaterialRhiShader()
+        QByteArray shaderString = material.m_shaderPathKey;
+        QSSGShaderDefaultMaterialKey matKey(renderable.shaderDescription);
+        matKey.toString(shaderString, context->renderer()->defaultMaterialShaderKeyProperties());
 
-        shaderPipeline = QSSGMaterialShaderGenerator::generateMaterialRhiShader(material.m_shaderPathKey,
-                                                                                pipeline,
-                                                                                renderable.shaderDescription,
-                                                                                context->renderer()->defaultMaterialShaderKeyProperties(),
-                                                                                featureSet,
-                                                                                renderable.material,
-                                                                                renderable.lights,
-                                                                                renderable.firstImage,
-                                                                                context->shaderLibraryManager(),
-                                                                                context->shaderCache());
-        Q_QUICK3D_PROFILE_END(QQuick3DProfiler::Quick3DGenerateShader);
+        // Try the persistent (disk-based) cache.
+        const QByteArray qsbcKey = QQsbCollection::EntryDesc::generateSha(shaderString, QQsbCollection::toFeatureSet(featureSet));
+        shaderPipeline = context->shaderCache()->tryNewPipelineFromPersistentCache(qsbcKey, material.m_shaderPathKey, featureSet);
 
-        // make skey useable as a key for the QHash (makes copies of materialKey and featureSet, instead of just referencing)
+        if (!shaderPipeline) {
+            // Have to generate the shaders and send it all through the shader conditioning pipeline.
+            Q_TRACE_SCOPE(QSSG_generateShader);
+            Q_QUICK3D_PROFILE_START(QQuick3DProfiler::Quick3DGenerateShader);
+            QSSGMaterialVertexPipeline vertexPipeline(*context->shaderProgramGenerator(),
+                                                      context->renderer()->defaultMaterialShaderKeyProperties(),
+                                                      material.adapter);
+
+            shaderPipeline = QSSGMaterialShaderGenerator::generateMaterialRhiShader(material.m_shaderPathKey,
+                                                                                    vertexPipeline,
+                                                                                    renderable.shaderDescription,
+                                                                                    context->renderer()->defaultMaterialShaderKeyProperties(),
+                                                                                    featureSet,
+                                                                                    renderable.material,
+                                                                                    renderable.lights,
+                                                                                    renderable.firstImage,
+                                                                                    *context->shaderLibraryManager(),
+                                                                                    *context->shaderCache());
+            Q_QUICK3D_PROFILE_END_WITH_ID(QQuick3DProfiler::Quick3DGenerateShader, 0, material.profilingId);
+        }
+
+        // make skey useable as a key for the QHash (makes a copy of the materialKey, instead of just referencing)
         skey.detach();
         // insert it no matter what, no point in trying over and over again
         shaderMap.insert(skey, shaderPipeline);
@@ -81,21 +109,23 @@ QSSGRef<QSSGRhiShaderPipeline> QSSGCustomMaterialSystem::shadersForCustomMateria
     }
 
     if (shaderPipeline) {
-        ps->shaderPipeline = shaderPipeline.data();
+        ps->shaderPipeline = shaderPipeline.get();
         shaderPipeline->resetExtraTextures();
     }
+
+    context->rhiContext()->stats().registerMaterialShaderGenerationTime(timer.elapsed());
 
     return shaderPipeline;
 }
 
-void QSSGCustomMaterialSystem::updateUniformsForCustomMaterial(QSSGRef<QSSGRhiShaderPipeline> &shaderPipeline,
+void QSSGCustomMaterialSystem::updateUniformsForCustomMaterial(QSSGRhiShaderPipeline &shaderPipeline,
                                                                QSSGRhiContext *rhiCtx,
+                                                               const QSSGLayerRenderData &inData,
                                                                char *ubufData,
                                                                QSSGRhiGraphicsPipelineState *ps,
                                                                const QSSGRenderCustomMaterial &material,
                                                                QSSGSubsetRenderable &renderable,
-                                                               QSSGLayerRenderData &layerData,
-                                                               QSSGRenderCamera &camera,
+                                                               const QSSGRenderCamera &camera,
                                                                const QVector2D *depthAdjust,
                                                                const QMatrix4x4 *alteredModelViewProjection)
 {
@@ -103,30 +133,14 @@ void QSSGCustomMaterialSystem::updateUniformsForCustomMaterial(QSSGRef<QSSGRhiSh
                                                      : renderable.modelContext.modelViewProjection);
 
     const QMatrix4x4 clipSpaceCorrMatrix = rhiCtx->rhi()->clipSpaceCorrMatrix();
-    QRhi *rhi = rhiCtx->rhi();
-
-    const QSSGLayerGlobalRenderProperties globalProperties =
-    {
-        layerData.layer,
-        camera,
-        layerData.cameraDirection,
-        layerData.shadowMapManager,
-        layerData.rhiDepthTexture.texture,
-        layerData.rhiAoTexture.texture,
-        layerData.rhiScreenTexture.texture,
-        layerData.layer.lightProbe,
-        layerData.layer.probeHorizon,
-        layerData.layer.probeExposure,
-        layerData.layer.probeOrientation,
-        rhi->isYUpInFramebuffer(),
-        rhi->isYUpInNDC(),
-        rhi->isClipDepthZeroToOne()
-    };
+    QRhiTexture *lightmapTexture = inData.getLightmapTexture(renderable.modelContext);
 
     const auto &modelNode = renderable.modelContext.model;
     const QMatrix4x4 &localInstanceTransform(modelNode.localInstanceTransform);
     const QMatrix4x4 &globalInstanceTransform(modelNode.globalInstanceTransform);
-    const QMatrix4x4 &modelMatrix((modelNode.boneCount == 0) ? renderable.globalTransform : QMatrix4x4());
+
+
+    const QMatrix4x4 &modelMatrix(modelNode.usesBoneTexture() ? QMatrix4x4() : renderable.globalTransform);
 
     QSSGMaterialShaderGenerator::setRhiMaterialProperties(*context,
                                                           shaderPipeline,
@@ -145,31 +159,32 @@ void QSSGCustomMaterialSystem::updateUniformsForCustomMaterial(QSSGRef<QSSGRhiSh
                                                           toDataView(modelNode.morphWeights),
                                                           renderable.firstImage,
                                                           renderable.opacity,
-                                                          globalProperties,
+                                                          renderable.renderer->getLayerGlobalRenderProperties(),
                                                           renderable.lights,
                                                           renderable.reflectionProbe,
                                                           true,
                                                           renderable.renderableFlags.receivesReflections(),
                                                           depthAdjust,
-                                                          renderable.modelContext.lightmapTexture);
+                                                          lightmapTexture);
 }
 
-static const QRhiShaderResourceBinding::StageFlags VISIBILITY_ALL =
+static const QRhiShaderResourceBinding::StageFlags CUSTOM_MATERIAL_VISIBILITY_ALL =
         QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage;
 
 void QSSGCustomMaterialSystem::rhiPrepareRenderable(QSSGRhiGraphicsPipelineState *ps,
+                                                    QSSGPassKey passKey,
                                                     QSSGSubsetRenderable &renderable,
                                                     const QSSGShaderFeatures &featureSet,
                                                     const QSSGRenderCustomMaterial &material,
-                                                    QSSGLayerRenderData &layerData,
+                                                    const QSSGLayerRenderData &layerData,
                                                     QRhiRenderPassDescriptor *renderPassDescriptor,
                                                     int samples,
                                                     QSSGRenderCamera *camera,
-                                                    int cubeFace,
+                                                    QSSGRenderTextureCubeFace cubeFace,
                                                     QMatrix4x4 *modelViewProjection,
                                                     QSSGReflectionMapEntry *entry)
 {
-    QSSGRhiContext *rhiCtx = context->rhiContext().data();
+    QSSGRhiContext *rhiCtx = context->rhiContext().get();
 
     QRhiGraphicsPipeline::TargetBlend blend; // no blending by default
     if (material.m_renderFlags.testFlag(QSSGRenderCustomMaterial::RenderFlag::Blending)) {
@@ -182,41 +197,44 @@ void QSSGCustomMaterialSystem::rhiPrepareRenderable(QSSGRhiGraphicsPipelineState
 
     const QSSGCullFaceMode cullMode = material.m_cullMode;
 
-    const bool blendParticles = renderable.generator->contextInterface()->renderer()->defaultMaterialShaderKeyProperties().m_blendParticles.getValue(renderable.shaderDescription);
+    const bool blendParticles = renderable.renderer->defaultMaterialShaderKeyProperties().m_blendParticles.getValue(renderable.shaderDescription);
 
-    QSSGRef<QSSGRhiShaderPipeline> shaderPipeline = shadersForCustomMaterial(ps, material, renderable, featureSet);
+    const auto &shaderPipeline = shadersForCustomMaterial(ps, material, renderable, featureSet);
 
     if (shaderPipeline) {
         QSSGRhiShaderResourceBindingList bindings;
         const auto &modelNode = renderable.modelContext.model;
 
-        QSSGRhiDrawCallData &dcd(cubeFace < 0 ? rhiCtx->drawCallData({ &layerData.layer,
-                                                        &modelNode,
-                                                        &material,
-                                                        0,
-                                                        QSSGRhiDrawCallDataKey::Main })
-                                              : rhiCtx->drawCallData({ &layerData.layer,
-                                                                       &modelNode,
-                                                                       entry, cubeFace + int(renderable.subset.offset << 3),
-                                                                       QSSGRhiDrawCallDataKey::Reflection }));
+        // NOTE:
+        // - entryIdx should 0 for QSSGRenderTextureCubeFaceNone.
+        // In all other cases the entryIdx is a combination of the cubeface idx and the subset offset, where the lower bits
+        // are the cubeface idx.
+        const auto cubeFaceIdx = QSSGBaseTypeHelpers::indexOfCubeFace(cubeFace);
+        const quintptr entryIdx = quintptr(cubeFace != QSSGRenderTextureCubeFaceNone) * (cubeFaceIdx + (quintptr(renderable.subset.offset) << 3));
+        // As the entry might be null we create an entry key consisting of the entry and the material.
+        const auto entryPartA = reinterpret_cast<quintptr>(&material);
+        const auto entryPartB = reinterpret_cast<quintptr>(entry);
+        const void *entryKey = reinterpret_cast<const void *>(entryPartA ^ entryPartB);
+
+        QSSGRhiDrawCallData &dcd = rhiCtx->drawCallData({ passKey, &modelNode, entryKey, entryIdx });
 
         shaderPipeline->ensureCombinedMainLightsUniformBuffer(&dcd.ubuf);
         char *ubufData = dcd.ubuf->beginFullDynamicBufferUpdateForCurrentFrame();
         if (!camera)
-            updateUniformsForCustomMaterial(shaderPipeline, rhiCtx, ubufData, ps, material, renderable, layerData, *layerData.camera, nullptr, nullptr);
+            updateUniformsForCustomMaterial(*shaderPipeline, rhiCtx, layerData, ubufData, ps, material, renderable, *layerData.camera, nullptr, nullptr);
         else
-            updateUniformsForCustomMaterial(shaderPipeline, rhiCtx, ubufData, ps, material, renderable, layerData, *camera, nullptr, modelViewProjection);
+            updateUniformsForCustomMaterial(*shaderPipeline, rhiCtx, layerData, ubufData, ps, material, renderable, *camera, nullptr, modelViewProjection);
         if (blendParticles)
-            QSSGParticleRenderer::updateUniformsForParticleModel(shaderPipeline, ubufData, &renderable.modelContext.model, renderable.subset.offset);
+            QSSGParticleRenderer::updateUniformsForParticleModel(*shaderPipeline, ubufData, &renderable.modelContext.model, renderable.subset.offset);
         dcd.ubuf->endFullDynamicBufferUpdateForCurrentFrame();
 
         if (blendParticles)
-            QSSGParticleRenderer::prepareParticlesForModel(shaderPipeline, rhiCtx, bindings, &renderable.modelContext.model);
+            QSSGParticleRenderer::prepareParticlesForModel(*shaderPipeline, rhiCtx, bindings, &renderable.modelContext.model);
         bool instancing = false;
         if (!camera)
-            instancing = renderable.prepareInstancing(rhiCtx, layerData.cameraDirection);
+            instancing = QSSGLayerRenderData::prepareInstancing(rhiCtx, &renderable, layerData.cameraData->direction, layerData.cameraData->position, renderable.instancingLodMin, renderable.instancingLodMax);
         else
-            instancing = renderable.prepareInstancing(rhiCtx, camera->getScalingCorrectDirection());
+            instancing = QSSGLayerRenderData::prepareInstancing(rhiCtx, &renderable, camera->getScalingCorrectDirection(), camera->getGlobalPos(), renderable.instancingLodMin, renderable.instancingLodMax);
 
         ps->samples = samples;
 
@@ -247,8 +265,8 @@ void QSSGCustomMaterialSystem::rhiPrepareRenderable(QSSGRhiGraphicsPipelineState
         QRhiTexture *dummyCubeTexture = rhiCtx->dummyTexture(QRhiTexture::CubeMap, resourceUpdates);
         rhiCtx->commandBuffer()->resourceUpdate(resourceUpdates);
 
-        bindings.addUniformBuffer(0, VISIBILITY_ALL, dcd.ubuf, 0, shaderPipeline->ub0Size());
-        bindings.addUniformBuffer(1, VISIBILITY_ALL, dcd.ubuf,
+        bindings.addUniformBuffer(0, CUSTOM_MATERIAL_VISIBILITY_ALL, dcd.ubuf, 0, shaderPipeline->ub0Size());
+        bindings.addUniformBuffer(1, CUSTOM_MATERIAL_VISIBILITY_ALL, dcd.ubuf,
                                   shaderPipeline->ub0LightDataOffset(),
                                   shaderPipeline->ub0LightDataSize());
 
@@ -278,12 +296,7 @@ void QSSGCustomMaterialSystem::rhiPrepareRenderable(QSSGRhiGraphicsPipelineState
             samplerBindingsSpecified.setBit(shaderPipeline->bindingForTexture("qt_particleTexture"));
 
         // Skinning
-        if (modelNode.boneCount != 0) {
-            QRhiResourceUpdateBatch *rub = rhiCtx->rhi()->nextResourceUpdateBatch();
-            QRhiTextureSubresourceUploadDescription boneDesc(modelNode.boneData);
-            QRhiTextureUploadDescription boneUploadDesc(QRhiTextureUploadEntry(0, 0, boneDesc));
-            rub->uploadTexture(modelNode.boneTexture, boneUploadDesc);
-            rhiCtx->commandBuffer()->resourceUpdate(rub);
+        if (QRhiTexture *boneTexture = layerData.getBonemapTexture(renderable.modelContext)) {
             int binding = shaderPipeline->bindingForTexture("qt_boneTexture");
             if (binding >= 0) {
                 QRhiSampler *boneSampler = rhiCtx->sampler({ QRhiSampler::Nearest,
@@ -293,7 +306,27 @@ void QSSGCustomMaterialSystem::rhiPrepareRenderable(QSSGRhiGraphicsPipelineState
                                                              QRhiSampler::ClampToEdge,
                                                              QRhiSampler::Repeat
                                                            });
-                bindings.addTexture(binding, QRhiShaderResourceBinding::VertexStage, modelNode.boneTexture, boneSampler);
+                bindings.addTexture(binding,
+                                    QRhiShaderResourceBinding::VertexStage,
+                                    boneTexture,
+                                    boneSampler);
+                samplerBindingsSpecified.setBit(binding);
+            }
+        }
+
+        // Morphing
+        auto *targetsTexture = renderable.subset.rhi.targetsTexture;
+        if (targetsTexture) {
+            int binding = shaderPipeline->bindingForTexture("qt_morphTargetTexture");
+            if (binding >= 0) {
+                QRhiSampler *targetsSampler = rhiCtx->sampler({ QRhiSampler::Nearest,
+                                                                QRhiSampler::Nearest,
+                                                                QRhiSampler::None,
+                                                                QRhiSampler::ClampToEdge,
+                                                                QRhiSampler::ClampToEdge,
+                                                                QRhiSampler::ClampToEdge
+                                                           });
+                bindings.addTexture(binding, QRhiShaderResourceBinding::VertexStage, renderable.subset.rhi.targetsTexture, targetsSampler);
                 samplerBindingsSpecified.setBit(binding);
             }
         }
@@ -305,7 +338,7 @@ void QSSGCustomMaterialSystem::rhiPrepareRenderable(QSSGRhiGraphicsPipelineState
             int reflectionSampler = shaderPipeline->bindingForTexture("qt_reflectionMap");
             QRhiSampler *sampler = rhiCtx->sampler({ QRhiSampler::Linear, QRhiSampler::Linear, QRhiSampler::Linear,
                                                      QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge, QRhiSampler::Repeat });
-            QRhiTexture* reflectionTexture = layerData.reflectionMapManager->reflectionMapEntry(renderable.reflectionProbeIndex)->m_rhiPrefilteredCube;
+            QRhiTexture* reflectionTexture = layerData.getReflectionMapManager()->reflectionMapEntry(renderable.reflectionProbeIndex)->m_rhiPrefilteredCube;
             if (reflectionSampler >= 0 && reflectionTexture) {
                 bindings.addTexture(reflectionSampler, QRhiShaderResourceBinding::FragmentStage, reflectionTexture, sampler);
                 samplerBindingsSpecified.setBit(reflectionSampler);
@@ -418,7 +451,7 @@ void QSSGCustomMaterialSystem::rhiPrepareRenderable(QSSGRhiGraphicsPipelineState
                     QRhiSampler *sampler = rhiCtx->sampler(samplerDesc);
                     samplerBindingsSpecified.setBit(samplerBinding);
                     bindings.addTexture(samplerBinding,
-                                        VISIBILITY_ALL,
+                                        CUSTOM_MATERIAL_VISIBILITY_ALL,
                                         texture, sampler);
                 }
             } // else this is not necessarily an error, e.g. having metalness/roughness maps with metalness disabled
@@ -436,7 +469,7 @@ void QSSGCustomMaterialSystem::rhiPrepareRenderable(QSSGRhiGraphicsPipelineState
                     rhiCtx->checkAndAdjustForNPoT(t.texture, &t.samplerDesc);
                     QRhiSampler *sampler = rhiCtx->sampler(t.samplerDesc);
                     bindings.addTexture(samplerBinding,
-                                        VISIBILITY_ALL,
+                                        CUSTOM_MATERIAL_VISIBILITY_ALL,
                                         t.texture,
                                         sampler);
                 }
@@ -449,7 +482,7 @@ void QSSGCustomMaterialSystem::rhiPrepareRenderable(QSSGRhiGraphicsPipelineState
             for (const QShaderDescription::InOutVariable &var : samplerVars) {
                 if (!samplerBindingsSpecified.testBit(var.binding)) {
                     QRhiTexture *t = var.type == QShaderDescription::SamplerCube ? dummyCubeTexture : dummyTexture;
-                    bindings.addTexture(var.binding, VISIBILITY_ALL, t, dummySampler);
+                    bindings.addTexture(var.binding, CUSTOM_MATERIAL_VISIBILITY_ALL, t, dummySampler);
                 }
             }
         }
@@ -463,10 +496,10 @@ void QSSGCustomMaterialSystem::rhiPrepareRenderable(QSSGRhiGraphicsPipelineState
             srbChanged = true;
         }
 
-        if (cubeFace < 0)
+        if (cubeFace == QSSGRenderTextureCubeFaceNone)
             renderable.rhiRenderData.mainPass.srb = srb;
         else
-            renderable.rhiRenderData.reflectionPass.srb[cubeFace] = srb;
+            renderable.rhiRenderData.reflectionPass.srb[cubeFaceIdx] = srb;
 
         const QSSGGraphicsPipelineStateKey pipelineKey = QSSGGraphicsPipelineStateKey::create(*ps, renderPassDescriptor, srb);
         if (dcd.pipeline
@@ -475,12 +508,12 @@ void QSSGCustomMaterialSystem::rhiPrepareRenderable(QSSGRhiGraphicsPipelineState
                 && dcd.renderTargetDescription == pipelineKey.renderTargetDescription
                 && dcd.ps == *ps)
         {
-            if (cubeFace < 0)
+            if (cubeFace == QSSGRenderTextureCubeFaceNone)
                 renderable.rhiRenderData.mainPass.pipeline = dcd.pipeline;
             else
                 renderable.rhiRenderData.reflectionPass.pipeline = dcd.pipeline;
         } else {
-            if (cubeFace < 0) {
+            if (cubeFace == QSSGRenderTextureCubeFaceNone) {
                 renderable.rhiRenderData.mainPass.pipeline = rhiCtx->pipeline(pipelineKey,
                                                                               renderPassDescriptor,
                                                                               srb);
@@ -503,25 +536,18 @@ void QSSGCustomMaterialSystem::setShaderResources(char *ubufData,
                                                   const QSSGRenderCustomMaterial &inMaterial,
                                                   const QByteArray &inPropertyName,
                                                   const QVariant &propertyValue,
-                                                  QSSGRenderShaderDataType inPropertyType,
-                                                  const QSSGRef<QSSGRhiShaderPipeline> &shaderPipeline)
+                                                  QSSGRenderShaderValue::Type inPropertyType,
+                                                  QSSGRhiShaderPipeline &shaderPipeline)
 {
     Q_UNUSED(inMaterial);
 
-    if (inPropertyType == QSSGRenderShaderDataType::Texture) {
+    if (inPropertyType == QSSGRenderShaderValue::Texture) {
         QSSGRenderCustomMaterial::TextureProperty *textureProperty =
                 reinterpret_cast<QSSGRenderCustomMaterial::TextureProperty *>(propertyValue.value<void *>());
         QSSGRenderImage *image = textureProperty->texImage;
         if (image) {
-            const QSSGRef<QSSGBufferManager> &theBufferManager(context->bufferManager());
-
-            QSSGBufferManager::MipMode mipMode = QSSGBufferManager::MipModeNone;
-            // the mipFilterType here is only non-None when generateMipmaps was true on the Texture
-            if (textureProperty->mipFilterType != QSSGRenderTextureFilterOp::None)
-                mipMode = QSSGBufferManager::MipModeGenerated;
-            // ### would we want MipModeBsdf in some cases?
-
-            const QSSGRenderImageTexture texture = theBufferManager->loadRenderImage(image, mipMode);
+            const auto &theBufferManager(context->bufferManager());
+            const QSSGRenderImageTexture texture = theBufferManager->loadRenderImage(image);
             if (texture.m_texture) {
                 const QSSGRhiTexture t = {
                     inPropertyName,
@@ -534,17 +560,17 @@ void QSSGCustomMaterialSystem::setShaderResources(char *ubufData,
                       QRhiSampler::Repeat
                     }
                 };
-                shaderPipeline->addExtraTexture(t);
+                shaderPipeline.addExtraTexture(t);
             }
         }
     } else {
-        shaderPipeline->setUniformValue(ubufData, inPropertyName, propertyValue, inPropertyType);
+        shaderPipeline.setUniformValue(ubufData, inPropertyName, propertyValue, inPropertyType);
     }
 }
 
 void QSSGCustomMaterialSystem::applyRhiShaderPropertyValues(char *ubufData,
                                                             const QSSGRenderCustomMaterial &material,
-                                                            const QSSGRef<QSSGRhiShaderPipeline> &shaderPipeline)
+                                                            QSSGRhiShaderPipeline &shaderPipeline)
 {
     const auto &properties = material.m_properties;
     for (const auto &prop : properties)
@@ -556,23 +582,24 @@ void QSSGCustomMaterialSystem::applyRhiShaderPropertyValues(char *ubufData,
 }
 
 void QSSGCustomMaterialSystem::rhiRenderRenderable(QSSGRhiContext *rhiCtx,
-                                             QSSGSubsetRenderable &renderable,
-                                             QSSGLayerRenderData &inData,
-                                             bool *needsSetViewport,
-                                             int cubeFace,
-                                             QSSGRhiGraphicsPipelineState *state)
+                                                   QSSGSubsetRenderable &renderable,
+                                                   bool *needsSetViewport,
+                                                   QSSGRenderTextureCubeFace cubeFace,
+                                                   const QSSGRhiGraphicsPipelineState &state)
 {
     QRhiGraphicsPipeline *ps = renderable.rhiRenderData.mainPass.pipeline;
     QRhiShaderResourceBindings *srb = renderable.rhiRenderData.mainPass.srb;
 
-    if (cubeFace >= 0) {
+    if (cubeFace != QSSGRenderTextureCubeFaceNone) {
+        const auto cubeFaceIdx = QSSGBaseTypeHelpers::indexOfCubeFace(cubeFace);
         ps = renderable.rhiRenderData.reflectionPass.pipeline;
-        srb = renderable.rhiRenderData.reflectionPass.srb[cubeFace];
+        srb = renderable.rhiRenderData.reflectionPass.srb[cubeFaceIdx];
     }
 
     if (!ps || !srb)
         return;
 
+    Q_QUICK3D_PROFILE_START(QQuick3DProfiler::Quick3DRenderCall);
     QRhiBuffer *vertexBuffer = renderable.subset.rhi.vertexBuffer->buffer();
     QRhiBuffer *indexBuffer = renderable.subset.rhi.indexBuffer ? renderable.subset.rhi.indexBuffer->buffer() : nullptr;
 
@@ -581,10 +608,7 @@ void QSSGCustomMaterialSystem::rhiRenderRenderable(QSSGRhiContext *rhiCtx,
     cb->setShaderResources(srb);
 
     if (*needsSetViewport) {
-        if (!state)
-            cb->setViewport(rhiCtx->graphicsPipelineState(&inData)->viewport);
-        else
-            cb->setViewport(state->viewport);
+        cb->setViewport(state.viewport);
         *needsSetViewport = false;
     }
 
@@ -606,6 +630,9 @@ void QSSGCustomMaterialSystem::rhiRenderRenderable(QSSGRhiContext *rhiCtx,
         cb->draw(renderable.subset.count, instances, renderable.subset.offset);
         QSSGRHICTX_STAT(rhiCtx, draw(renderable.subset.count, instances));
     }
+    Q_QUICK3D_PROFILE_END_WITH_IDS(QQuick3DProfiler::Quick3DRenderCall, (renderable.subset.count | quint64(instances) << 32),
+                                     QVector<int>({renderable.modelContext.model.profilingId,
+                                      renderable.material.profilingId}));
 }
 
 QT_END_NAMESPACE
