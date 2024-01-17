@@ -1,4 +1,4 @@
-# SymbolsHelper-Confirmed: 6.6.1 amd64
+# SymbolsHelper-Confirmed: 6.6.1 amd64 arm64 armel armhf hppa i386 loong64 mips64el powerpc ppc64 ppc64el riscv64 s390x sh4
 libQt6Quick3DRuntimeRender.so.6 libqt6quick3druntimerender6 #MINVER#
 | libqt6quick3druntimerender6 #MINVER#, qt6-quick3d-private-abi (= 6.6.1)
 * Build-Depends-Packages: qt6-quick3d-dev, qt6-quick3d-private-dev
@@ -10,10 +10,16 @@ libQt6Quick3DRuntimeRender.so.6 libqt6quick3druntimerender6 #MINVER#
  _ZN22QtQuick3DEditorHelpers14CustomMaterial16preprocessorVarsEv@Qt_6 6.6.1
  _ZN22QtQuick3DEditorHelpers14CustomMaterial21reservedArgumentNamesEv@Qt_6 6.6.1
  _ZSt19piecewise_construct@Qt_6 6.6.1
- _ZTISt11_Mutex_baseILN9__gnu_cxx12_Lock_policyE2EE@Qt_6 6.6.1
- _ZTISt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE@Qt_6 6.6.1
+ (arch=!amd64 !arm64 !armhf !hppa !i386 !loong64 !mips64el !powerpc !ppc64 !ppc64el !s390x !sh4)_ZTIN9__gnu_cxx7__mutexE@Qt_6 6.6.1
+ (arch=!amd64 !arm64 !armhf !hppa !i386 !loong64 !mips64el !powerpc !ppc64 !ppc64el !s390x !sh4)_ZTISt11_Mutex_baseILN9__gnu_cxx12_Lock_policyE1EE@Qt_6 6.6.1
+ (arch=amd64 arm64 armhf hppa i386 loong64 mips64el powerpc ppc64 ppc64el s390x sh4)_ZTISt11_Mutex_baseILN9__gnu_cxx12_Lock_policyE2EE@Qt_6 6.6.1
+ (arch=!amd64 !arm64 !armhf !hppa !i386 !loong64 !mips64el !powerpc !ppc64 !ppc64el !s390x !sh4)_ZTISt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE1EE@Qt_6 6.6.1
+ (arch=amd64 arm64 armhf hppa i386 loong64 mips64el powerpc ppc64 ppc64el s390x sh4)_ZTISt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE@Qt_6 6.6.1
  _ZTISt19_Sp_make_shared_tag@Qt_6 6.6.1
- _ZTSSt11_Mutex_baseILN9__gnu_cxx12_Lock_policyE2EE@Qt_6 6.6.1
- _ZTSSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE@Qt_6 6.6.1
+ (arch=!amd64 !arm64 !armhf !hppa !i386 !loong64 !mips64el !powerpc !ppc64 !ppc64el !s390x !sh4)_ZTSN9__gnu_cxx7__mutexE@Qt_6 6.6.1
+ (arch=!amd64 !arm64 !armhf !hppa !i386 !loong64 !mips64el !powerpc !ppc64 !ppc64el !s390x !sh4)_ZTSSt11_Mutex_baseILN9__gnu_cxx12_Lock_policyE1EE@Qt_6 6.6.1
+ (arch=amd64 arm64 armhf hppa i386 loong64 mips64el powerpc ppc64 ppc64el s390x sh4)_ZTSSt11_Mutex_baseILN9__gnu_cxx12_Lock_policyE2EE@Qt_6 6.6.1
+ (arch=!amd64 !arm64 !armhf !hppa !i386 !loong64 !mips64el !powerpc !ppc64 !ppc64el !s390x !sh4)_ZTSSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE1EE@Qt_6 6.6.1
+ (arch=amd64 arm64 armhf hppa i386 loong64 mips64el powerpc ppc64 ppc64el s390x sh4)_ZTSSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE@Qt_6 6.6.1
  _ZTSSt19_Sp_make_shared_tag@Qt_6 6.6.1
  _ZZNSt19_Sp_make_shared_tag5_S_tiEvE5__tag@Qt_6 6.6.1

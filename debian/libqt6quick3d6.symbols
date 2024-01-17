@@ -1,4 +1,4 @@
-# SymbolsHelper-Confirmed: 6.6.1 amd64
+# SymbolsHelper-Confirmed: 6.6.1 amd64 arm64 armel armhf hppa i386 loong64 mips64el powerpc ppc64 ppc64el riscv64 s390x sh4
 libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
 | libqt6quick3d6 #MINVER#, qt6-quick3d-private-abi (= 6.6.1)
 * Build-Depends-Packages: qt6-quick3d-dev, qt6-quick3d-private-dev
@@ -150,9 +150,13 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZTI18QQuick3DInstancing@Qt_6 6.6.1
  _ZTI19QQuick3DTextureData@Qt_6 6.6.1
  _ZTIFP7QObjectP10QQmlEngineP9QJSEngineE@Qt_6 6.6.1
+ (arch=armel riscv64)_ZTIN9__gnu_cxx7__mutexE@Qt_6 6.6.1
  _ZTIPFP7QObjectP10QQmlEngineP9QJSEngineE@Qt_6 6.6.1
- _ZTISt11_Mutex_baseILN9__gnu_cxx12_Lock_policyE2EE@Qt_6 6.6.1
- _ZTISt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE@Qt_6 6.6.1
+ (optional=gccinternal|arch=armel riscv64)_ZTISt11_Mutex_baseILN9__gnu_cxx12_Lock_policyE1EE@Qt_6 6.6.1
+ (optional=gccinternal|arch=amd64 arm64 armhf hppa i386 loong64 mips64el powerpc ppc64 ppc64el s390x sh4)_ZTISt11_Mutex_baseILN9__gnu_cxx12_Lock_policyE2EE@Qt_6 6.6.1
+ (optional=gccinternal|arch=armel riscv64)_ZTISt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE1EE@Qt_6 6.6.1
+ (optioanl=gccinternal|arch=amd64 arm64 armhf hppa i386 loong64 mips64el powerpc ppc64 ppc64el s390x sh4)_ZTISt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE@Qt_6 6.6.1
+ (optional=gccinternal|arch=armel armhf)_ZTISt19_Sp_make_shared_tag@Qt_6 6.6.1
  _ZTIZN9QMetaType17registerConverterI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEN9QtPrivate33QSequentialIterableConvertFunctorIS3_EEEEbT1_EUlPKvPvE_@Qt_6 6.6.1
  _ZTIZN9QMetaType17registerConverterI5QListI4QUrlE9QIterableI13QMetaSequenceEN9QtPrivate33QSequentialIterableConvertFunctorIS3_EEEEbT1_EUlPKvPvE_@Qt_6 6.6.1
  _ZTIZN9QMetaType19registerMutableViewI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEN9QtPrivate37QSequentialIterableMutableViewFunctorIS3_EEEEbT1_EUlPvSB_E_@Qt_6 6.6.1
@@ -163,11 +167,15 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZTS19QQuick3DTextureData@Qt_6 6.6.1
  _ZTS23QSSGRenderInstanceTable@Qt_6 6.6.1
  _ZTSFP7QObjectP10QQmlEngineP9QJSEngineE@Qt_6 6.6.1
+ (arch=armel riscv64)_ZTSN9__gnu_cxx7__mutexE@Qt_6 6.6.1
  _ZTSPFP7QObjectP10QQmlEngineP9QJSEngineE@Qt_6 6.6.1
- _ZTSSt11_Mutex_baseILN9__gnu_cxx12_Lock_policyE2EE@Qt_6 6.6.1
- _ZTSSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE@Qt_6 6.6.1
+ (arch=armel riscv64)_ZTSSt11_Mutex_baseILN9__gnu_cxx12_Lock_policyE1EE@Qt_6 6.6.1
+ (arch=amd64 arm64 armhf hppa i386 loong64 mips64el powerpc ppc64 ppc64el s390x sh4)_ZTSSt11_Mutex_baseILN9__gnu_cxx12_Lock_policyE2EE@Qt_6 6.6.1
+ (arch=armel riscv64)_ZTSSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE1EE@Qt_6 6.6.1
+ (arch=amd64 arm64 armhf hppa i386 loong64 mips64el powerpc ppc64 ppc64el s390x sh4)_ZTSSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE@Qt_6 6.6.1
  _ZTSSt19_Sp_make_shared_tag@Qt_6 6.6.1
- _ZTSSt23_Sp_counted_ptr_inplaceI26QSSGRenderContextInterfaceSaIvELN9__gnu_cxx12_Lock_policyE2EE@Qt_6 6.6.1
+ (arch=armel riscv64)_ZTSSt23_Sp_counted_ptr_inplaceI26QSSGRenderContextInterfaceSaIvELN9__gnu_cxx12_Lock_policyE1EE@Qt_6 6.6.1
+ (arch=amd64 arm64 armhf hppa i386 loong64 mips64el powerpc ppc64 ppc64el s390x sh4)_ZTSSt23_Sp_counted_ptr_inplaceI26QSSGRenderContextInterfaceSaIvELN9__gnu_cxx12_Lock_policyE2EE@Qt_6 6.6.1
  _ZTSZN9QMetaType17registerConverterI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEN9QtPrivate33QSequentialIterableConvertFunctorIS3_EEEEbT1_EUlPKvPvE_@Qt_6 6.6.1
  _ZTSZN9QMetaType17registerConverterI5QListI4QUrlE9QIterableI13QMetaSequenceEN9QtPrivate33QSequentialIterableConvertFunctorIS3_EEEEbT1_EUlPKvPvE_@Qt_6 6.6.1
  _ZTSZN9QMetaType19registerMutableViewI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEN9QtPrivate37QSequentialIterableMutableViewFunctorIS3_EEEEbT1_EUlPvSB_E_@Qt_6 6.6.1

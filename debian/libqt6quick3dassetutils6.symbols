@@ -1,4 +1,4 @@
-# SymbolsHelper-Confirmed: 6.6.1 amd64
+# SymbolsHelper-Confirmed: 6.6.1 amd64 armel armhf hppa i386 powerpc sh4
 libQt6Quick3DAssetUtils.so.6 libqt6quick3dassetutils6 #MINVER#
 | libqt6quick3dassetutils6 #MINVER#, qt6-quick3d-private-abi (= 6.6.1)
 * Build-Depends-Packages: qt6-quick3d-dev, qt6-quick3d-private-dev
@@ -14,8 +14,8 @@ libQt6Quick3DAssetUtils.so.6 libqt6quick3dassetutils6 #MINVER#
  _ZN13QSSGSceneDesc12destructNodeERNS_4NodeE@Qt_6 6.6.1
  _ZN13QSSGSceneDesc13destructValueER8QVariant@Qt_6 6.6.1
  _ZN13QSSGSceneDesc16listViewMetaTypeEv@Qt_6 6.6.1
- _ZN13QSSGSceneDesc4MeshC1E10QByteArrayx@Qt_6 6.6.1
- _ZN13QSSGSceneDesc4MeshC2E10QByteArrayx@Qt_6 6.6.1
+ (subst)_ZN13QSSGSceneDesc4MeshC1E10QByteArray{qptrdiff}@Qt_6 6.6.1
+ (subst)_ZN13QSSGSceneDesc4MeshC2E10QByteArray{qptrdiff}@Qt_6 6.6.1
  _ZN13QSSGSceneDesc4Node15cleanupChildrenEv@Qt_6 6.6.1
  _ZN13QSSGSceneDesc4NodeD0Ev@Qt_6 6.6.1
  _ZN13QSSGSceneDesc4NodeD1Ev@Qt_6 6.6.1

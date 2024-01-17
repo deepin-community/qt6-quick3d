@@ -1,4 +1,4 @@
-# SymbolsHelper-Confirmed: 6.6.1 amd64
+# SymbolsHelper-Confirmed: 6.6.1 amd64 armel armhf hppa i386 powerpc sh4
 libQt6Quick3DUtils.so.6 libqt6quick3dutils6 #MINVER#
 | libqt6quick3dutils6 #MINVER#, qt6-quick3d-private-abi (= 6.6.1)
 * Build-Depends-Packages: qt6-quick3d-dev, qt6-quick3d-private-abi (= 6.6.1)
@@ -8,9 +8,9 @@ libQt6Quick3DUtils.so.6 libqt6quick3dutils6 #MINVER#
  _ZGVZN9QMetaType21registerConverterImplI5QHashIi10QByteArrayE9QIterableI16QMetaAssociationEEEbSt8functionIFbPKvPvEES_S_E10unregister@Qt_6 6.6.1
  _ZGVZN9QMetaType23registerMutableViewImplI5QHashIi10QByteArrayE9QIterableI16QMetaAssociationEEEbSt8functionIFbPvS8_EES_S_E10unregister@Qt_6 6.6.1
  _ZN16QMetaAssociation15MetaAssociationI5QHashIi10QByteArrayEE5valueE@Qt_6 6.6.1
- _ZN8QSSGMesh12simplifyMeshEPjPKjmPKfmmmfjPf@Qt_6 6.6.1
- _ZN8QSSGMesh13simplifyScaleEPKfmm@Qt_6 6.6.1
- _ZN8QSSGMesh19optimizeVertexCacheEPjPKjmm@Qt_6 6.6.1
+ (subst)_ZN8QSSGMesh12simplifyMeshEPjPKj{size_t}PKf{size_t}{size_t}{size_t}fjPf@Qt_6 6.6.1
+ (subst)_ZN8QSSGMesh13simplifyScaleEPKf{size_t}{size_t}@Qt_6 6.6.1
+ (subst)_ZN8QSSGMesh19optimizeVertexCacheEPjPKj{size_t}{size_t}@Qt_6 6.6.1
  _ZN9QSSGUtils4quat14inverseRotatedERK11QQuaternionRK9QVector3D@Qt_6 6.6.1
  _ZN9QSSGUtils4quat6isSaneERK11QQuaternion@Qt_6 6.6.1
  _ZN9QSSGUtils4quat6isUnitERK11QQuaternion@Qt_6 6.6.1
