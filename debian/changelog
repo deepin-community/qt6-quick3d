@@ -1,3 +1,9 @@
+qt6-quick3d (6.6.1-4deepin0) experimental; urgency=medium
+
+  * No source change upload against GCC 12.
+
+ -- Tianyu Chen <sweetyfish@deepin.org>  Fri, 20 Sep 2024 12:17:00 +0800
+
 qt6-quick3d (6.6.1-4) experimental; urgency=medium
 
   [ Patrick Franz ]
