@@ -26,6 +26,7 @@
 #include <QtQuick3DRuntimeRender/private/qssgrenderableimage_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderlight_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderreflectionprobe_p.h>
+#include <QtQuick3DRuntimeRender/private/qssgrenderclippingfrustum_p.h>
 
 #include <QtQuick3DUtils/private/qssginvasivelinkedlist_p.h>
 
@@ -177,19 +178,30 @@ struct QSSGShaderReflectionProbe
 typedef QVarLengthArray<QSSGShaderLight, 16> QSSGShaderLightList;
 using QSSGShaderLightListView = QSSGDataView<QSSGShaderLight>;
 
-using QSSGMaterialListView = QSSGDataView<QSSGRenderGraphObject *>;
-
 struct QSSGRenderableObject;
 
 struct QSSGRenderableNodeEntry
 {
+    enum Overridden : quint16
+    {
+        Original = 0,
+        Disabled = 0x1,
+        GlobalTransform = 0x2,
+        Materials = 0x4,
+        GlobalOpacity = 0x5
+    };
+
     QSSGRenderNode *node = nullptr;
     // TODO: We should have an index here for look-up and store the data in a table,
     // er already have the index from when we collect the nodes. We might cull some items at a later
     // stage but that should be fine. The sort data can be just a float and the index to this...
+    mutable QMatrix4x4 globalTransform;
     mutable QSSGRenderMesh *mesh = nullptr;
-    mutable QSSGMaterialListView materials;
+    mutable QVector<QSSGRenderGraphObject *> materials;
     mutable QSSGShaderLightListView lights;
+    mutable float globalOpacity { 1.0f };
+    mutable quint16 overridden { Original };
+
     bool isNull() const { return (node == nullptr); }
     QSSGRenderableNodeEntry() = default;
     QSSGRenderableNodeEntry(QSSGRenderNode &inNode) : node(&inNode) {}
@@ -258,6 +270,18 @@ struct QSSGRenderableObject
 
 Q_STATIC_ASSERT(std::is_trivially_destructible<QSSGRenderableObject>::value);
 
+struct QSSGRenderCameraData
+{
+    QMatrix4x4 viewProjection;
+    std::optional<QSSGClippingFrustum> clippingFrustum;
+    QVector3D direction { 0.0f, 0.0f, -1.0f };
+    QVector3D position;
+};
+
+using QSSGRenderCameraList = QVarLengthArray<QSSGRenderCamera *, 2>;
+using QSSGRenderCameraDataList = QVarLengthArray<QSSGRenderCameraData, 2>;
+using QSSGRenderMvpArray = std::array<QMatrix4x4, 2>; // cannot be dynamic due to QSSGModelContext, must stick with 2 for now
+
 struct QSSGSubsetRenderable;
 
 // Different subsets from the same model will get the same
@@ -266,18 +290,26 @@ struct QSSGSubsetRenderable;
 struct QSSGModelContext
 {
     const QSSGRenderModel &model;
-    QMatrix4x4 modelViewProjection;
+    QSSGRenderMvpArray modelViewProjections;
     QMatrix3x3 normalMatrix;
 
-    QSSGModelContext(const QSSGRenderModel &inModel, const QMatrix4x4 &inViewProjection) : model(inModel)
+    QSSGModelContext(const QSSGRenderModel &inModel,
+                     const QMatrix4x4 &globalTransform,
+                     const QSSGRenderCameraDataList &allCameraData)
+        : model(inModel)
     {
+        Q_ASSERT_X(allCameraData.size() <= qsizetype(modelViewProjections.size()), __FUNCTION__, "QSSGModelContext has no space for all MVPs");
+        int mvpCount = 0;
         // For skinning, node's global transformation will be ignored and
         // an identity matrix will be used for the normalMatrix
         if (model.usesBoneTexture()) {
-            modelViewProjection = inViewProjection;
-            normalMatrix = QMatrix3x3();
+            for (const QSSGRenderCameraData &cameraData : allCameraData) {
+                modelViewProjections[mvpCount++] = cameraData.viewProjection;
+                normalMatrix = QMatrix3x3();
+            }
         } else {
-            model.calculateMVPAndNormalMatrix(inViewProjection, modelViewProjection, normalMatrix);
+            for (const QSSGRenderCameraData &cameraData : allCameraData)
+                QSSGRenderNode::calculateMVPAndNormalMatrix(globalTransform, cameraData.viewProjection, modelViewProjections[mvpCount++], normalMatrix);
         }
     }
 

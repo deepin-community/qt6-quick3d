@@ -102,8 +102,8 @@ QT_BEGIN_NAMESPACE
     these settings can also be controlled interactively when a \l DebugView
     item is added to the scene.
 
-    \li Fog settings. To enable fog, set an appropriately configured \l Fog
-    object in the \l fog property.
+    \li Fog settings. To enable fog, set an appropriately configured
+    \l [QML] Fog object in the \l [QML] fog property.
 
     \li Lightmap baking settings. When pre-baked lightmaps are used for some
     models in the scene, the \l Lightmapper object set in the \l lightmapper
@@ -206,6 +206,9 @@ QQuick3DSceneEnvironment::~QQuick3DSceneEnvironment()
     \b Cons: Does not take effect if any visual changes are occurring.
     Expensive due to having to accumulate and blend. Increases video memory
     usage.
+
+    \note Progressing antialiasing is not currently supported with multiview
+    rendering, and should not be used in VR/AR applications.
 
     See \l{Anti-Aliasing Best Practices} for further discussion on
     anti-aliasing methods.
@@ -787,6 +790,9 @@ QVector3D QQuick3DSceneEnvironment::probeOrientation() const
     \b Cons: Fast-moving objects cause one-frame ghosting.
 
     \default false
+
+    \note Temporal antialiasing is not currently supported with multiview
+    rendering, and should not be used in VR/AR applications.
 */
 bool QQuick3DSceneEnvironment::temporalAAEnabled() const
 {

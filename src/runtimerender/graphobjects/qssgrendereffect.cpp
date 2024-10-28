@@ -1,10 +1,12 @@
 // Copyright (C) 2020 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
+#include <QtQuick3DRuntimeRender/private/qssgrenderer_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendereffect_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderlayer_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendercommands_p.h>
-#include <QtQuick3DRuntimeRender/private/qssgrendercontextcore_p.h>
+#include "../qssgrendercontextcore.h"
+#include "../rendererimpl/qssglayerrenderdata_p.h"
 
 #include <QtGui/QVector2D>
 #include <QtGui/QVector3D>
@@ -37,6 +39,11 @@ static const char *effect_vertex_main_pre =
         "    qt_inputUV = attr_uv;\n"
         "    qt_textureUV = qt_effectTextureMapUV(attr_uv);\n"
         "    vec4 qt_vertPosition = vec4(attr_pos, 1.0);\n"
+        "#if QSHADER_VIEW_COUNT >= 2\n"
+        "    qt_viewIndex = gl_ViewIndex;\n"
+        "#else\n"
+        "    qt_viewIndex = 0;\n"
+        "#endif\n"
         "    qt_customMain(qt_vertPosition.xyz);\n";
 
 static const char *effect_vertex_main_position =
@@ -82,18 +89,23 @@ void QSSGRenderEffect::finalizeShaders(const QSSGRenderLayer &layer, QSSGRenderC
         QByteArray completeVertexShader;
         QByteArray completeFragmentShader;
         QByteArray sourceCodeForHash;
-        if (!pass.vertexShaderCode.isEmpty()) {
-            QByteArray code = pass.vertexShaderCode;
+
+        const bool multiview = renderContext->rhiContext()->mainPassViewCount() >= 2;
+        const int srcIdx = multiview ? QSSGRenderCustomMaterial::MultiViewShaderPathKeyIndex : QSSGRenderCustomMaterial::RegularShaderPathKeyIndex;
+
+        if (!pass.vertexShaderCode[srcIdx].isEmpty()) {
+            QByteArray code = pass.vertexShaderCode[srcIdx];
             // add the real main(), with or without assigning gl_Position at the end
             code.append(effect_vertex_main_pre);
-            if (!pass.vertexMetaData.flags.testFlag(QSSGCustomShaderMetaData::OverridesPosition))
+            if (!pass.vertexMetaData[srcIdx].flags.testFlag(QSSGCustomShaderMetaData::OverridesPosition))
                 code.append(effect_vertex_main_position);
             code.append(effect_vertex_main_post);
             completeVertexShader = code;
             sourceCodeForHash += code;
         }
-        if (!pass.fragmentShaderCode.isEmpty()) {
-            QByteArray code = pass.fragmentShaderCode;
+
+        if (!pass.fragmentShaderCode[srcIdx].isEmpty()) {
+            QByteArray code = pass.fragmentShaderCode[srcIdx];
             if (shouldTonemapIfEnabled)
                 code.append(effect_fragment_main_with_tonemapping);
             else
@@ -108,7 +120,7 @@ void QSSGRenderEffect::finalizeShaders(const QSSGRenderLayer &layer, QSSGRenderC
         // QSSGRhiEffectSystem will vary the vertex shader code based on this
         // flag from the QRhi. It is therefore important to capture this in the
         // cache key as well.
-        shaderPathKey.append(':' + QByteArray::number(rhi->isYUpInFramebuffer() ? 1 : 0));
+        shaderPathKey.append(rhi->isYUpInFramebuffer() ? QByteArrayLiteral(":1") : QByteArrayLiteral(":0"));
 
         if (shouldTonemapIfEnabled) {
             // This does not always mean there will be tonemapping: if the mode
@@ -116,8 +128,10 @@ void QSSGRenderEffect::finalizeShaders(const QSSGRenderLayer &layer, QSSGRenderC
             // so qt_tonemap() in the shader will not alter the color.
             const QSSGRenderLayer::TonemapMode tonemapMode = layer.tonemapMode;
             shaderPathKey.append(':' + QByteArray::number(int(tonemapMode)));
-            QSSGRenderer::setTonemapFeatures(features, tonemapMode);
+            QSSGLayerRenderData::setTonemapFeatures(features, tonemapMode);
         }
+
+        shaderPathKey.append(multiview ? QByteArrayLiteral(":1") : QByteArrayLiteral(":0"));
 
         // Now that the final shaderPathKey is known, store the source and
         // related data; it will be retrieved later by the QSSGRhiEffectSystem.
@@ -125,10 +139,10 @@ void QSSGRenderEffect::finalizeShaders(const QSSGRenderLayer &layer, QSSGRenderC
             renderContext->shaderLibraryManager()->setShaderSource(shaderPathKey,
                                                                    QSSGShaderCache::ShaderType::Vertex,
                                                                    completeVertexShader,
-                                                                   pass.vertexMetaData);
+                                                                   pass.vertexMetaData[srcIdx]);
         }
         if (!completeFragmentShader.isEmpty()) {
-            QSSGCustomShaderMetaData metaData = pass.fragmentMetaData;
+            QSSGCustomShaderMetaData metaData = pass.fragmentMetaData[srcIdx];
             metaData.features = features;
             renderContext->shaderLibraryManager()->setShaderSource(shaderPathKey,
                                                                    QSSGShaderCache::ShaderType::Fragment,

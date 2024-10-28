@@ -116,9 +116,9 @@ QString renderToKTXFileInternal(const char *name, const QString &inPath, const Q
     QRhiCommandBuffer *cb;
     rhi->beginOffscreenFrame(&cb);
 
-    const auto rhiContext = std::make_unique<QSSGRhiContext>();
-    rhiContext->initialize(rhi.get());
-    rhiContext->setCommandBuffer(cb);
+    const auto rhiContext = std::make_unique<QSSGRhiContext>(rhi.get());
+    QSSGRhiContextPrivate *rhiCtxD = QSSGRhiContextPrivate::get(rhiContext.get());
+    rhiCtxD->setCommandBuffer(cb);
 
     QScopedPointer<QSSGLoadedTexture> inImage(QSSGLoadedTexture::loadHdrImage(QSSGInputUtil::getStreamForFile(inPath), FORMAT));
     if (!inImage)
@@ -223,7 +223,7 @@ QString renderToKTXFileInternal(const char *name, const QString &inPath, const Q
     QRhiSampler *sampler = rhiContext->sampler(samplerDesc);
 
     // Load shader and setup render pipeline
-    const auto &envMapShaderStages = shaderCache->loadBuiltinForRhi("environmentmap");
+    const auto &envMapShaderStages = shaderCache->getBuiltInRhiShaders().getRhiEnvironmentmapShader();
 
     // Vertex Buffer - Just a single cube that will be viewed from inside
     QRhiBuffer *vertexBuffer = rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::VertexBuffer, sizeof(cube));
@@ -302,7 +302,7 @@ QString renderToKTXFileInternal(const char *name, const QString &inPath, const Q
     cb->resourceUpdate(rub);
 
     for (int face = 0; face < 6; ++face) {
-        cb->beginPass(renderTargets[face], QColor(0, 0, 0, 1), { 1.0f, 0 }, nullptr, QSSGRhiContext::commonPassFlags());
+        cb->beginPass(renderTargets[face], QColor(0, 0, 0, 1), { 1.0f, 0 }, nullptr, rhiContext->commonPassFlags());
 
         // Execute render pass
         cb->setGraphicsPipeline(envMapPipeline);
@@ -368,11 +368,7 @@ QString renderToKTXFileInternal(const char *name, const QString &inPath, const Q
     }
 
     // Load the prefilter shader stages
-    QSSGRhiShaderPipelinePtr prefilterShaderStages;
-    if (isRGBE)
-        prefilterShaderStages = shaderCache->loadBuiltinForRhi("environmentmapprefilter_rgbe");
-    else
-        prefilterShaderStages = shaderCache->loadBuiltinForRhi("environmentmapprefilter");
+    const auto &prefilterShaderStages = shaderCache->getBuiltInRhiShaders().getRhienvironmentmapPreFilterShader(isRGBE);
 
     // Create a new Sampler
     const QSSGRhiSamplerDescription samplerMipMapDesc {
@@ -450,7 +446,7 @@ QString renderToKTXFileInternal(const char *name, const QString &inPath, const Q
     // Render
     for (int mipLevel = 0; mipLevel < mipmapCount; ++mipLevel) {
         for (int face = 0; face < 6; ++face) {
-            cb->beginPass(renderTargetsMap[mipLevel][face], QColor(0, 0, 0, 1), { 1.0f, 0 }, nullptr, QSSGRhiContext::commonPassFlags());
+            cb->beginPass(renderTargetsMap[mipLevel][face], QColor(0, 0, 0, 1), { 1.0f, 0 }, nullptr, rhiContext->commonPassFlags());
             cb->setGraphicsPipeline(prefilterPipeline);
             cb->setVertexInput(0, 1, &vbufBinding);
             cb->setViewport(QRhiViewport(0, 0, mipLevelSizes[mipLevel].width(), mipLevelSizes[mipLevel].height()));
@@ -657,7 +653,9 @@ QString renderToKTXFile(const QString &inPath, const QString &outPath)
             params.format.setVersion(3, 0);
         }
         params.fallbackSurface = QRhiGles2InitParams::newFallbackSurface();
-        return renderToKTXFileInternal("OpenGL", inPath, outPath, QRhi::OpenGLES2, &params);
+        const QString result = renderToKTXFileInternal("OpenGL", inPath, outPath, QRhi::OpenGLES2, &params);
+        delete params.fallbackSurface;
+        return result;
     }
 #endif
 
@@ -681,7 +679,7 @@ QString renderToKTXFile(const QString &inPath, const QString &outPath)
     }
 #endif
 
-#if defined(Q_OS_MACOS) || defined(Q_OS_IOS)
+#if QT_CONFIG(metal)
     if (rhiImplementation == QRhi::Metal) {
         QRhiMetalInitParams params;
         return renderToKTXFileInternal("Metal", inPath, outPath, QRhi::Metal, &params);

@@ -38,17 +38,28 @@ void QSSGParticleRenderer::updateUniformsForParticles(QSSGRhiShaderPipeline &sha
                                                       QSSGRhiContext *rhiCtx,
                                                       char *ubufData,
                                                       QSSGParticlesRenderable &renderable,
-                                                      QSSGRenderCamera &inCamera)
+                                                      const QSSGRenderCameraList &cameras)
 {
     const QMatrix4x4 clipSpaceCorrMatrix = rhiCtx->rhi()->clipSpaceCorrMatrix();
 
     QSSGRhiShaderPipeline::CommonUniformIndices &cui = shaders.commonUniformIndices;
 
-    const QMatrix4x4 projection = clipSpaceCorrMatrix * inCamera.projection;
-    shaders.setUniform(ubufData, "qt_projectionMatrix", projection.constData(), 16 * sizeof(float), &cui.projectionMatrixIdx);
-
-    const QMatrix4x4 viewMatrix = inCamera.globalTransform.inverted();
-    shaders.setUniform(ubufData, "qt_viewMatrix", viewMatrix.constData(), 16 * sizeof(float), &cui.viewMatrixIdx);
+    const int viewCount = cameras.count();
+    if (viewCount < 2) {
+        const QMatrix4x4 projection = clipSpaceCorrMatrix * cameras[0]->projection;
+        shaders.setUniform(ubufData, "qt_projectionMatrix", projection.constData(), 16 * sizeof(float), &cui.projectionMatrixIdx);
+        const QMatrix4x4 viewMatrix = cameras[0]->globalTransform.inverted();
+        shaders.setUniform(ubufData, "qt_viewMatrix", viewMatrix.constData(), 16 * sizeof(float), &cui.viewMatrixIdx);
+    } else {
+        QVarLengthArray<QMatrix4x4, 2> projectionMatrices(viewCount);
+        QVarLengthArray<QMatrix4x4, 2> viewMatrices(viewCount);
+        for (int viewIndex = 0; viewIndex < viewCount; ++viewIndex) {
+            projectionMatrices[viewIndex] = clipSpaceCorrMatrix * cameras[viewIndex]->projection;
+            viewMatrices[viewIndex] = cameras[viewIndex]->globalTransform.inverted();
+        }
+        shaders.setUniformArray(ubufData, "qt_projectionMatrix", projectionMatrices.constData(), viewCount, QSSGRenderShaderValue::Matrix4x4, &cui.projectionMatrixIdx);
+        shaders.setUniformArray(ubufData, "qt_viewMatrix", viewMatrices.constData(), viewCount, QSSGRenderShaderValue::Matrix4x4, &cui.viewMatrixIdx);
+    }
 
     const QMatrix4x4 &modelMatrix = renderable.globalTransform;
     shaders.setUniform(ubufData, "qt_modelMatrix", modelMatrix.constData(), 16 * sizeof(float), &cui.modelMatrixIdx);
@@ -329,7 +340,8 @@ void QSSGParticleRenderer::rhiPrepareRenderable(QSSGRhiShaderPipeline &shaderPip
                                                 const QSSGLayerRenderData &inData,
                                                 QRhiRenderPassDescriptor *renderPassDescriptor,
                                                 int samples,
-                                                QSSGRenderCamera *camera,
+                                                int viewCount,
+                                                QSSGRenderCamera *alteredCamera,
                                                 QSSGRenderTextureCubeFace cubeFace,
                                                 QSSGReflectionMapEntry *entry)
 {
@@ -337,17 +349,19 @@ void QSSGParticleRenderer::rhiPrepareRenderable(QSSGRhiShaderPipeline &shaderPip
     const bool needsConversion = !rhiCtx->rhi()->isTextureFormatSupported(QRhiTexture::RGBA32F);
 
     const auto cubeFaceIdx = QSSGBaseTypeHelpers::indexOfCubeFace(cubeFace);
-    QSSGRhiDrawCallData &dcd = rhiCtx->drawCallData({ passKey, node, entry, cubeFaceIdx });
+    QSSGRhiDrawCallData &dcd = QSSGRhiContextPrivate::get(rhiCtx)->drawCallData({ passKey, node, entry, cubeFaceIdx });
     shaderPipeline.ensureUniformBuffer(&dcd.ubuf);
 
     char *ubufData = dcd.ubuf->beginFullDynamicBufferUpdateForCurrentFrame();
-    if (!camera)
-        updateUniformsForParticles(shaderPipeline, rhiCtx, ubufData, renderable, *inData.camera);
-    else
-        updateUniformsForParticles(shaderPipeline, rhiCtx, ubufData, renderable, *camera);
+    if (!alteredCamera) {
+        updateUniformsForParticles(shaderPipeline, rhiCtx, ubufData, renderable, inData.renderedCameras);
+    } else {
+        QSSGRenderCameraList cameras({ alteredCamera });
+        updateUniformsForParticles(shaderPipeline, rhiCtx, ubufData, renderable, cameras);
+    }
     dcd.ubuf->endFullDynamicBufferUpdateForCurrentFrame();
 
-    QSSGRhiParticleData &particleData = rhiCtx->particleData(&renderable.particles);
+    QSSGRhiParticleData &particleData = QSSGRhiContextPrivate::get(rhiCtx)->particleData(&renderable.particles);
     const QSSGParticleBuffer &particleBuffer = renderable.particles.m_particleBuffer;
     int particleCount = particleBuffer.particleCount();
     if (particleData.texture == nullptr || particleData.particleCount != particleCount) {
@@ -373,10 +387,10 @@ void QSSGParticleRenderer::rhiPrepareRenderable(QSSGRhiShaderPipeline &shaderPip
 
     if (renderable.particles.m_depthSorting) {
         bool animatedParticles = renderable.particles.m_featureLevel == QSSGRenderParticles::FeatureLevel::Animated;
-        if (!camera)
-            sortParticles(particleData.sortedData, particleData.sortData, particleBuffer, renderable.particles, inData.cameraData->direction, animatedParticles);
+        if (!alteredCamera)
+            sortParticles(particleData.sortedData, particleData.sortData, particleBuffer, renderable.particles, inData.renderedCameraData.value()[0].direction, animatedParticles);
         else
-            sortParticles(particleData.sortedData, particleData.sortData, particleBuffer, renderable.particles, camera->getScalingCorrectDirection(), animatedParticles);
+            sortParticles(particleData.sortedData, particleData.sortData, particleBuffer, renderable.particles, alteredCamera->getScalingCorrectDirection(), animatedParticles);
         uploadData = convertParticleData(particleData.convertData, particleData.sortedData, needsConversion);
     } else {
         uploadData = convertParticleData(particleData.convertData, particleBuffer.data(), needsConversion);
@@ -389,11 +403,13 @@ void QSSGParticleRenderer::rhiPrepareRenderable(QSSGRhiShaderPipeline &shaderPip
     rub->uploadTexture(particleData.texture, uploadDesc);
     rhiCtx->commandBuffer()->resourceUpdate(rub);
 
-    ps->ia.topology = QRhiGraphicsPipeline::TriangleStrip;
-    ps->ia.inputLayout = QRhiVertexInputLayout();
-    ps->ia.inputs.clear();
+    auto &ia = QSSGRhiInputAssemblerStatePrivate::get(*ps);
+    ia.topology = QRhiGraphicsPipeline::TriangleStrip;
+    ia.inputLayout = QRhiVertexInputLayout();
+    ia.inputs.clear();
 
     ps->samples = samples;
+    ps->viewCount = viewCount;
     ps->cullMode = QRhiGraphicsPipeline::None;
     if (renderable.renderableFlags.hasTransparency())
         fillTargetBlend(ps->targetBlend, renderable.particles.m_blendMode);
@@ -412,12 +428,12 @@ void QSSGParticleRenderer::rhiPrepareRenderable(QSSGRhiShaderPipeline &shaderPip
         QRhiTexture *texture = renderableImage ? renderableImage->m_texture.m_texture : nullptr;
         if (samplerBinding >= 0 && texture) {
             const bool mipmapped = texture->flags().testFlag(QRhiTexture::MipMapped);
-            QRhiSampler *sampler = rhiCtx->sampler({ toRhi(renderableImage->m_imageNode.m_minFilterType),
-                                                     toRhi(renderableImage->m_imageNode.m_magFilterType),
-                                                     mipmapped ? toRhi(renderableImage->m_imageNode.m_mipFilterType) : QRhiSampler::None,
-                                                     toRhi(renderableImage->m_imageNode.m_horizontalTilingMode),
-                                                     toRhi(renderableImage->m_imageNode.m_verticalTilingMode),
-                                                     QRhiSampler::Repeat
+            QRhiSampler *sampler = rhiCtx->sampler({ QSSGRhiHelpers::toRhi(renderableImage->m_imageNode.m_minFilterType),
+                                                     QSSGRhiHelpers::toRhi(renderableImage->m_imageNode.m_magFilterType),
+                                                     mipmapped ? QSSGRhiHelpers::toRhi(renderableImage->m_imageNode.m_mipFilterType) : QRhiSampler::None,
+                                                     QSSGRhiHelpers::toRhi(renderableImage->m_imageNode.m_horizontalTilingMode),
+                                                     QSSGRhiHelpers::toRhi(renderableImage->m_imageNode.m_verticalTilingMode),
+                                                     QSSGRhiHelpers::toRhi(renderableImage->m_imageNode.m_depthTilingMode)
                                                    });
             bindings.addTexture(samplerBinding, QRhiShaderResourceBinding::FragmentStage, texture, sampler);
         } else {
@@ -483,11 +499,14 @@ void QSSGParticleRenderer::rhiPrepareRenderable(QSSGRhiShaderPipeline &shaderPip
         }
     }
 
+    QSSGRhiContextPrivate *rhiCtxD = QSSGRhiContextPrivate::get(rhiCtx);
+
     // TODO: This is identical to other renderables. Make into a function?
     QRhiShaderResourceBindings *&srb = dcd.srb;
     bool srbChanged = false;
     if (!srb || bindings != dcd.bindings) {
-        srb = rhiCtx->srb(bindings);
+        srb = rhiCtxD->srb(bindings);
+        rhiCtxD->releaseCachedSrb(dcd.bindings);
         dcd.bindings = bindings;
         srbChanged = true;
     }
@@ -497,7 +516,7 @@ void QSSGParticleRenderer::rhiPrepareRenderable(QSSGRhiShaderPipeline &shaderPip
     else
         renderable.rhiRenderData.reflectionPass.srb[cubeFaceIdx] = srb;
 
-    const QSSGGraphicsPipelineStateKey pipelineKey = QSSGGraphicsPipelineStateKey::create(*ps, renderPassDescriptor, srb);
+    const auto pipelineKey = QSSGGraphicsPipelineStateKey::create(*ps, renderPassDescriptor, srb);
     if (dcd.pipeline
             && !srbChanged
             && dcd.renderTargetDescriptionHash == pipelineKey.extra.renderTargetDescriptionHash
@@ -510,14 +529,14 @@ void QSSGParticleRenderer::rhiPrepareRenderable(QSSGRhiShaderPipeline &shaderPip
             renderable.rhiRenderData.reflectionPass.pipeline = dcd.pipeline;
     } else {
         if (cubeFace == QSSGRenderTextureCubeFaceNone) {
-            renderable.rhiRenderData.mainPass.pipeline = rhiCtx->pipeline(pipelineKey,
-                                                                          renderPassDescriptor,
-                                                                          srb);
+            renderable.rhiRenderData.mainPass.pipeline = rhiCtxD->pipeline(pipelineKey,
+                                                                           renderPassDescriptor,
+                                                                           srb);
             dcd.pipeline = renderable.rhiRenderData.mainPass.pipeline;
         } else {
-            renderable.rhiRenderData.reflectionPass.pipeline = rhiCtx->pipeline(pipelineKey,
-                                                                          renderPassDescriptor,
-                                                                          srb);
+            renderable.rhiRenderData.reflectionPass.pipeline = rhiCtxD->pipeline(pipelineKey,
+                                                                                 renderPassDescriptor,
+                                                                                 srb);
             dcd.pipeline = renderable.rhiRenderData.reflectionPass.pipeline;
         }
         dcd.renderTargetDescriptionHash = pipelineKey.extra.renderTargetDescriptionHash;
@@ -531,7 +550,8 @@ void QSSGParticleRenderer::prepareParticlesForModel(QSSGRhiShaderPipeline &shade
                                                     QSSGRhiShaderResourceBindingList &bindings,
                                                     const QSSGRenderModel *model)
 {
-    QSSGRhiParticleData &particleData = rhiCtx->particleData(model);
+    QSSGRhiContextPrivate *rhiCtxD = QSSGRhiContextPrivate::get(rhiCtx);
+    QSSGRhiParticleData &particleData = rhiCtxD->particleData(model);
     const QSSGParticleBuffer &particleBuffer = *model->particleBuffer;
     int particleCount = particleBuffer.particleCount();
     bool update = particleBuffer.serial() != particleData.serial;

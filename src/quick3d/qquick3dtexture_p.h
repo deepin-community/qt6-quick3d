@@ -18,6 +18,7 @@
 #include <QtQuick3D/qquick3dobject.h>
 #include <QtQuick3D/QQuick3DTextureData>
 #include <QtQuick/private/qquickitemchangelistener_p.h>
+#include <QtQuick/private/qsgadaptationlayer_p.h>
 #include <QtQuick/QQuickItem>
 #include <QtQuick/QSGNode>
 #include <QtCore/QUrl>
@@ -27,6 +28,7 @@ QT_BEGIN_NAMESPACE
 
 class QSGLayer;
 struct QSSGRenderImage;
+class QQuick3DRenderExtension;
 
 class Q_QUICK3D_EXPORT QQuick3DTexture : public QQuick3DObject, public QQuickItemChangeListener
 {
@@ -34,11 +36,13 @@ class Q_QUICK3D_EXPORT QQuick3DTexture : public QQuick3DObject, public QQuickIte
     Q_PROPERTY(QUrl source READ source WRITE setSource NOTIFY sourceChanged)
     Q_PROPERTY(QQuickItem *sourceItem READ sourceItem WRITE setSourceItem NOTIFY sourceItemChanged)
     Q_PROPERTY(QQuick3DTextureData *textureData READ textureData WRITE setTextureData NOTIFY textureDataChanged)
+    Q_PROPERTY(QQuick3DRenderExtension *textureProvider READ textureProvider WRITE setTextureProvider NOTIFY textureProviderChanged FINAL REVISION(6, 7))
     Q_PROPERTY(float scaleU READ scaleU WRITE setScaleU NOTIFY scaleUChanged)
     Q_PROPERTY(float scaleV READ scaleV WRITE setScaleV NOTIFY scaleVChanged)
     Q_PROPERTY(MappingMode mappingMode READ mappingMode WRITE setMappingMode NOTIFY mappingModeChanged)
     Q_PROPERTY(TilingMode tilingModeHorizontal READ horizontalTiling WRITE setHorizontalTiling NOTIFY horizontalTilingChanged)
     Q_PROPERTY(TilingMode tilingModeVertical READ verticalTiling WRITE setVerticalTiling NOTIFY verticalTilingChanged)
+    Q_PROPERTY(TilingMode tilingModeDepth READ depthTiling WRITE setDepthTiling NOTIFY depthTilingChanged REVISION(6, 7))
     Q_PROPERTY(float rotationUV READ rotationUV WRITE setRotationUV NOTIFY rotationUVChanged)
     Q_PROPERTY(float positionU READ positionU WRITE setPositionU NOTIFY positionUChanged)
     Q_PROPERTY(float positionV READ positionV WRITE setPositionV NOTIFY positionVChanged)
@@ -89,6 +93,7 @@ public:
     MappingMode mappingMode() const;
     TilingMode horizontalTiling() const;
     TilingMode verticalTiling() const;
+    Q_REVISION(6, 7) TilingMode depthTiling() const;
     float rotationUV() const;
     float positionU() const;
     float positionV() const;
@@ -106,6 +111,16 @@ public:
 
     QSSGRenderImage *getRenderImage();
 
+    Q_REVISION(6, 7) QQuick3DRenderExtension *textureProvider() const;
+    Q_REVISION(6, 7) void setTextureProvider(QQuick3DRenderExtension *newRenderTexture);
+
+    bool extensionDirty() const { return m_dirtyFlags.testFlag(DirtyFlag::ExtensionDirty); }
+
+    bool hasSourceData() const
+    {
+        return !m_source.isEmpty() || m_sourceItem || m_textureData;
+    }
+
 public Q_SLOTS:
     void setSource(const QUrl &source);
     void setSourceItem(QQuickItem *sourceItem);
@@ -114,6 +129,7 @@ public Q_SLOTS:
     void setMappingMode(QQuick3DTexture::MappingMode mappingMode);
     void setHorizontalTiling(QQuick3DTexture::TilingMode tilingModeHorizontal);
     void setVerticalTiling(QQuick3DTexture::TilingMode tilingModeVertical);
+    Q_REVISION(6, 7) void setDepthTiling(QQuick3DTexture::TilingMode tilingModeDepth);
     void setRotationUV(float rotationUV);
     void setPositionU(float positionU);
     void setPositionV(float positionV);
@@ -137,6 +153,7 @@ Q_SIGNALS:
     void mappingModeChanged();
     void horizontalTilingChanged();
     void verticalTilingChanged();
+    Q_REVISION(6, 7) void depthTilingChanged();
     void rotationUVChanged();
     void positionUChanged();
     void positionVChanged();
@@ -151,6 +168,7 @@ Q_SIGNALS:
     void textureDataChanged();
     void generateMipmapsChanged();
     void autoOrientationChanged();
+    Q_REVISION(6, 7) void textureProviderChanged();
 
 protected:
     QSSGRenderGraphObject *updateSpatialNode(QSSGRenderGraphObject *node) override;
@@ -172,7 +190,8 @@ private:
         TextureDataDirty = (1 << 3),
         SamplerDirty = (1 << 4),
         SourceItemDirty = (1 << 5),
-        FlipVDirty = (1 << 6)
+        FlipVDirty = (1 << 6),
+        ExtensionDirty = (1 << 7)
     };
     Q_DECLARE_FLAGS(DirtyFlags, DirtyFlag)
     void markDirty(DirtyFlag type);
@@ -189,6 +208,7 @@ private:
     MappingMode m_mappingMode = UV;
     TilingMode m_tilingModeHorizontal = Repeat;
     TilingMode m_tilingModeVertical = Repeat;
+    TilingMode m_tilingModeDepth = Repeat;
     float m_rotationUV = 0;
     float m_positionU = 0;
     float m_positionV = 0;
@@ -216,6 +236,7 @@ private:
     bool m_generateMipmaps = false;
     bool m_autoOrientation = true;
     QMetaMethod m_updateSlot;
+    QQuick3DRenderExtension *m_renderExtension = nullptr;
 };
 
 QT_END_NAMESPACE

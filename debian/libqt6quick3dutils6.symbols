@@ -1,43 +1,43 @@
-# SymbolsHelper-Confirmed: 6.6.1 amd64 armel armhf hppa i386 powerpc sh4
+# SymbolsHelper-Confirmed: 6.8.0 amd64 armel armhf hppa i386 powerpc sh4
 libQt6Quick3DUtils.so.6 libqt6quick3dutils6 #MINVER#
-| libqt6quick3dutils6 #MINVER#, qt6-quick3d-private-abi (= 6.6.1)
-* Build-Depends-Packages: qt6-quick3d-dev, qt6-quick3d-private-abi (= 6.6.1)
- Qt_6@Qt_6 6.6.1
+| libqt6quick3dutils6 #MINVER#, qt6-quick3d-private-abi (= 6.8.0)
+* Build-Depends-Packages: qt6-quick3d-dev, qt6-quick3d-private-abi (= 6.8.0)
+ Qt_6@Qt_6 6.8.0
  (symver)Qt_6_PRIVATE_API 0
- _Z23qssgWriteAssertLocationPKc@Qt_6 6.6.1
- _ZGVZN9QMetaType21registerConverterImplI5QHashIi10QByteArrayE9QIterableI16QMetaAssociationEEEbSt8functionIFbPKvPvEES_S_E10unregister@Qt_6 6.6.1
- _ZGVZN9QMetaType23registerMutableViewImplI5QHashIi10QByteArrayE9QIterableI16QMetaAssociationEEEbSt8functionIFbPvS8_EES_S_E10unregister@Qt_6 6.6.1
- _ZN16QMetaAssociation15MetaAssociationI5QHashIi10QByteArrayEE5valueE@Qt_6 6.6.1
- (subst)_ZN8QSSGMesh12simplifyMeshEPjPKj{size_t}PKf{size_t}{size_t}{size_t}fjPf@Qt_6 6.6.1
- (subst)_ZN8QSSGMesh13simplifyScaleEPKf{size_t}{size_t}@Qt_6 6.6.1
- (subst)_ZN8QSSGMesh19optimizeVertexCacheEPjPKj{size_t}{size_t}@Qt_6 6.6.1
- _ZN9QSSGUtils4quat14inverseRotatedERK11QQuaternionRK9QVector3D@Qt_6 6.6.1
- _ZN9QSSGUtils4quat6isSaneERK11QQuaternion@Qt_6 6.6.1
- _ZN9QSSGUtils4quat6isUnitERK11QQuaternion@Qt_6 6.6.1
- _ZN9QSSGUtils4quat7rotatedERK11QQuaternionRK9QVector3D@Qt_6 6.6.1
- _ZN9QSSGUtils4quat8isFiniteERK11QQuaternion@Qt_6 6.6.1
- _ZN9QSSGUtils4quat9magnitudeERK11QQuaternion@Qt_6 6.6.1
- _ZN9QSSGUtils4vec29magnitudeERK9QVector2D@Qt_6 6.6.1
- _ZN9QSSGUtils4vec316magnitudeSquaredERK9QVector3D@Qt_6 6.6.1
- _ZN9QSSGUtils4vec38isFiniteERK9QVector3D@Qt_6 6.6.1
- _ZN9QSSGUtils4vec39magnitudeERK9QVector3D@Qt_6 6.6.1
- _ZN9QSSGUtils4vec39normalizeER9QVector3D@Qt_6 6.6.1
- _ZN9QSSGUtils5color12sRGBToLinearERK6QColor@Qt_6 6.6.1
- _ZN9QSSGUtils5color17sRGBToLinearColorERK6QColor@Qt_6 6.6.1
- _ZN9QSSGUtils5mat339transformERK14QGenericMatrixILi3ELi3EfERK9QVector3D@Qt_6 6.6.1
- _ZN9QSSGUtils5mat4411getPositionERK10QMatrix4x4@Qt_6 6.6.1
- _ZN9QSSGUtils5mat4411getUpper3x3ERK10QMatrix4x4@Qt_6 6.6.1
- _ZN9QSSGUtils5mat446rotateERK10QMatrix4x4RK9QVector3D@Qt_6 6.6.1
- _ZN9QSSGUtils5mat446rotateERK10QMatrix4x4RK9QVector4D@Qt_6 6.6.1
- _ZN9QSSGUtils5mat448getScaleERK10QMatrix4x4@Qt_6 6.6.1
- _ZN9QSSGUtils5mat449normalizeER10QMatrix4x4@Qt_6 6.6.1
- _ZN9QSSGUtils5mat449transformERK10QMatrix4x4RK9QVector3D@Qt_6 6.6.1
- _ZN9QSSGUtils5mat449transformERK10QMatrix4x4RK9QVector4D@Qt_6 6.6.1
- _ZSt19piecewise_construct@Qt_6 6.6.1
- _ZTIZN9QMetaType17registerConverterI5QHashIi10QByteArrayE9QIterableI16QMetaAssociationEN9QtPrivate34QAssociativeIterableConvertFunctorIS3_EEEEbT1_EUlPKvPvE_@Qt_6 6.6.1
- _ZTIZN9QMetaType19registerMutableViewI5QHashIi10QByteArrayE9QIterableI16QMetaAssociationEN9QtPrivate38QAssociativeIterableMutableViewFunctorIS3_EEEEbT1_EUlPvSB_E_@Qt_6 6.6.1
- _ZTSNSt6thread11_State_implINS_8_InvokerISt5tupleIJPFvPN6xatlas8internal13TaskSchedulerEPNS5_6WorkerEjES6_S8_jEEEEEE@Qt_6 6.6.1
- _ZTSZN9QMetaType17registerConverterI5QHashIi10QByteArrayE9QIterableI16QMetaAssociationEN9QtPrivate34QAssociativeIterableConvertFunctorIS3_EEEEbT1_EUlPKvPvE_@Qt_6 6.6.1
- _ZTSZN9QMetaType19registerMutableViewI5QHashIi10QByteArrayE9QIterableI16QMetaAssociationEN9QtPrivate38QAssociativeIterableMutableViewFunctorIS3_EEEEbT1_EUlPvSB_E_@Qt_6 6.6.1
- (optional=templinst)_ZZN9QMetaType21registerConverterImplI5QHashIi10QByteArrayE9QIterableI16QMetaAssociationEEEbSt8functionIFbPKvPvEES_S_E10unregister@Qt_6 6.6.1
- (optional=templinst)_ZZN9QMetaType23registerMutableViewImplI5QHashIi10QByteArrayE9QIterableI16QMetaAssociationEEEbSt8functionIFbPvS8_EES_S_E10unregister@Qt_6 6.6.1
+ _Z23qssgWriteAssertLocationPKc@Qt_6 6.8.0
+ _ZGVZN9QMetaType21registerConverterImplI5QHashIi10QByteArrayE9QIterableI16QMetaAssociationEEEbSt8functionIFbPKvPvEES_S_E10unregister@Qt_6 6.8.0
+ _ZGVZN9QMetaType23registerMutableViewImplI5QHashIi10QByteArrayE9QIterableI16QMetaAssociationEEEbSt8functionIFbPvS8_EES_S_E10unregister@Qt_6 6.8.0
+ _ZN16QMetaAssociation15MetaAssociationI5QHashIi10QByteArrayEE5valueE@Qt_6 6.8.0
+ (subst)_ZN8QSSGMesh12simplifyMeshEPjPKj{size_t}PKf{size_t}{size_t}{size_t}fjPf@Qt_6 6.8.0
+ (subst)_ZN8QSSGMesh13simplifyScaleEPKf{size_t}{size_t}@Qt_6 6.8.0
+ (subst)_ZN8QSSGMesh19optimizeVertexCacheEPjPKj{size_t}{size_t}@Qt_6 6.8.0
+ _ZN9QSSGUtils4quat14inverseRotatedERK11QQuaternionRK9QVector3D@Qt_6 6.8.0
+ _ZN9QSSGUtils4quat6isSaneERK11QQuaternion@Qt_6 6.8.0
+ _ZN9QSSGUtils4quat6isUnitERK11QQuaternion@Qt_6 6.8.0
+ _ZN9QSSGUtils4quat7rotatedERK11QQuaternionRK9QVector3D@Qt_6 6.8.0
+ _ZN9QSSGUtils4quat8isFiniteERK11QQuaternion@Qt_6 6.8.0
+ _ZN9QSSGUtils4quat9magnitudeERK11QQuaternion@Qt_6 6.8.0
+ _ZN9QSSGUtils4vec29magnitudeERK9QVector2D@Qt_6 6.8.0
+ _ZN9QSSGUtils4vec316magnitudeSquaredERK9QVector3D@Qt_6 6.8.0
+ _ZN9QSSGUtils4vec38isFiniteERK9QVector3D@Qt_6 6.8.0
+ _ZN9QSSGUtils4vec39magnitudeERK9QVector3D@Qt_6 6.8.0
+ _ZN9QSSGUtils4vec39normalizeER9QVector3D@Qt_6 6.8.0
+ _ZN9QSSGUtils5color12sRGBToLinearERK6QColor@Qt_6 6.8.0
+ _ZN9QSSGUtils5color17sRGBToLinearColorERK6QColor@Qt_6 6.8.0
+ _ZN9QSSGUtils5mat339transformERK14QGenericMatrixILi3ELi3EfERK9QVector3D@Qt_6 6.8.0
+ _ZN9QSSGUtils5mat4411getPositionERK10QMatrix4x4@Qt_6 6.8.0
+ _ZN9QSSGUtils5mat4411getUpper3x3ERK10QMatrix4x4@Qt_6 6.8.0
+ _ZN9QSSGUtils5mat446rotateERK10QMatrix4x4RK9QVector3D@Qt_6 6.8.0
+ _ZN9QSSGUtils5mat446rotateERK10QMatrix4x4RK9QVector4D@Qt_6 6.8.0
+ _ZN9QSSGUtils5mat448getScaleERK10QMatrix4x4@Qt_6 6.8.0
+ _ZN9QSSGUtils5mat449normalizeER10QMatrix4x4@Qt_6 6.8.0
+ _ZN9QSSGUtils5mat449transformERK10QMatrix4x4RK9QVector3D@Qt_6 6.8.0
+ _ZN9QSSGUtils5mat449transformERK10QMatrix4x4RK9QVector4D@Qt_6 6.8.0
+ _ZSt19piecewise_construct@Qt_6 6.8.0
+ _ZTIZN9QMetaType17registerConverterI5QHashIi10QByteArrayE9QIterableI16QMetaAssociationEN9QtPrivate34QAssociativeIterableConvertFunctorIS3_EEEEbT1_EUlPKvPvE_@Qt_6 6.8.0
+ _ZTIZN9QMetaType19registerMutableViewI5QHashIi10QByteArrayE9QIterableI16QMetaAssociationEN9QtPrivate38QAssociativeIterableMutableViewFunctorIS3_EEEEbT1_EUlPvSB_E_@Qt_6 6.8.0
+ _ZTSNSt6thread11_State_implINS_8_InvokerISt5tupleIJPFvPN6xatlas8internal13TaskSchedulerEPNS5_6WorkerEjES6_S8_jEEEEEE@Qt_6 6.8.0
+ _ZTSZN9QMetaType17registerConverterI5QHashIi10QByteArrayE9QIterableI16QMetaAssociationEN9QtPrivate34QAssociativeIterableConvertFunctorIS3_EEEEbT1_EUlPKvPvE_@Qt_6 6.8.0
+ _ZTSZN9QMetaType19registerMutableViewI5QHashIi10QByteArrayE9QIterableI16QMetaAssociationEN9QtPrivate38QAssociativeIterableMutableViewFunctorIS3_EEEEbT1_EUlPvSB_E_@Qt_6 6.8.0
+ (optional=templinst)_ZZN9QMetaType21registerConverterImplI5QHashIi10QByteArrayE9QIterableI16QMetaAssociationEEEbSt8functionIFbPKvPvEES_S_E10unregister@Qt_6 6.8.0
+ (optional=templinst)_ZZN9QMetaType23registerMutableViewImplI5QHashIi10QByteArrayE9QIterableI16QMetaAssociationEEEbSt8functionIFbPvS8_EES_S_E10unregister@Qt_6 6.8.0

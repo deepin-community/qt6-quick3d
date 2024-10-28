@@ -4,7 +4,7 @@
 
 #include "qssgrendershaderlibrarymanager_p.h"
 
-#include <QtQuick3DRuntimeRender/private/qssgrendercontextcore_p.h>
+#include "../qssgrendercontextcore.h"
 #include <QtQuick3DRuntimeRender/private/qssgrenderloadedtexture_p.h>
 
 #include <QXmlStreamReader>
@@ -194,7 +194,18 @@ bool QSSGShaderLibraryManager::compare(const QSSGShaderDefaultMaterialKey &key1,
     COMPARE_PROP(m_hasIbl)
     COMPARE_PROP(m_specularEnabled)
     COMPARE_PROP(m_fresnelEnabled)
+    COMPARE_PROP(m_fresnelScaleBiasEnabled)
+    COMPARE_PROP(m_clearcoatFresnelScaleBiasEnabled)
+    COMPARE_PROP(m_baseColorSingleChannelEnabled)
+    COMPARE_PROP(m_specularSingleChannelEnabled)
+    COMPARE_PROP(m_emissiveSingleChannelEnabled)
+    COMPARE_PROP(m_invertOpacityMapValue)
     COMPARE_PROP(m_vertexColorsEnabled)
+    COMPARE_PROP(m_vertexColorsMaskEnabled)
+    COMPARE_PROP(m_vertexColorRedMask)
+    COMPARE_PROP(m_vertexColorGreenMask)
+    COMPARE_PROP(m_vertexColorBlueMask)
+    COMPARE_PROP(m_vertexColorAlphaMask)
     COMPARE_PROP(m_specularModel)
     COMPARE_PROP(m_vertexAttributes)
     COMPARE_PROP(m_alphaMode)

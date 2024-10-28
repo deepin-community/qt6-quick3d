@@ -1,5 +1,5 @@
 // Copyright (C) 2021 The Qt Company Ltd.
-// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 import QtQuick3D
 import QtQuick
@@ -83,6 +83,7 @@ Rectangle {
             shadowMapQuality: Light.ShadowMapQualityVeryHigh
             shadowMapFar: 200
             shadowFilter: 0
+            softShadowQuality: Light.Hard
         }
     }
 }

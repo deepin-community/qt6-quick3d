@@ -44,7 +44,8 @@ ApplicationWindow {
             ambientColor: Qt.rgba(0.1, 0.1, 0.1, 1.0)
             position: Qt.vector3d(0, 200, 0)
             rotation: Quaternion.fromEulerAngles(-135, -90, 0)
-            shadowMapQuality: Light.ShadowMapQualityHigh
+            shadowMapQuality: Light.ShadowMapQualityVeryHigh
+            pcfFactor: 1
             visible: directionalLightCheckBox.checked
             castsShadow: checkBoxShadows.checked
             brightness: directionalLightSlider.value
@@ -103,8 +104,8 @@ ApplicationWindow {
             visible: spotLightCheckBox.checked
             castsShadow: checkBoxShadows.checked
             brightness: spotLightSlider.value
-            coneAngle: 50
-            innerConeAngle: 30
+            coneAngle: 110
+            innerConeAngle: 70
             PropertyAnimation on eulerRotation.y {
                 loops: Animation.Infinite
                 from: 0
@@ -121,8 +122,8 @@ ApplicationWindow {
             scale: Qt.vector3d(15, 15, 15)
             eulerRotation.x: -90
             materials: [
-                DefaultMaterial {
-                    diffuseColor: Qt.rgba(0.8, 0.6, 0.4, 1.0)
+                PrincipledMaterial {
+                    baseColor: Qt.rgba(0.8, 0.6, 0.4, 1.0)
                 }
             ]
         }
@@ -131,27 +132,27 @@ ApplicationWindow {
             z: -400
             scale: Qt.vector3d(15, 15, 15)
             materials: [
-                DefaultMaterial {
-                    diffuseColor: Qt.rgba(0.8, 0.8, 0.9, 1.0)
+                 PrincipledMaterial {
+                    baseColor: Qt.rgba(0.8, 0.8, 0.9, 1.0)
                 }
             ]
         }
         //! [rectangle models]
 
-        RotatingTeaPot {
+        RotatingLogo {
             visible: !checkBoxCustomMaterial.checked
-            material: DefaultMaterial {
-                diffuseColor: Qt.rgba(0.9, 0.9, 0.9, 1.0)
+            material: PrincipledMaterial {
+                baseColor: Qt.rgba(0.9, 0.9, 0.9, 1.0)
             }
             animate: checkBoxAnimate.checked
         }
 
-        RotatingTeaPot {
+        RotatingLogo {
             visible: checkBoxCustomMaterial.checked
             material: CustomMaterial {
                 id: customMaterial
                 vertexShader: "custom.vert"
-                property real uAmplitude: 0.5
+                property real uAmplitude: 0.005
                 property real uTime: 0.0
                 SequentialAnimation {
                     running: true
@@ -290,7 +291,7 @@ ApplicationWindow {
         }
         CheckBox {
             id: checkBoxAnimate
-            text: qsTr("Rotate Teapot")
+            text: qsTr("Rotate Logo")
             checked: true
         }
         CheckBox {

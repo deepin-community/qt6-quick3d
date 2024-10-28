@@ -15,16 +15,11 @@ QSSGRenderLayer::QSSGRenderLayer()
     , antialiasingMode(QSSGRenderLayer::AAMode::NoAA)
     , antialiasingQuality(QSSGRenderLayer::AAQuality::High)
     , background(QSSGRenderLayer::Background::Transparent)
-    , lightProbe(nullptr)
-    , probeExposure(1.0f)
-    , probeHorizon(-1.0f)
     , temporalAAEnabled(false)
     , temporalAAStrength(0.3f)
     , ssaaEnabled(false)
     , ssaaMultiplier(1.5f)
     , specularAAEnabled(false)
-    , explicitCamera(nullptr)
-    , renderedCamera(nullptr)
     , tonemapMode(TonemapMode::Linear)
 {
     flags = { FlagT(LocalState::Active) | FlagT(GlobalState::Active) }; // The layer node is alway active and not dirty.
@@ -39,9 +34,9 @@ QSSGRenderLayer::~QSSGRenderLayer()
 
 void QSSGRenderLayer::setProbeOrientation(const QVector3D &angles)
 {
-    if (angles != probeOrientationAngles) {
-        probeOrientationAngles = angles;
-        probeOrientation = QQuaternion::fromEulerAngles(probeOrientationAngles).toRotationMatrix();
+    if (angles != lightProbeSettings.probeOrientationAngles) {
+        lightProbeSettings.probeOrientationAngles = angles;
+        lightProbeSettings.probeOrientation = QQuaternion::fromEulerAngles(lightProbeSettings.probeOrientationAngles).toRotationMatrix();
     }
 }
 

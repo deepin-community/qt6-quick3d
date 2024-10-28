@@ -19,6 +19,8 @@
 #include <QtQuick3DRuntimeRender/private/qssgrendernode_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderimage_p.h>
 
+#include <QtCore/qpointer.h>
+
 QT_BEGIN_NAMESPACE
 
 class QSGNode;
@@ -29,7 +31,7 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderItem2D : public QSSGRenderNode
 {
     Q_DISABLE_COPY(QSSGRenderItem2D)
 
-    QMatrix4x4 MVP;
+    QVarLengthArray<QMatrix4x4, 2> mvps;
     float combinedOpacity = 1.0;
     float zOrder = 0;
 

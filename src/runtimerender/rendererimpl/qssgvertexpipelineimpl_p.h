@@ -49,9 +49,10 @@ struct QSSGMaterialVertexPipeline
 
     GenerationFlags m_generationFlags;
     bool m_hasSkinning;
+    bool m_needsSkinning;
     bool m_hasMorphing;
-    TStrTableStrMap m_interpolationParameters;
     QList<QByteArray> m_addedFunctions;
+    int m_viewCount = 1;
 
     const QSSGShaderDefaultMaterialKeyProperties &defaultMaterialShaderKeyProperties;
     QSSGShaderMaterialAdapter *materialAdapter;
@@ -150,10 +151,15 @@ struct QSSGMaterialVertexPipeline
         generateWorldPosition(inKey);
         generateWorldNormal(inKey);
         QSSGStageGeneratorBase &activeGenerator(activeStage());
-        activeGenerator.addInclude("viewProperties.glsllib");
         addInterpolationParameter("qt_var_object_to_camera", "vec3");
 
-        activeGenerator.append("    qt_var_object_to_camera = normalize( qt_local_model_world_position - qt_cameraPosition );");
+        if (m_viewCount < 2) {
+            activeGenerator.addUniform("qt_cameraPosition", "vec3");
+            activeGenerator.append("    qt_var_object_to_camera = normalize( qt_local_model_world_position - qt_cameraPosition );");
+        } else {
+            activeGenerator.addUniformArray("qt_cameraPosition", "vec3", m_viewCount);
+            activeGenerator.append("    qt_var_object_to_camera = normalize( qt_local_model_world_position - qt_cameraPosition[qt_viewIndex] );");
+        }
 
         // World normal cannot be relied upon in the vertex shader because of bump maps.
         fragment().append("    vec3 environment_map_reflection = reflect( "
@@ -161,16 +167,21 @@ struct QSSGMaterialVertexPipeline
         fragment().append("    environment_map_reflection *= vec3( 0.5, 0.5, 0 );");
         fragment().append("    environment_map_reflection += vec3( 0.5, 0.5, 1.0 );");
     }
+
     void generateViewVector(const QSSGShaderDefaultMaterialKey &inKey)
     {
         if (setCode(GenerationFlag::ViewVector))
             return;
 
         generateWorldPosition(inKey);
-        activeStage().addUniform("qt_cameraPosition", "vec3");
 
-
-        fragment() << "    vec3 qt_view_vector = normalize(qt_cameraPosition - qt_varWorldPos);\n";
+        if (m_viewCount < 2) {
+            activeStage().addUniform("qt_cameraPosition", "vec3");
+            fragment() << "    vec3 qt_view_vector = normalize(qt_cameraPosition - qt_varWorldPos);\n";
+        } else {
+            activeStage().addUniformArray("qt_cameraPosition", "vec3", m_viewCount);
+            fragment() << "    vec3 qt_view_vector = normalize(qt_cameraPosition[qt_viewIndex] - qt_varWorldPos);\n";
+        }
     }
 
     // fragment shader expects varying vertex normal
@@ -189,7 +200,8 @@ struct QSSGMaterialVertexPipeline
             doGenerateWorldNormal(inKey);
         } else {
             generateWorldPosition(inKey);
-            fragment().append("    vec3 qt_varNormal = cross(dFdx(qt_varWorldPos), dFdy(qt_varWorldPos));");
+            // qt_rhi_properties.x is used to correct for Y inversion for non OpenGL backends
+            fragment().append("    vec3 qt_varNormal = cross(dFdx(qt_varWorldPos), qt_rhi_properties.x * dFdy(qt_varWorldPos));");
         }
         fragment().append("    vec3 qt_world_normal = normalize(qt_varNormal);");
     }
@@ -290,16 +302,27 @@ struct QSSGMaterialVertexPipeline
         const bool meshHasColor = hasAttributeInKey(QSSGShaderKeyVertexAttribute::Color, inKey);
 
         const bool vColorEnabled = defaultMaterialShaderKeyProperties.m_vertexColorsEnabled.getValue(inKey);
+        const bool vColorMaskEnabled = defaultMaterialShaderKeyProperties.m_vertexColorsMaskEnabled.getValue(inKey);
         const bool usesVarColor = defaultMaterialShaderKeyProperties.m_usesVarColor.getValue(inKey);
         const bool usesInstancing = defaultMaterialShaderKeyProperties.m_usesInstancing.getValue(inKey);
         const bool usesBlendParticles = defaultMaterialShaderKeyProperties.m_blendParticles.getValue(inKey);
-        if ((vColorEnabled && meshHasColor) || usesInstancing || usesBlendParticles || usesVarColor) {
+
+        const bool vertexColorsEnabled = (vColorEnabled && meshHasColor) || usesInstancing || usesBlendParticles || usesVarColor;
+        const bool vertexColorsMaskEnabled = (vColorMaskEnabled && meshHasColor);
+
+        if (vertexColorsEnabled || vertexColorsMaskEnabled) {
             addInterpolationParameter("qt_varColor", "vec4");
             if (m_hasMorphing)
                 vertex().append("    qt_vertColor = qt_getTargetColor(qt_vertColor);");
             vertex().append("    qt_varColor = qt_vertColor;");
-            fragment().append("    vec4 qt_vertColor = qt_varColor;\n");
-        } else {
+
+            fragment().append("    vec4 qt_vertColorMask = qt_varColor;\n");
+            if (vertexColorsEnabled)
+                fragment().append("    vec4 qt_vertColor = qt_varColor;\n");
+            else
+                fragment().append("    vec4 qt_vertColor = vec4(1.0);\n");
+        }else {
+            fragment().append("    vec4 qt_vertColorMask = vec4(1.0);\n");
             fragment().append("    vec4 qt_vertColor = vec4(1.0);\n"); // must be 1,1,1,1 to not alter when multiplying with it
         }
     }
@@ -369,6 +392,7 @@ struct QSSGMaterialVertexPipeline
 
     QSSGStageGeneratorBase &activeStage();
     void addInterpolationParameter(const QByteArray &inParamName, const QByteArray &inParamType);
+    void addFlatParameter(const QByteArray &inParamName, const QByteArray &inParamType);
 
     void doGenerateWorldNormal(const QSSGShaderDefaultMaterialKey &inKey);
     void doGenerateVarTangent(const QSSGShaderDefaultMaterialKey &inKey);

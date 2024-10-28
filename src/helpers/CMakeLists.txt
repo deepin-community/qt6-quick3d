@@ -12,6 +12,7 @@ qt_internal_add_qml_module(Quick3DHelpers
     CLASS_NAME QtQuick3DHelpersPlugin
     PLUGIN_TARGET qtquick3dhelpersplugin
     DEPENDENCIES
+        QtQuick3D.Helpers.impl/auto
         QtQuick3D/auto
     PAST_MAJOR_VERSIONS 1
     SOURCES
@@ -43,8 +44,6 @@ qt_internal_add_qml_module(Quick3DHelpers
         Qt::Quick
         Qt::Quick3DPrivate
         Qt::GuiPrivate
-    GENERATE_CPP_EXPORTS
-    GENERATE_PRIVATE_CPP_EXPORTS
 )
 
 if(QT_FEATURE_quick_designer AND QT_BUILD_SHARED_LIBS) # special case handle unconverted static

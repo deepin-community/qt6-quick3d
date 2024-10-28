@@ -1,5 +1,5 @@
 # Copyright (C) 2022 The Qt Company Ltd.
-# SPDX-License-Identifier: BSD-3-Clause
+# SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 
 qt_internal_add_example(antialiasing)
 qt_internal_add_example(customshaders)
@@ -32,3 +32,14 @@ qt_internal_add_example(bakedlightmap)
 qt_internal_add_example(lodhelper)
 qt_internal_add_example(simplefog)
 qt_internal_add_example(sceneeffects)
+qt_internal_add_example(volumeraycaster)
+qt_internal_add_example(virtualassistant)
+qt_internal_add_example(extensions/stenciloutline)
+
+if(QT_FEATURE_quick3dxr_openxr)
+    qt_internal_add_example(xr_simple)
+    qt_internal_add_example(xr_anchors)
+    qt_internal_add_example(xr_freeformteleportation)
+    qt_internal_add_example(xr_input)
+    qt_internal_add_example(xr_touch)
+endif()

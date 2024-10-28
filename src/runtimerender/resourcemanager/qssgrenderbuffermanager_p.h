@@ -26,13 +26,15 @@
 #include <QtQuick3DUtils/private/qquick3dprofiler_p.h>
 
 #include <QtCore/QMutex>
+#include <QtCore/qhash.h>
+#include <QtCore/qsize.h>
 
 QT_BEGIN_NAMESPACE
 
 struct QSSGRenderMesh;
 struct QSSGLoadedTexture;
 class QSSGRhiContext;
-struct QSSGMeshBVH;
+class QSSGMeshBVH;
 class QSGTexture;
 class QSSGRenderGeometry;
 class QSSGRenderTextureData;
@@ -50,6 +52,7 @@ struct QSSGRenderSkin;
 // having a dedicated BufferManager for each render thread (window).
 
 class QSSGRenderContextInterface;
+class QQuick3DRenderExtension;
 
 struct QSSGMeshProcessingOptions
 {
@@ -77,6 +80,18 @@ class Q_QUICK3DRUNTIMERENDER_EXPORT QSSGBufferManager
 {
     Q_DISABLE_COPY(QSSGBufferManager)
 public:
+    enum MipMode : quint8 {
+        MipModeFollowRenderImage,
+        MipModeEnable,
+        MipModeDisable,
+        MipModeBsdf
+    };
+
+    enum LoadRenderImageFlag {
+        LoadWithFlippedY = 0x01
+    };
+    Q_DECLARE_FLAGS(LoadRenderImageFlags, LoadRenderImageFlag)
+
     struct ImageCacheKey {
         QSSGRenderPath path;
         int mipMode;
@@ -85,13 +100,14 @@ public:
 
     struct CustomImageCacheKey {
         QSSGRenderTextureData *data;
-        int mipMode;
+        QSize pixelSize;
+        MipMode mipMode;
     };
 
     struct ImageData {
         QSSGRenderImageTexture renderImageTexture;
         QHash<QSSGRenderLayer*, uint32_t> usageCounts;
-        uint32_t generationId = 0;
+        uint32_t version = 0;
     };
 
     struct MeshData {
@@ -105,18 +121,6 @@ public:
         quint64 meshDataSize = 0;
         quint64 imageDataSize = 0;
     };
-
-    enum MipMode {
-        MipModeFollowRenderImage,
-        MipModeEnable,
-        MipModeDisable,
-        MipModeBsdf
-    };
-
-    enum LoadRenderImageFlag {
-        LoadWithFlippedY = 0x01
-    };
-    Q_DECLARE_FLAGS(LoadRenderImageFlags, LoadRenderImageFlag)
 
     QSSGBufferManager();
     ~QSSGBufferManager();
@@ -145,16 +149,19 @@ public:
     void releaseGeometry(QSSGRenderGeometry *geometry);
     void releaseTextureData(const QSSGRenderTextureData *data);
     void releaseTextureData(const CustomImageCacheKey &key);
+    void releaseExtensionResult(const QSSGRenderExtension &rext);
 
     void commitBufferResourceUpdates();
 
     void processResourceLoader(const QSSGRenderResourceLoader *loader);
 
-    static QSSGMeshBVH *loadMeshBVH(const QSSGRenderPath &inSourcePath);
-    static QSSGMeshBVH *loadMeshBVH(QSSGRenderGeometry *geometry);
+    static std::unique_ptr<QSSGMeshBVH> loadMeshBVH(const QSSGRenderPath &inSourcePath);
+    static std::unique_ptr<QSSGMeshBVH> loadMeshBVH(QSSGRenderGeometry *geometry);
 
     static QSSGMesh::Mesh loadMeshData(const QSSGRenderPath &inSourcePath);
     QSSGMesh::Mesh loadMeshData(const QSSGRenderGeometry *geometry);
+
+    void registerExtensionResult(const QSSGRenderExtension &extensions, QRhiTexture *texture);
 
     static QRhiTexture::Format toRhiFormat(const QSSGRenderTextureFormat format);
 
@@ -188,11 +195,12 @@ private:
         Texture3D = 0x04
     };
     Q_DECLARE_FLAGS(CreateRhiTextureFlags, CreateRhiTextureFlag)
-    bool createRhiTexture(QSSGRenderImageTexture &texture,
-                          const QSSGLoadedTexture *inTexture,
-                          MipMode inMipMode,
-                          CreateRhiTextureFlags inFlags,
-                          const QString &debugObjectName);
+    bool setRhiTexture(QSSGRenderImageTexture &texture,
+                       const QSSGLoadedTexture *inTexture,
+                       MipMode inMipMode,
+                       CreateRhiTextureFlags inFlags,
+                       const QString &debugObjectName,
+                       bool *wasTextureCreated = nullptr);
 
     QSSGRenderMesh *loadRenderMesh(const QSSGRenderPath &inSourcePath, QSSGMeshProcessingOptions options);
     QSSGRenderMesh *loadRenderMesh(QSSGRenderGeometry *geometry, QSSGMeshProcessingOptions options);
@@ -210,6 +218,7 @@ private:
     QHash<ImageCacheKey, ImageData> imageMap;                   // Textures (specificed by path)
     QHash<CustomImageCacheKey, ImageData> customTextureMap;     // Textures (QQuick3DTextureData)
     QHash<QSGTexture *, ImageData> qsgImageMap;                 // Textures (from Qt Quick)
+    QHash<const QSSGRenderExtension *, ImageData> renderExtensionTexture; // Textures (from QQuick3DRenderExtension)
     QHash<QSSGRenderPath, MeshData> meshMap;                    // Meshes (specififed by path)
     QHash<QSSGRenderGeometry *, MeshData> customMeshMap;        // Meshes (QQuick3DGeometry)
 
@@ -234,14 +243,11 @@ inline bool operator==(const QSSGBufferManager::ImageCacheKey &a, const QSSGBuff
     return a.path == b.path && a.mipMode == b.mipMode && a.type == b.type;
 }
 
-inline size_t qHash(const QSSGBufferManager::CustomImageCacheKey &k, size_t seed) Q_DECL_NOTHROW
-{
-    return qHash(k.data, seed) ^ k.mipMode;
-}
+size_t qHash(const QSSGBufferManager::CustomImageCacheKey &k, size_t seed) noexcept;
 
 inline bool operator==(const QSSGBufferManager::CustomImageCacheKey &a, const QSSGBufferManager::CustomImageCacheKey &b) Q_DECL_NOTHROW
 {
-    return a.data == b.data && a.mipMode == b.mipMode;
+    return a.data == b.data && a.pixelSize == b.pixelSize && a.mipMode == b.mipMode;
 }
 
 QT_END_NAMESPACE

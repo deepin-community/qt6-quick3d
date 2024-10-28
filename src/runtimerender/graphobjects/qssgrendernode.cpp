@@ -20,8 +20,8 @@ QSSGRenderNode::QSSGRenderNode()
 {
 }
 
-QSSGRenderNode::QSSGRenderNode(Type type)
-    : QSSGRenderGraphObject(type)
+QSSGRenderNode::QSSGRenderNode(Type type, QSSGRenderGraphObject::FlagT flags)
+    : QSSGRenderGraphObject(type, flags)
 {
     globalTransform = localTransform = calculateTransformMatrix({}, initScale, {}, {});
 }
@@ -264,6 +264,15 @@ void QSSGRenderNode::calculateMVPAndNormalMatrix(const QMatrix4x4 &inViewProject
 {
     outMVP = inViewProjection * globalTransform;
     outNormalMatrix = calculateNormalMatrix();
+}
+
+void QSSGRenderNode::calculateMVPAndNormalMatrix(const QMatrix4x4 &globalTransform,
+                                                 const QMatrix4x4 &inViewProjection,
+                                                 QMatrix4x4 &outMVP,
+                                                 QMatrix3x3 &outNormalMatrix)
+{
+    outMVP = inViewProjection * globalTransform;
+    outNormalMatrix = globalTransform.normalMatrix();
 }
 
 QMatrix3x3 QSSGRenderNode::calculateNormalMatrix() const
