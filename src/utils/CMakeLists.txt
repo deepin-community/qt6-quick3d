@@ -15,11 +15,12 @@ qt_internal_add_module(Quick3DUtils
         qssginvasivelinkedlist_p.h
         qssgmeshbvh.cpp qssgmeshbvh_p.h
         qssgplane.cpp qssgplane_p.h
-        qssgrenderbasetypes.cpp qssgrenderbasetypes_p.h
+        qssgrenderbasetypes.cpp qssgrenderbasetypes_p.h qssgrenderbasetypes.h
         qssgutils.cpp qssgutils_p.h
         qssgmeshbvhbuilder.cpp qssgmeshbvhbuilder_p.h
         qssgmesh.cpp qssgmesh_p.h
         qssgassert.cpp qssgassert_p.h
+        qssgaosettings_p.h
         qtquick3dutilsglobal_p.h
         qquick3dprofiler.cpp
         qquick3dprofiler_p.h
@@ -75,8 +76,11 @@ qt_internal_add_module(Quick3DUtils
         Qt::CorePrivate
         Qt::GuiPrivate
         Qt::QuickPrivate
-    GENERATE_CPP_EXPORTS
-    GENERATE_PRIVATE_CPP_EXPORTS
+    SSG_HEADER_FILTERS
+        "(^|/)qssg.*[^_][^p]\\.h$"
+    ATTRIBUTION_FILE_DIR_PATHS
+        ../3rdparty/xatlas
+        ../3rdparty/meshoptimizer
 )
 
 # Silence warnings in 3rdparty code

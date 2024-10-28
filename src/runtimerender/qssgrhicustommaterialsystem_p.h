@@ -16,9 +16,8 @@
 // We mean it.
 //
 
-#include <QtQuick3DRuntimeRender/private/qtquick3druntimerenderglobal_p.h>
+#include <QtQuick3DRuntimeRender/qtquick3druntimerenderglobal.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendershaderlibrarymanager_p.h>
-#include <QtQuick3DRuntimeRender/private/qssgvertexpipelineimpl_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderableobjects_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendercustommaterial_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendershaderkeys_p.h>
@@ -73,6 +72,7 @@ public:
     QSSGRhiShaderPipelinePtr shadersForCustomMaterial(QSSGRhiGraphicsPipelineState *ps,
                                                       const QSSGRenderCustomMaterial &material,
                                                       QSSGSubsetRenderable &renderable,
+                                                      const QSSGShaderDefaultMaterialKeyProperties &defaultMaterialShaderKeyProperties,
                                                       const QSSGShaderFeatures &featureSet);
 
     void updateUniformsForCustomMaterial(QSSGRhiShaderPipeline &shaderPipeline,
@@ -82,7 +82,7 @@ public:
                                          QSSGRhiGraphicsPipelineState *ps,
                                          const QSSGRenderCustomMaterial &material,
                                          QSSGSubsetRenderable &renderable,
-                                         const QSSGRenderCamera &camera,
+                                         const QSSGRenderCameraList &cameras,
                                          const QVector2D *depthAdjust,
                                          const QMatrix4x4 *alteredModelViewProjection);
 
@@ -94,6 +94,7 @@ public:
                               const QSSGLayerRenderData &layerData,
                               QRhiRenderPassDescriptor *renderPassDescriptor,
                               int samples,
+                              int viewCount,
                               QSSGRenderCamera *camera = nullptr,
                               QSSGRenderTextureCubeFace cubeFace = QSSGRenderTextureCubeFaceNone,
                               QMatrix4x4 *modelViewProjection = nullptr,

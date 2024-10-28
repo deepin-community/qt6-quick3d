@@ -9,7 +9,7 @@
     \qmltype Geometry
     \inherits Object3D
     \inqmlmodule QtQuick3D
-    \instantiates QQuick3DGeometry
+    \nativetype QQuick3DGeometry
     \brief Base type for custom geometry.
 
     Custom geometry allows using application-generated vertex and index data,
@@ -951,6 +951,7 @@ QSSGRenderGraphObject *QQuick3DGeometry::updateSpatialNode(QSSGRenderGraphObject
                 geometry->addSubset(s.offset, s.count, s.boundsMin, s.boundsMax, s.name);
         }
         d->m_geometryChanged = false;
+        emit geometryChanged();
     }
     if (d->m_geometryBoundsChanged) {
         geometry->setBounds(d->m_min, d->m_max);

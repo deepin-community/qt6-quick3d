@@ -16,16 +16,15 @@
 // We mean it.
 //
 
-#include <QtQuick3DRuntimeRender/private/qssgrendermaterialshadergenerator_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendershadercodegenerator_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendershadowmap_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderlight_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderableimage_p.h>
+#include <QtQuick3DRuntimeRender/private/qssgrenderableobjects_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendershaderkeys_p.h>
 
 QT_BEGIN_NAMESPACE
 
-struct QSSGRenderableImage;
 struct QSSGShaderDefaultMaterialKeyProperties;
 struct QSSGShaderDefaultMaterialKey;
 struct QSSGLayerGlobalRenderProperties;
@@ -53,11 +52,9 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGMaterialShaderGenerator
 
     struct ShadowVariableNames
     {
-        QByteArray shadowMapStem;
-        QByteArray shadowCubeStem;
-        QByteArray shadowMatrixStem;
-        QByteArray shadowCoordStem;
-        QByteArray shadowControlStem;
+        QByteArray shadowCube;
+        QByteArray shadowData;
+        QByteArray shadowMapTexture;
     };
 
     ~QSSGMaterialShaderGenerator() = default;
@@ -67,11 +64,12 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGMaterialShaderGenerator
     static QSSGRhiShaderPipelinePtr generateMaterialRhiShader(const QByteArray &inShaderKeyPrefix,
                                                               QSSGMaterialVertexPipeline &vertexGenerator,
                                                               const QSSGShaderDefaultMaterialKey &key,
-                                                              QSSGShaderDefaultMaterialKeyProperties &inProperties,
+                                                              const QSSGShaderDefaultMaterialKeyProperties &inProperties,
                                                               const QSSGShaderFeatures &inFeatureSet,
                                                               const QSSGRenderGraphObject &inMaterial,
                                                               const QSSGShaderLightListView &inLights,
-                                                              QSSGRenderableImage *inFirstImage, QSSGShaderLibraryManager &shaderLibraryManager,
+                                                              QSSGRenderableImage *inFirstImage,
+                                                              QSSGShaderLibraryManager &shaderLibraryManager,
                                                               QSSGShaderCache &theCache);
 
     static void setRhiMaterialProperties(const QSSGRenderContextInterface &,
@@ -80,9 +78,9 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGMaterialShaderGenerator
                                          QSSGRhiGraphicsPipelineState *inPipelineState,
                                          const QSSGRenderGraphObject &inMaterial,
                                          const QSSGShaderDefaultMaterialKey &inKey,
-                                         QSSGShaderDefaultMaterialKeyProperties &inProperties,
-                                         const QSSGRenderCamera &inCamera,
-                                         const QMatrix4x4 &inModelViewProjection,
+                                         const QSSGShaderDefaultMaterialKeyProperties &inProperties,
+                                         const QSSGRenderCameraList &inCameras,
+                                         const QSSGRenderMvpArray &inModelViewProjections,
                                          const QMatrix3x3 &inNormalMatrix,
                                          const QMatrix4x4 &inGlobalTransform,
                                          const QMatrix4x4 &clipSpaceCorrMatrix,
@@ -91,7 +89,7 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGMaterialShaderGenerator
                                          const QSSGDataView<float> &inMorphWeights,
                                          QSSGRenderableImage *inFirstImage,
                                          float inOpacity,
-                                         const QSSGLayerGlobalRenderProperties &inRenderProperties,
+                                         const QSSGLayerRenderData &inRenderProperties,
                                          const QSSGShaderLightListView &inLights,
                                          const QSSGShaderReflectionProbe &reflectionProbe,
                                          bool receivesShadows,

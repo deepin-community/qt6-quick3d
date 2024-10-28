@@ -1,3 +1,9 @@
+qt6-quick3d (6.8.0-0deepin) unstable; urgency=medium
+
+  * New upstream release (6.8.0).
+
+ -- lichenggang <lichenggang@deepin.org>  Mon, 28 Oct 2024 14:43:44 +0800
+
 qt6-quick3d (6.6.1-4deepin0) experimental; urgency=medium
 
   * No source change upload against GCC 12.

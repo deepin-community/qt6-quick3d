@@ -21,7 +21,7 @@
 #include <QtCore/qvector.h>
 #include <rhi/qrhi.h>
 
-#include <QtQuick3DRuntimeRender/private/qtquick3druntimerenderexports_p.h>
+#include <QtQuick3DRuntimeRender/qtquick3druntimerenderexports.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendergraphobject_p.h>
 #include <QtQuick3DUtils/private/qssgrenderbasetypes_p.h>
 
@@ -48,12 +48,14 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderCustomMaterial : public QSSGRende
         QSSGRenderTextureFilterOp mipFilterType = QSSGRenderTextureFilterOp::Linear;
         QSSGRenderTextureCoordOp horizontalClampType = QSSGRenderTextureCoordOp::ClampToEdge;
         QSSGRenderTextureCoordOp verticalClampType = QSSGRenderTextureCoordOp::ClampToEdge;
+        QSSGRenderTextureCoordOp zClampType = QSSGRenderTextureCoordOp::ClampToEdge;
         QQuick3DTexture *lastConnectedTexture = nullptr;
         QMetaObject::Connection minFilterChangedConn;
         QMetaObject::Connection magFilterChangedConn;
         QMetaObject::Connection mipFilterChangedConn;
         QMetaObject::Connection horizontalTilingChangedConn;
         QMetaObject::Connection verticalTilingChangedConn;
+        QMetaObject::Connection depthTilingChangedConn;
     };
     using TexturePropertyList = QList<TextureProperty>;
 
@@ -102,11 +104,20 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderCustomMaterial : public QSSGRende
         IblOrientation = 1 << 9,
         Lightmap = 1 << 10,
         Skinning = 1 << 11,
-        Morphing = 1 << 12
+        Morphing = 1 << 12,
+        ViewIndex = 1 << 13,
+        Clearcoat = 1 << 14,
+        ClearcoatFresnelScaleBias = 1 << 15,
+        FresnelScaleBias = 1 << 16,
+        Transmission = 1 << 17,
     };
     Q_DECLARE_FLAGS(RenderFlags, RenderFlag)
 
-    QByteArray m_shaderPathKey;
+    enum {
+        RegularShaderPathKeyIndex = 0,
+        MultiViewShaderPathKeyIndex = 1
+    };
+    QByteArray m_shaderPathKey[2];
     CustomShaderPresence m_customShaderPresence;
 
     TexturePropertyList m_textureProperties;
@@ -119,6 +130,8 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderCustomMaterial : public QSSGRende
     RenderFlags m_renderFlags;
     QRhiGraphicsPipeline::BlendFactor m_srcBlend;
     QRhiGraphicsPipeline::BlendFactor m_dstBlend;
+    QRhiGraphicsPipeline::BlendFactor m_srcAlphaBlend;
+    QRhiGraphicsPipeline::BlendFactor m_dstAlphaBlend;
     float m_lineWidth = 1.0f;
 
     QSSGRenderGraphObject *m_nextSibling = nullptr;

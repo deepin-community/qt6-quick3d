@@ -17,9 +17,9 @@
 //
 
 #include <QtQuick3DRuntimeRender/private/qssgrendernode_p.h>
-#include <QtQuick3DRuntimeRender/private/qssglightmapper_p.h>
 #include <QtCore/qvarlengtharray.h>
 #include <QtCore/qlist.h>
+#include <ssg/qssglightmapper.h>
 
 QT_BEGIN_NAMESPACE
 class QSSGRenderContextInterface;
@@ -90,8 +90,10 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderLayer : public QSSGRenderNode
         Linear,
         Aces,
         HejlDawson,
-        Filmic
+        Filmic,
+        Custom
     };
+    static size_t constexpr TonemapModeCount = 6;
 
     enum class LayerFlag
     {
@@ -121,8 +123,8 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderLayer : public QSSGRenderNode
     // First effect in a list of effects.
     QSSGRenderEffect *firstEffect;
     QSSGLayerRenderData *renderData = nullptr;
-    enum RenderExtensionMode { Underlay, Overlay, Count };
-    QList<QSSGRenderExtension *> renderExtensions[RenderExtensionMode::Count];
+    enum class RenderExtensionStage { Underlay, Overlay, Count };
+    QList<QSSGRenderExtension *> renderExtensions[size_t(RenderExtensionStage::Count)];
 
     QSSGRenderLayer::AAMode antialiasingMode;
     QSSGRenderLayer::AAQuality antialiasingQuality;
@@ -142,11 +144,13 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderLayer : public QSSGRenderNode
     constexpr bool ssaoEnabled() const { return aoEnabled && (aoStrength > 0.0f && aoDistance > 0.0f); }
 
     // IBL
-    QSSGRenderImage *lightProbe;
-    float probeExposure;
-    float probeHorizon;
-    QMatrix3x3 probeOrientation;
-    QVector3D probeOrientationAngles;
+    QSSGRenderImage *lightProbe { nullptr };
+    struct LightProbeSettings {
+        float probeExposure { 1.0f };
+        float probeHorizon { -1.0f };
+        QMatrix3x3 probeOrientation;
+        QVector3D probeOrientationAngles;
+    } lightProbeSettings;
 
     QSSGRenderImage *skyBoxCubeMap = nullptr;
 
@@ -162,10 +166,10 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderLayer : public QSSGRenderNode
     uint tempAAPassIndex;
     uint progAAPassIndex;
 
-    // The camera explicitly set on the view by the user.
-    QSSGRenderCamera *explicitCamera;
-    // The camera used for rendering (explicitCamera, nullptr or first usable camera).
-    QSSGRenderCamera *renderedCamera;
+    // The camera explicitly set on the view by the user. (backend node can be null)
+    QVarLengthArray<QSSGRenderCamera *, 2> explicitCameras;
+    // The camera used for rendering, multiple ones with multiview.
+    QVarLengthArray<QSSGRenderCamera *, 2> renderedCameras;
 
     // Tonemapping
     TonemapMode tonemapMode;
@@ -216,6 +220,12 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderLayer : public QSSGRenderNode
     MaterialDebugMode debugMode = MaterialDebugMode::None;
 
     bool wireframeMode = false;
+    bool drawDirectionalLightShadowBoxes = false;
+    bool drawShadowCastingBounds = false;
+    bool drawShadowReceivingBounds = false;
+    bool drawCascades = false;
+    bool drawSceneCascadeIntersection = false;
+    bool disableShadowCameraUpdate = false;
 
     QSSGRenderLayer();
     ~QSSGRenderLayer();

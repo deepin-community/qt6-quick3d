@@ -52,6 +52,7 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderEffect : public QSSGRenderGraphOb
         QSSGRenderTextureFilterOp mipFilterType = QSSGRenderTextureFilterOp::Linear;
         QSSGRenderTextureCoordOp horizontalClampType = QSSGRenderTextureCoordOp::ClampToEdge;
         QSSGRenderTextureCoordOp verticalClampType = QSSGRenderTextureCoordOp::ClampToEdge;
+        QSSGRenderTextureCoordOp zClampType = QSSGRenderTextureCoordOp::ClampToEdge;
         QSSGRenderTextureTypeValue usageType;
     };
 
@@ -95,10 +96,10 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderEffect : public QSSGRenderGraphOb
     struct ShaderPrepPassData
     {
         QByteArray shaderPathKeyPrefix; // to be completed in finalizeShaders
-        QByteArray vertexShaderCode; // without main(), to be completed in finalizeShaders
-        QByteArray fragmentShaderCode; // same here
-        QSSGCustomShaderMetaData vertexMetaData;
-        QSSGCustomShaderMetaData fragmentMetaData;
+        QByteArray vertexShaderCode[2]; // without main(), to be completed in finalizeShaders
+        QByteArray fragmentShaderCode[2]; // same here
+        QSSGCustomShaderMetaData vertexMetaData[2];
+        QSSGCustomShaderMetaData fragmentMetaData[2];
         int bindShaderCmdIndex = 0;
     };
 

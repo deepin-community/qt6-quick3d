@@ -25,6 +25,8 @@
 #include <QtQuick3DParticles/private/qquick3dparticlesystem_p.h>
 #include <QtQuick3DParticles/private/qquick3dparticledata_p.h>
 
+#include <QtCore/qpointer.h>
+
 QT_BEGIN_NAMESPACE
 
 class QQmlInstanceModel;
@@ -84,8 +86,6 @@ private:
     QQuick3DParticleInstanceTable *m_instanceTable = nullptr;
 
     QVector3D m_initialScale;
-    float m_initialOpacity = 1.0f;
-    bool m_explicitColor;
 };
 
 QT_END_NAMESPACE
