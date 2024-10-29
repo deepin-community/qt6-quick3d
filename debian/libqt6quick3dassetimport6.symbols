@@ -1,7 +1,7 @@
-# SymbolsHelper-Confirmed: 6.7.2 amd64
+# SymbolsHelper-Confirmed: 6.8.0 amd64
 libQt6Quick3DAssetImport.so.6 libqt6quick3dassetimport6 #MINVER#
-| libqt6quick3dassetimport6 #MINVER#, qt6-quick3d-private-abi (= 6.7.2)
+| libqt6quick3dassetimport6 #MINVER#, qt6-quick3d-private-abi (= 6.8.0)
 * Build-Depends-Packages: qt6-quick3d-dev, qt6-quick3d-private-dev
- NonQt@NonQt 6.7.2
+ NonQt@NonQt 6.8.0
  Qt_6@Qt_6 6.6.1
  (symver)Qt_6_PRIVATE_API 0 1
