@@ -1,8 +1,18 @@
 #!/usr/bin/dh-exec
+[amd64 arm64] usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6/FindWrapBundledEmbreeConfigExtra.cmake
+[amd64 arm64] usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6BundledEmbree/Qt6BundledEmbreeAdditionalTargetInfo.cmake
+[amd64 arm64] usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6BundledEmbree/Qt6BundledEmbreeConfig.cmake
+[amd64 arm64] usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6BundledEmbree/Qt6BundledEmbreeConfigVersion.cmake
+[amd64 arm64] usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6BundledEmbree/Qt6BundledEmbreeConfigVersionImpl.cmake
+[amd64 arm64] usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6BundledEmbree/Qt6BundledEmbreeTargets-none.cmake
+[amd64 arm64] usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6BundledEmbree/Qt6BundledEmbreeTargets.cmake
+[amd64 arm64] usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6BundledEmbree/Qt6BundledEmbreeVersionlessTargets.cmake
+[amd64 arm64] usr/lib/${DEB_HOST_MULTIARCH}/libQt6BundledEmbree.a
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3D/QQuick3D
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3D/QQuick3DGeometry
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3D/QQuick3DInstancing
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3D/QQuick3DObject
+usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3D/QQuick3DRenderExtension
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3D/QQuick3DTextureData
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3D/QtQuick3D
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3D/QtQuick3DDepends
@@ -11,6 +21,7 @@ usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3D/qquick3d.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3D/qquick3dgeometry.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3D/qquick3dinstancing.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3D/qquick3dobject.h
+usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3D/qquick3drenderextensions.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3D/qquick3dtexturedata.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3D/qtquick3dexports.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3D/qtquick3dglobal.h
@@ -35,6 +46,10 @@ usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DHelpers/QtQuick3DHelpersDepends
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DHelpers/QtQuick3DHelpersVersion
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DHelpers/qtquick3dhelpersexports.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DHelpers/qtquick3dhelpersversion.h
+usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DHelpersImpl/QtQuick3DHelpersImpl
+usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DHelpersImpl/QtQuick3DHelpersImplDepends
+usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DHelpersImpl/QtQuick3DHelpersImplVersion
+usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DHelpersImpl/qtquick3dhelpersimplversion.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DIblBaker/QtQuick3DIblBaker
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DIblBaker/QtQuick3DIblBakerDepends
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DIblBaker/QtQuick3DIblBakerVersion
@@ -50,22 +65,15 @@ usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DRuntimeRender/QtQuick3DRuntimeRen
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DRuntimeRender/QtQuick3DRuntimeRenderDepends
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DRuntimeRender/QtQuick3DRuntimeRenderVersion
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DRuntimeRender/qtquick3druntimerenderexports.h
+usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DRuntimeRender/qtquick3druntimerenderglobal.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DRuntimeRender/qtquick3druntimerenderversion.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DUtils/QtQuick3DUtils
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DUtils/QtQuick3DUtilsDepends
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DUtils/QtQuick3DUtilsVersion
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DUtils/qtquick3dutilsexports.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DUtils/qtquick3dutilsversion.h
-[amd64 arm64] usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6/FindWrapBundledEmbreeConfigExtra.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6/FindWrapQuick3DAssimp.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6BuildInternals/StandaloneTests/QtQuick3DTestsConfig.cmake
-[amd64 arm64] usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6BundledEmbree/Qt6BundledEmbreeAdditionalTargetInfo.cmake
-[amd64 arm64] usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6BundledEmbree/Qt6BundledEmbreeConfig.cmake
-[amd64 arm64] usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6BundledEmbree/Qt6BundledEmbreeConfigVersion.cmake
-[amd64 arm64] usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6BundledEmbree/Qt6BundledEmbreeConfigVersionImpl.cmake
-[amd64 arm64] usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6BundledEmbree/Qt6BundledEmbreeTargets-none.cmake
-[amd64 arm64] usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6BundledEmbree/Qt6BundledEmbreeTargets.cmake
-[amd64 arm64] usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6BundledEmbree/Qt6BundledEmbreeVersionlessTargets.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Qml/Qt6QQuick3DProfilerAdapterFactoryPluginAdditionalTargetInfo.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Qml/Qt6QQuick3DProfilerAdapterFactoryPluginConfig.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Qml/Qt6QQuick3DProfilerAdapterFactoryPluginConfigVersion.cmake
@@ -120,6 +128,14 @@ usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DHelpers/Qt6Quick3DHelpersDependenc
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DHelpers/Qt6Quick3DHelpersTargets-none.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DHelpers/Qt6Quick3DHelpersTargets.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DHelpers/Qt6Quick3DHelpersVersionlessTargets.cmake
+usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DHelpersImpl/Qt6Quick3DHelpersImplAdditionalTargetInfo.cmake
+usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DHelpersImpl/Qt6Quick3DHelpersImplConfig.cmake
+usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DHelpersImpl/Qt6Quick3DHelpersImplConfigVersion.cmake
+usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DHelpersImpl/Qt6Quick3DHelpersImplConfigVersionImpl.cmake
+usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DHelpersImpl/Qt6Quick3DHelpersImplDependencies.cmake
+usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DHelpersImpl/Qt6Quick3DHelpersImplTargets-none.cmake
+usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DHelpersImpl/Qt6Quick3DHelpersImplTargets.cmake
+usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DHelpersImpl/Qt6Quick3DHelpersImplVersionlessTargets.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DIblBaker/Qt6Quick3DIblBakerAdditionalTargetInfo.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DIblBaker/Qt6Quick3DIblBakerConfig.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DIblBaker/Qt6Quick3DIblBakerConfigVersion.cmake
@@ -168,7 +184,6 @@ usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DUtils/Qt6Quick3DUtilsDependencies.
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DUtils/Qt6Quick3DUtilsTargets-none.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DUtils/Qt6Quick3DUtilsTargets.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DUtils/Qt6Quick3DUtilsVersionlessTargets.cmake
-[amd64 arm64] usr/lib/${DEB_HOST_MULTIARCH}/libQt6BundledEmbree.a
 usr/lib/${DEB_HOST_MULTIARCH}/libQt6Quick3D.prl
 usr/lib/${DEB_HOST_MULTIARCH}/libQt6Quick3D.so
 usr/lib/${DEB_HOST_MULTIARCH}/libQt6Quick3DAssetImport.prl
@@ -181,6 +196,8 @@ usr/lib/${DEB_HOST_MULTIARCH}/libQt6Quick3DGlslParser.prl
 usr/lib/${DEB_HOST_MULTIARCH}/libQt6Quick3DGlslParser.so
 usr/lib/${DEB_HOST_MULTIARCH}/libQt6Quick3DHelpers.prl
 usr/lib/${DEB_HOST_MULTIARCH}/libQt6Quick3DHelpers.so
+usr/lib/${DEB_HOST_MULTIARCH}/libQt6Quick3DHelpersImpl.prl
+usr/lib/${DEB_HOST_MULTIARCH}/libQt6Quick3DHelpersImpl.so
 usr/lib/${DEB_HOST_MULTIARCH}/libQt6Quick3DIblBaker.prl
 usr/lib/${DEB_HOST_MULTIARCH}/libQt6Quick3DIblBaker.so
 usr/lib/${DEB_HOST_MULTIARCH}/libQt6Quick3DParticleEffects.prl
@@ -196,36 +213,12 @@ usr/lib/${DEB_HOST_MULTIARCH}/pkgconfig/Qt6Quick3DAssetImport.pc
 usr/lib/${DEB_HOST_MULTIARCH}/pkgconfig/Qt6Quick3DAssetUtils.pc
 usr/lib/${DEB_HOST_MULTIARCH}/pkgconfig/Qt6Quick3DEffects.pc
 usr/lib/${DEB_HOST_MULTIARCH}/pkgconfig/Qt6Quick3DHelpers.pc
+usr/lib/${DEB_HOST_MULTIARCH}/pkgconfig/Qt6Quick3DHelpersImpl.pc
 usr/lib/${DEB_HOST_MULTIARCH}/pkgconfig/Qt6Quick3DIblBaker.pc
 usr/lib/${DEB_HOST_MULTIARCH}/pkgconfig/Qt6Quick3DParticleEffects.pc
 usr/lib/${DEB_HOST_MULTIARCH}/pkgconfig/Qt6Quick3DParticles.pc
 usr/lib/${DEB_HOST_MULTIARCH}/pkgconfig/Qt6Quick3DRuntimeRender.pc
 usr/lib/${DEB_HOST_MULTIARCH}/pkgconfig/Qt6Quick3DUtils.pc
-usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3d.pri
-usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3dassetimport.pri
-usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3dassetutils.pri
-usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3deffects.pri
-usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3dhelpers.pri
-usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3diblbaker.pri
-usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3dparticleeffects.pri
-usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3dparticles.pri
-usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3druntimerender.pri
-usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3dutils.pri
-usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DHelpersImpl/QtQuick3DHelpersImpl
-usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DHelpersImpl/QtQuick3DHelpersImplDepends
-usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DHelpersImpl/QtQuick3DHelpersImplVersion
-usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DHelpersImpl/qtquick3dhelpersimplversion.h
-usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DHelpersImpl/Qt6Quick3DHelpersImplAdditionalTargetInfo.cmake
-usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DHelpersImpl/Qt6Quick3DHelpersImplConfig.cmake
-usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DHelpersImpl/Qt6Quick3DHelpersImplConfigVersion.cmake
-usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DHelpersImpl/Qt6Quick3DHelpersImplConfigVersionImpl.cmake
-usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DHelpersImpl/Qt6Quick3DHelpersImplDependencies.cmake
-usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DHelpersImpl/Qt6Quick3DHelpersImplTargets-none.cmake
-usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DHelpersImpl/Qt6Quick3DHelpersImplTargets.cmake
-usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DHelpersImpl/Qt6Quick3DHelpersImplVersionlessTargets.cmake
-usr/lib/${DEB_HOST_MULTIARCH}/libQt6Quick3DHelpersImpl.prl
-usr/lib/${DEB_HOST_MULTIARCH}/libQt6Quick3DHelpersImpl.so
-usr/lib/${DEB_HOST_MULTIARCH}/pkgconfig/Qt6Quick3DHelpersImpl.pc
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/metatypes/qt6quick3d_none_metatypes.json
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/metatypes/qt6quick3dassetimport_none_metatypes.json
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/metatypes/qt6quick3dassetutils_none_metatypes.json
@@ -237,7 +230,17 @@ usr/lib/${DEB_HOST_MULTIARCH}/qt6/metatypes/qt6quick3dparticleeffects_none_metat
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/metatypes/qt6quick3dparticles_none_metatypes.json
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/metatypes/qt6quick3druntimerender_none_metatypes.json
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/metatypes/qt6quick3dutils_none_metatypes.json
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3d.pri
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3dassetimport.pri
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3dassetutils.pri
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3deffects.pri
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3dhelpers.pri
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3dhelpersimpl.pri
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3diblbaker.pri
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3dparticleeffects.pri
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3dparticles.pri
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3druntimerender.pri
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3dutils.pri
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/modules/Quick3D.json
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/modules/Quick3DAssetImport.json
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/modules/Quick3DAssetUtils.json

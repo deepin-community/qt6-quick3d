@@ -1,4 +1,4 @@
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/Quick3D.qmltypes
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/designer
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/libqquick3dplugin.so
-usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/plugins.qmltypes
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/qmldir

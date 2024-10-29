@@ -24,13 +24,13 @@ override_dh_auto_configure:
 		$(cmake_extra_args)
 
 override_dh_auto_build-indep:
-	dh_auto_build -- docs
+	dh_auto_build
 
 override_dh_auto_install-indep:
-	DESTDIR=$(CURDIR)/debian/tmp dh_auto_build -- install_docs
+	DESTDIR=$(CURDIR)/debian/tmp dh_auto_build
 	# Remove build path from index files.
-	find $(CURDIR)/debian/tmp/usr/share/qt6/doc -type f -name *.index -exec \
-		sed -i 's@$(CURDIR)/@@g' {} \;
+#	find $(CURDIR)/debian/tmp/usr/share/qt6/doc -type f -name *.index -exec \
+#		sed -i 's@$(CURDIR)/@@g' {} \;
 
 execute_after_dh_auto_install-arch:
 	# Reproducible builds: remove build paths from .prl files

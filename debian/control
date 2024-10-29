@@ -8,12 +8,13 @@ Build-Depends: cmake (>= 3.24~),
                dh-exec,
                libassimp-dev (>= 5.1.6~),
                libgl-dev,
+               libxcb-glx0-dev,
                libssl-dev,
                libvulkan-dev [linux-any],
                libxcb-xkb-dev,
                ninja-build,
-               pkg-config,
                pkg-kde-tools,
+               pkgconf,
                qt6-base-dev (>= 6.8.0+dfsg~),
                qt6-base-private-dev (>= 6.8.0+dfsg~),
                qt6-declarative-dev (>= 6.8.0+dfsg~),
@@ -24,7 +25,7 @@ Build-Depends: cmake (>= 3.24~),
                zlib1g-dev,
 Build-Depends-Indep: qt6-base-dev (>= 6.8~) <!nodoc>,
                      qt6-documentation-tools (>= 6.8~) <!nodoc>,
-Standards-Version: 4.6.2
+Standards-Version: 4.7.0
 Homepage: https://www.qt.io/developers/
 Vcs-Browser: https://salsa.debian.org/qt-kde-team/qt6/qt6-quick3d
 Vcs-Git: https://salsa.debian.org/qt-kde-team/qt6/qt6-quick3d.git
@@ -153,8 +154,8 @@ Architecture: any
 Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends},
 Depends: ${misc:Depends}, ${shlibs:Depends},
-Breaks: qml6-module-quick3d-effects, libqt6quick3deffects6
-Replaces: qml6-module-quick3d-effects, libqt6quick3deffects6
+Breaks: libqt6quick3deffects6, qml6-module-quick3d-effects,
+Replaces: libqt6quick3deffects6, qml6-module-quick3d-effects,
 Provides: qml6-module-quick3d-effects (= ${binary:Version}),
 Description: Qt 6 Quick 3D Effects QML module
  Qt is a cross-platform C++ application framework. Qt's primary feature
@@ -167,8 +168,8 @@ Architecture: any
 Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends},
 Depends: ${misc:Depends}, ${shlibs:Depends},
-Breaks: qml6-module-quick3d-helpers, libqt6quick3dhelpers6
-Replaces: qml6-module-quick3d-helpers, libqt6quick3dhelpers6
+Breaks: libqt6quick3dhelpers6, qml6-module-quick3d-helpers,
+Replaces: libqt6quick3dhelpers6, qml6-module-quick3d-helpers,
 Provides: qml6-module-quick3d-helpers (= ${binary:Version}),
 Description: Qt 6 Quick 3D Helpers QML module
  Qt is a cross-platform C++ application framework. Qt's primary feature
@@ -260,8 +261,8 @@ Architecture: any
 Multi-Arch: same
 Section: libdevel
 Depends: qt6-quick3d-dev (= ${binary:Version}), ${misc:Depends},
-Breaks: qt6-quick3d-dev (<< 6.8.0-1),
-Replaces: qt6-quick3d-dev (<< 6.8.0-1),
+Breaks: qt6-quick3d-dev (<< 6.6.1-1),
+Replaces: qt6-quick3d-dev (<< 6.6.1-1),
 Description: Qt 6 Quick 3D private development files
  Qt is a cross-platform C++ application framework. Qt's primary feature
  is its rich set of widgets that provide standard GUI functionality.
