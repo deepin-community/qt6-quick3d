@@ -1,4 +1,5 @@
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3D/6.*/QtQuick3D/private/*.h
+usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3D/6.*/QtQuick3D/ssg/*.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DAssetImport/6.*/QtQuick3DAssetImport/private/*.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DAssetUtils/6.*/QtQuick3DAssetUtils/private/*.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DGlslParser/6.*/QtQuick3DGlslParser/private/*.h
@@ -7,7 +8,9 @@ usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DHelpersImpl/6.*/QtQuick3DHelpersI
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DIblBaker/6.*/QtQuick3DIblBaker/private/*.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DParticles/6.*/QtQuick3DParticles/private/*.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DRuntimeRender/6.*/QtQuick3DRuntimeRender/private/*.h
+usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DRuntimeRender/6.*/QtQuick3DRuntimeRender/ssg/*.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DUtils/6.*/QtQuick3DUtils/private/*.h
+usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DUtils/6.*/QtQuick3DUtils/ssg/*.h
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DGlslParserPrivate/Qt6Quick3DGlslParserPrivateAdditionalTargetInfo.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DGlslParserPrivate/Qt6Quick3DGlslParserPrivateConfig.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DGlslParserPrivate/Qt6Quick3DGlslParserPrivateConfigVersion.cmake

@@ -1,197 +1,206 @@
-# SymbolsHelper-Confirmed: 6.8.0 amd64 arm64 armel armhf hppa i386 loong64 mips64el powerpc ppc64 ppc64el riscv64 s390x sh4
+# SymbolsHelper-Confirmed: 6.7.2 amd64
 libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
-| libqt6quick3d6 #MINVER#, qt6-quick3d-private-abi (= 6.8.0)
+| libqt6quick3d6 #MINVER#, qt6-quick3d-private-abi (= 6.7.2)
 * Build-Depends-Packages: qt6-quick3d-dev, qt6-quick3d-private-dev
- Qt_6@Qt_6 6.8.0
- (symver)Qt_6_PRIVATE_API 0
- _Z24q_quaternionInterpolatorRK11QQuaternionS1_d@Qt_6 6.8.0
- _Z28qml_register_types_QtQuick3Dv@Qt_6 6.8.0
- _ZGVZN9QMetaType21registerConverterImplI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEEEbSt8functionIFbPKvPvEES_S_E10unregister@Qt_6 6.8.0
- _ZGVZN9QMetaType21registerConverterImplI5QListI4QUrlE9QIterableI13QMetaSequenceEEEbSt8functionIFbPKvPvEES_S_E10unregister@Qt_6 6.8.0
- _ZGVZN9QMetaType23registerMutableViewImplI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEEEbSt8functionIFbPvS8_EES_S_E10unregister@Qt_6 6.8.0
- _ZGVZN9QMetaType23registerMutableViewImplI5QListI4QUrlE9QIterableI13QMetaSequenceEEEbSt8functionIFbPvS8_EES_S_E10unregister@Qt_6 6.8.0
- _ZN13QMetaSequence12MetaSequenceI5QListI10QMatrix4x4EE5valueE@Qt_6 6.8.0
- _ZN13QMetaSequence12MetaSequenceI5QListI4QUrlEE5valueE@Qt_6 6.8.0
- _ZN14QQuick3DObject10classBeginEv@Qt_6 6.8.0
- _ZN14QQuick3DObject10itemChangeENS_10ItemChangeERKNS_14ItemChangeDataE@Qt_6 6.8.0
- _ZN14QQuick3DObject11qt_metacallEN11QMetaObject4CallEiPPv@Qt_6 6.8.0
- _ZN14QQuick3DObject11qt_metacastEPKc@Qt_6 6.8.0
- _ZN14QQuick3DObject12markAllDirtyEv@Qt_6 6.8.0
- _ZN14QQuick3DObject12stateChangedEv@Qt_6 6.8.0
- _ZN14QQuick3DObject13parentChangedEv@Qt_6 6.8.0
- _ZN14QQuick3DObject13setParentItemEPS_@Qt_6 6.8.0
- _ZN14QQuick3DObject15childrenChangedEv@Qt_6 6.8.0
- _ZN14QQuick3DObject16staticMetaObjectE@Qt_6 6.8.0
- _ZN14QQuick3DObject17componentCompleteEv@Qt_6 6.8.0
- _ZN14QQuick3DObject17updateSpatialNodeEP21QSSGRenderGraphObject@Qt_6 6.8.0
- _ZN14QQuick3DObject6updateEv@Qt_6 6.8.0
- _ZN14QQuick3DObject7preSyncEv@Qt_6 6.8.0
- _ZN14QQuick3DObject8setStateERK7QString@Qt_6 6.8.0
- _ZN14QQuick3DObjectC1EPS_@Qt_6 6.8.0
- _ZN14QQuick3DObjectC2EPS_@Qt_6 6.8.0
- _ZN14QQuick3DObjectD0Ev@Qt_6 6.8.0
- _ZN14QQuick3DObjectD1Ev@Qt_6 6.8.0
- _ZN14QQuick3DObjectD2Ev@Qt_6 6.8.0
- _ZN15QSSGShaderUtils11uniformTypeE9QMetaType@Qt_6 6.8.0
- _ZN15QSSGShaderUtils13resolveShaderERK4QUrlPK11QQmlContextR10QByteArray@Qt_6 6.8.0
- _ZN15QSSGShaderUtils15uniformTypeNameE9QMetaType@Qt_6 6.8.0
- _ZN15QSSGShaderUtils15uniformTypeNameEN21QSSGRenderShaderValue4TypeE@Qt_6 6.8.0
- _ZN15QSSGShaderUtils18setResolveFunctionEPFbRK4QUrlPK11QQmlContextR10QByteArrayS7_E@Qt_6 6.8.0
- _ZN15QSSGShaderUtils18supportedMetatypesEv@Qt_6 6.8.0
- _ZN16QQuick3DGeometry11qt_metacallEN11QMetaObject4CallEiPPv@Qt_6 6.8.0
- _ZN16QQuick3DGeometry11qt_metacastEPKc@Qt_6 6.8.0
- _ZN16QQuick3DGeometry12addAttributeENS_9Attribute8SemanticEiNS0_13ComponentTypeE@Qt_6 6.8.0
- _ZN16QQuick3DGeometry12addAttributeERKNS_9AttributeE@Qt_6 6.8.0
- _ZN16QQuick3DGeometry12markAllDirtyEv@Qt_6 6.8.0
- _ZN16QQuick3DGeometry12setIndexDataERK10QByteArray@Qt_6 6.8.0
- _ZN16QQuick3DGeometry12setIndexDataEiRK10QByteArray@Qt_6 6.8.0
- _ZN16QQuick3DGeometry13setTargetDataERK10QByteArray@Qt_6 6.8.0
- _ZN16QQuick3DGeometry13setTargetDataEiRK10QByteArray@Qt_6 6.8.0
- _ZN16QQuick3DGeometry13setVertexDataERK10QByteArray@Qt_6 6.8.0
- _ZN16QQuick3DGeometry13setVertexDataEiRK10QByteArray@Qt_6 6.8.0
- _ZN16QQuick3DGeometry16setPrimitiveTypeENS_13PrimitiveTypeE@Qt_6 6.8.0
- _ZN16QQuick3DGeometry16staticMetaObjectE@Qt_6 6.8.0
- _ZN16QQuick3DGeometry17geometryNodeDirtyEv@Qt_6 6.8.0
- _ZN16QQuick3DGeometry17updateSpatialNodeEP21QSSGRenderGraphObject@Qt_6 6.8.0
- _ZN16QQuick3DGeometry18addTargetAttributeERKNS_15TargetAttributeE@Qt_6 6.8.0
- _ZN16QQuick3DGeometry18addTargetAttributeEjNS_9Attribute8SemanticEii@Qt_6 6.8.0
- _ZN16QQuick3DGeometry5clearEv@Qt_6 6.8.0
- _ZN16QQuick3DGeometry9addSubsetEiiRK9QVector3DS2_RK7QString@Qt_6 6.8.0
- _ZN16QQuick3DGeometry9setBoundsERK9QVector3DS2_@Qt_6 6.8.0
- _ZN16QQuick3DGeometry9setStrideEi@Qt_6 6.8.0
- _ZN16QQuick3DGeometryC1EP14QQuick3DObject@Qt_6 6.8.0
- _ZN16QQuick3DGeometryC2EP14QQuick3DObject@Qt_6 6.8.0
- _ZN16QQuick3DGeometryD0Ev@Qt_6 6.8.0
- _ZN16QQuick3DGeometryD1Ev@Qt_6 6.8.0
- _ZN16QQuick3DGeometryD2Ev@Qt_6 6.8.0
- _ZN18QQuick3DInstancing11qt_metacallEN11QMetaObject4CallEiPPv@Qt_6 6.8.0
- _ZN18QQuick3DInstancing11qt_metacastEPKc@Qt_6 6.8.0
- _ZN18QQuick3DInstancing13instanceColorEi@Qt_6 6.8.0
- _ZN18QQuick3DInstancing13instanceScaleEi@Qt_6 6.8.0
- _ZN18QQuick3DInstancing14instanceBufferEPi@Qt_6 6.8.0
- _ZN18QQuick3DInstancing16getInstanceEntryEi@Qt_6 6.8.0
- _ZN18QQuick3DInstancing16instancePositionEi@Qt_6 6.8.0
- _ZN18QQuick3DInstancing16instanceRotationEi@Qt_6 6.8.0
- _ZN18QQuick3DInstancing16staticMetaObjectE@Qt_6 6.8.0
- _ZN18QQuick3DInstancing17instanceNodeDirtyEv@Qt_6 6.8.0
- _ZN18QQuick3DInstancing17updateSpatialNodeEP21QSSGRenderGraphObject@Qt_6 6.8.0
- _ZN18QQuick3DInstancing18instanceCustomDataEi@Qt_6 6.8.0
- _ZN18QQuick3DInstancing18setHasTransparencyEb@Qt_6 6.8.0
- _ZN18QQuick3DInstancing19calculateTableEntryERK9QVector3DS2_S2_RK6QColorRK9QVector4D@Qt_6 6.8.0
- _ZN18QQuick3DInstancing20instanceTableChangedEv@Qt_6 6.8.0
- _ZN18QQuick3DInstancing22hasTransparencyChangedEv@Qt_6 6.8.0
- _ZN18QQuick3DInstancing22setDepthSortingEnabledEb@Qt_6 6.8.0
- _ZN18QQuick3DInstancing24setInstanceCountOverrideEi@Qt_6 6.8.0
- _ZN18QQuick3DInstancing26depthSortingEnabledChangedEv@Qt_6 6.8.0
- _ZN18QQuick3DInstancing28instanceCountOverrideChangedEv@Qt_6 6.8.0
- _ZN18QQuick3DInstancing33calculateTableEntryFromQuaternionERK9QVector3DS2_RK11QQuaternionRK6QColorRK9QVector4D@Qt_6 6.8.0
- _ZN18QQuick3DInstancing9markDirtyEv@Qt_6 6.8.0
- _ZN18QQuick3DInstancingC1EP14QQuick3DObject@Qt_6 6.8.0
- _ZN18QQuick3DInstancingC2EP14QQuick3DObject@Qt_6 6.8.0
- _ZN18QQuick3DInstancingD0Ev@Qt_6 6.8.0
- _ZN18QQuick3DInstancingD1Ev@Qt_6 6.8.0
- _ZN18QQuick3DInstancingD2Ev@Qt_6 6.8.0
- _ZN19QQuick3DTextureData11qt_metacallEN11QMetaObject4CallEiPPv@Qt_6 6.8.0
- _ZN19QQuick3DTextureData11qt_metacastEPKc@Qt_6 6.8.0
- _ZN19QQuick3DTextureData12markAllDirtyEv@Qt_6 6.8.0
- _ZN19QQuick3DTextureData14setTextureDataERK10QByteArray@Qt_6 6.8.0
- _ZN19QQuick3DTextureData16staticMetaObjectE@Qt_6 6.8.0
- _ZN19QQuick3DTextureData17updateSpatialNodeEP21QSSGRenderGraphObject@Qt_6 6.8.0
- _ZN19QQuick3DTextureData18setHasTransparencyEb@Qt_6 6.8.0
- _ZN19QQuick3DTextureData20textureDataNodeDirtyEv@Qt_6 6.8.0
- _ZN19QQuick3DTextureData7setSizeERK5QSize@Qt_6 6.8.0
- _ZN19QQuick3DTextureData8setDepthEi@Qt_6 6.8.0
- _ZN19QQuick3DTextureData9setFormatENS_6FormatE@Qt_6 6.8.0
- _ZN19QQuick3DTextureDataC1EP14QQuick3DObject@Qt_6 6.8.0
- _ZN19QQuick3DTextureDataC2EP14QQuick3DObject@Qt_6 6.8.0
- _ZN19QQuick3DTextureDataD0Ev@Qt_6 6.8.0
- _ZN19QQuick3DTextureDataD1Ev@Qt_6 6.8.0
- _ZN19QQuick3DTextureDataD2Ev@Qt_6 6.8.0
- _ZN8QQuick3D18idealSurfaceFormatEi@Qt_6 6.8.0
- _ZNK14QQuick3DObject10childItemsEv@Qt_6 6.8.0
- _ZNK14QQuick3DObject10metaObjectEv@Qt_6 6.8.0
- _ZNK14QQuick3DObject10parentItemEv@Qt_6 6.8.0
- _ZNK14QQuick3DObject19isComponentCompleteEv@Qt_6 6.8.0
- _ZNK14QQuick3DObject5stateEv@Qt_6 6.8.0
- _ZNK16QQuick3DGeometry10metaObjectEv@Qt_6 6.8.0
- _ZNK16QQuick3DGeometry10subsetNameEi@Qt_6 6.8.0
- _ZNK16QQuick3DGeometry10targetDataEv@Qt_6 6.8.0
- _ZNK16QQuick3DGeometry10vertexDataEv@Qt_6 6.8.0
- _ZNK16QQuick3DGeometry11subsetCountEi@Qt_6 6.8.0
- _ZNK16QQuick3DGeometry11subsetCountEv@Qt_6 6.8.0
- _ZNK16QQuick3DGeometry12subsetOffsetEi@Qt_6 6.8.0
- _ZNK16QQuick3DGeometry13primitiveTypeEv@Qt_6 6.8.0
- _ZNK16QQuick3DGeometry14attributeCountEv@Qt_6 6.8.0
- _ZNK16QQuick3DGeometry15subsetBoundsMaxEi@Qt_6 6.8.0
- _ZNK16QQuick3DGeometry15subsetBoundsMinEi@Qt_6 6.8.0
- _ZNK16QQuick3DGeometry15targetAttributeEi@Qt_6 6.8.0
- _ZNK16QQuick3DGeometry20targetAttributeCountEv@Qt_6 6.8.0
- _ZNK16QQuick3DGeometry6strideEv@Qt_6 6.8.0
- _ZNK16QQuick3DGeometry9attributeEi@Qt_6 6.8.0
- _ZNK16QQuick3DGeometry9boundsMaxEv@Qt_6 6.8.0
- _ZNK16QQuick3DGeometry9boundsMinEv@Qt_6 6.8.0
- _ZNK16QQuick3DGeometry9indexDataEv@Qt_6 6.8.0
- _ZNK18QQuick3DInstancing10metaObjectEv@Qt_6 6.8.0
- _ZNK18QQuick3DInstancing15hasTransparencyEv@Qt_6 6.8.0
- _ZNK18QQuick3DInstancing18InstanceTableEntry11getPositionEv@Qt_6 6.8.0
- _ZNK18QQuick3DInstancing18InstanceTableEntry11getRotationEv@Qt_6 6.8.0
- _ZNK18QQuick3DInstancing18InstanceTableEntry8getColorEv@Qt_6 6.8.0
- _ZNK18QQuick3DInstancing18InstanceTableEntry8getScaleEv@Qt_6 6.8.0
- _ZNK18QQuick3DInstancing19depthSortingEnabledEv@Qt_6 6.8.0
- _ZNK18QQuick3DInstancing21instanceCountOverrideEv@Qt_6 6.8.0
- _ZNK19QQuick3DTextureData10metaObjectEv@Qt_6 6.8.0
- _ZNK19QQuick3DTextureData11textureDataEv@Qt_6 6.8.0
- _ZNK19QQuick3DTextureData15hasTransparencyEv@Qt_6 6.8.0
- _ZNK19QQuick3DTextureData4sizeEv@Qt_6 6.8.0
- _ZNK19QQuick3DTextureData5depthEv@Qt_6 6.8.0
- _ZNK19QQuick3DTextureData6formatEv@Qt_6 6.8.0
- _ZTI14QQuick3DObject@Qt_6 6.8.0
- _ZTI16QQuick3DGeometry@Qt_6 6.8.0
- _ZTI18QQuick3DInstancing@Qt_6 6.8.0
- _ZTI19QQuick3DTextureData@Qt_6 6.8.0
- _ZTIFP7QObjectP10QQmlEngineP9QJSEngineE@Qt_6 6.8.0
- (arch=armel riscv64)_ZTIN9__gnu_cxx7__mutexE@Qt_6 6.8.0
- _ZTIPFP7QObjectP10QQmlEngineP9QJSEngineE@Qt_6 6.8.0
- (optional=gccinternal|arch=armel riscv64)_ZTISt11_Mutex_baseILN9__gnu_cxx12_Lock_policyE1EE@Qt_6 6.8.0
- (optional=gccinternal|arch=amd64 arm64 armhf hppa i386 loong64 mips64el powerpc ppc64 ppc64el s390x sh4)_ZTISt11_Mutex_baseILN9__gnu_cxx12_Lock_policyE2EE@Qt_6 6.8.0
- (optional=gccinternal|arch=armel riscv64)_ZTISt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE1EE@Qt_6 6.8.0
- (optioanl=gccinternal|arch=amd64 arm64 armhf hppa i386 loong64 mips64el powerpc ppc64 ppc64el s390x sh4)_ZTISt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE@Qt_6 6.8.0
- (optional=gccinternal|arch=armel armhf)_ZTISt19_Sp_make_shared_tag@Qt_6 6.8.0
- _ZTIZN9QMetaType17registerConverterI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEN9QtPrivate33QSequentialIterableConvertFunctorIS3_EEEEbT1_EUlPKvPvE_@Qt_6 6.8.0
- _ZTIZN9QMetaType17registerConverterI5QListI4QUrlE9QIterableI13QMetaSequenceEN9QtPrivate33QSequentialIterableConvertFunctorIS3_EEEEbT1_EUlPKvPvE_@Qt_6 6.8.0
- _ZTIZN9QMetaType19registerMutableViewI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEN9QtPrivate37QSequentialIterableMutableViewFunctorIS3_EEEEbT1_EUlPvSB_E_@Qt_6 6.8.0
- _ZTIZN9QMetaType19registerMutableViewI5QListI4QUrlE9QIterableI13QMetaSequenceEN9QtPrivate37QSequentialIterableMutableViewFunctorIS3_EEEEbT1_EUlPvSB_E_@Qt_6 6.8.0
- _ZTS14QQuick3DObject@Qt_6 6.8.0
- _ZTS16QQuick3DGeometry@Qt_6 6.8.0
- _ZTS18QQuick3DInstancing@Qt_6 6.8.0
- _ZTS19QQuick3DTextureData@Qt_6 6.8.0
- _ZTS23QSSGRenderInstanceTable@Qt_6 6.8.0
- _ZTSFP7QObjectP10QQmlEngineP9QJSEngineE@Qt_6 6.8.0
- (arch=armel riscv64)_ZTSN9__gnu_cxx7__mutexE@Qt_6 6.8.0
- _ZTSPFP7QObjectP10QQmlEngineP9QJSEngineE@Qt_6 6.8.0
- (arch=armel riscv64)_ZTSSt11_Mutex_baseILN9__gnu_cxx12_Lock_policyE1EE@Qt_6 6.8.0
- (arch=amd64 arm64 armhf hppa i386 loong64 mips64el powerpc ppc64 ppc64el s390x sh4)_ZTSSt11_Mutex_baseILN9__gnu_cxx12_Lock_policyE2EE@Qt_6 6.8.0
- (arch=armel riscv64)_ZTSSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE1EE@Qt_6 6.8.0
- (arch=amd64 arm64 armhf hppa i386 loong64 mips64el powerpc ppc64 ppc64el s390x sh4)_ZTSSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE@Qt_6 6.8.0
- _ZTSSt19_Sp_make_shared_tag@Qt_6 6.8.0
- (arch=armel riscv64)_ZTSSt23_Sp_counted_ptr_inplaceI26QSSGRenderContextInterfaceSaIvELN9__gnu_cxx12_Lock_policyE1EE@Qt_6 6.8.0
- (arch=amd64 arm64 armhf hppa i386 loong64 mips64el powerpc ppc64 ppc64el s390x sh4)_ZTSSt23_Sp_counted_ptr_inplaceI26QSSGRenderContextInterfaceSaIvELN9__gnu_cxx12_Lock_policyE2EE@Qt_6 6.8.0
- _ZTSZN9QMetaType17registerConverterI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEN9QtPrivate33QSequentialIterableConvertFunctorIS3_EEEEbT1_EUlPKvPvE_@Qt_6 6.8.0
- _ZTSZN9QMetaType17registerConverterI5QListI4QUrlE9QIterableI13QMetaSequenceEN9QtPrivate33QSequentialIterableConvertFunctorIS3_EEEEbT1_EUlPKvPvE_@Qt_6 6.8.0
- _ZTSZN9QMetaType19registerMutableViewI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEN9QtPrivate37QSequentialIterableMutableViewFunctorIS3_EEEEbT1_EUlPvSB_E_@Qt_6 6.8.0
- _ZTSZN9QMetaType19registerMutableViewI5QListI4QUrlE9QIterableI13QMetaSequenceEN9QtPrivate37QSequentialIterableMutableViewFunctorIS3_EEEEbT1_EUlPvSB_E_@Qt_6 6.8.0
- _ZTV14QQuick3DObject@Qt_6 6.8.0
- _ZTV16QQuick3DGeometry@Qt_6 6.8.0
- _ZTV18QQuick3DInstancing@Qt_6 6.8.0
- _ZTV19QQuick3DTextureData@Qt_6 6.8.0
- (optional=templinst)_ZZN9QMetaType21registerConverterImplI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEEEbSt8functionIFbPKvPvEES_S_E10unregister@Qt_6 6.8.0
- (optional=templinst)_ZZN9QMetaType21registerConverterImplI5QListI4QUrlE9QIterableI13QMetaSequenceEEEbSt8functionIFbPKvPvEES_S_E10unregister@Qt_6 6.8.0
- (optional=templinst)_ZZN9QMetaType23registerMutableViewImplI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEEEbSt8functionIFbPvS8_EES_S_E10unregister@Qt_6 6.8.0
- (optional=templinst)_ZZN9QMetaType23registerMutableViewImplI5QListI4QUrlE9QIterableI13QMetaSequenceEEEbSt8functionIFbPvS8_EES_S_E10unregister@Qt_6 6.8.0
- _ZZNSt19_Sp_make_shared_tag5_S_tiEvE5__tag@Qt_6 6.8.0
- (c++)"non-virtual thunk to QQuick3DGeometry::~QQuick3DGeometry()@Qt_6" 6.8.0
- (c++)"non-virtual thunk to QQuick3DInstancing::~QQuick3DInstancing()@Qt_6" 6.8.0
- (c++)"non-virtual thunk to QQuick3DObject::classBegin()@Qt_6" 6.8.0
- (c++)"non-virtual thunk to QQuick3DObject::componentComplete()@Qt_6" 6.8.0
- (c++)"non-virtual thunk to QQuick3DObject::~QQuick3DObject()@Qt_6" 6.8.0
- (c++)"non-virtual thunk to QQuick3DTextureData::~QQuick3DTextureData()@Qt_6" 6.8.0
+ NonQt@NonQt 6.7.2
+ Qt_6@Qt_6 6.6.1
+ (symver)Qt_6_PRIVATE_API 0 1
+ _Z24q_quaternionInterpolatorRK11QQuaternionS1_d@Qt_6 6.6.1
+ _Z28qml_register_types_QtQuick3Dv@Qt_6 6.6.1
+ _ZGVZN9QMetaType21registerConverterImplI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEEEbSt8functionIFbPKvPvEES_S_E10unregister@Qt_6 6.6.1
+ _ZGVZN9QMetaType21registerConverterImplI5QListI4QUrlE9QIterableI13QMetaSequenceEEEbSt8functionIFbPKvPvEES_S_E10unregister@Qt_6 6.6.1
+ _ZGVZN9QMetaType23registerMutableViewImplI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEEEbSt8functionIFbPvS8_EES_S_E10unregister@Qt_6 6.6.1
+ _ZGVZN9QMetaType23registerMutableViewImplI5QListI4QUrlE9QIterableI13QMetaSequenceEEEbSt8functionIFbPvS8_EES_S_E10unregister@Qt_6 6.6.1
+ _ZN13QMetaSequence12MetaSequenceI5QListI10QMatrix4x4EE5valueE@Qt_6 6.6.1
+ _ZN13QMetaSequence12MetaSequenceI5QListI4QUrlEE5valueE@Qt_6 6.6.1
+ _ZN14QQuick3DObject10classBeginEv@Qt_6 6.6.1
+ _ZN14QQuick3DObject10itemChangeENS_10ItemChangeERKNS_14ItemChangeDataE@Qt_6 6.6.1
+ _ZN14QQuick3DObject11qt_metacallEN11QMetaObject4CallEiPPv@Qt_6 6.6.1
+ _ZN14QQuick3DObject11qt_metacastEPKc@Qt_6 6.6.1
+ _ZN14QQuick3DObject12markAllDirtyEv@Qt_6 6.6.1
+ _ZN14QQuick3DObject12stateChangedEv@Qt_6 6.6.1
+ _ZN14QQuick3DObject13parentChangedEv@Qt_6 6.6.1
+ _ZN14QQuick3DObject13setParentItemEPS_@Qt_6 6.6.1
+ _ZN14QQuick3DObject15childrenChangedEv@Qt_6 6.6.1
+ _ZN14QQuick3DObject16staticMetaObjectE@Qt_6 6.6.1
+ _ZN14QQuick3DObject17componentCompleteEv@Qt_6 6.6.1
+ _ZN14QQuick3DObject17updateSpatialNodeEP21QSSGRenderGraphObject@Qt_6 6.6.1
+ _ZN14QQuick3DObject6updateEv@Qt_6 6.6.1
+ _ZN14QQuick3DObject7preSyncEv@Qt_6 6.6.1
+ _ZN14QQuick3DObject8setStateERK7QString@Qt_6 6.6.1
+ _ZN14QQuick3DObjectC1EPS_@Qt_6 6.6.1
+ _ZN14QQuick3DObjectC2EPS_@Qt_6 6.6.1
+ _ZN14QQuick3DObjectD0Ev@Qt_6 6.6.1
+ _ZN14QQuick3DObjectD1Ev@Qt_6 6.6.1
+ _ZN14QQuick3DObjectD2Ev@Qt_6 6.6.1
+ _ZN15QSSGShaderUtils11uniformTypeE9QMetaType@Qt_6 6.6.1
+ _ZN15QSSGShaderUtils13resolveShaderERK4QUrlPK11QQmlContextR10QByteArray@Qt_6 6.6.1
+ _ZN15QSSGShaderUtils15uniformTypeNameE9QMetaType@Qt_6 6.6.1
+ _ZN15QSSGShaderUtils15uniformTypeNameEN21QSSGRenderShaderValue4TypeE@Qt_6 6.6.1
+ _ZN15QSSGShaderUtils18setResolveFunctionEPFbRK4QUrlPK11QQmlContextR10QByteArrayS7_E@Qt_6 6.6.1
+ _ZN15QSSGShaderUtils18supportedMetatypesEv@Qt_6 6.6.1
+ _ZN16QQuick3DGeometry11qt_metacallEN11QMetaObject4CallEiPPv@Qt_6 6.6.1
+ _ZN16QQuick3DGeometry11qt_metacastEPKc@Qt_6 6.6.1
+ _ZN16QQuick3DGeometry12addAttributeENS_9Attribute8SemanticEiNS0_13ComponentTypeE@Qt_6 6.6.1
+ _ZN16QQuick3DGeometry12addAttributeERKNS_9AttributeE@Qt_6 6.6.1
+ _ZN16QQuick3DGeometry12markAllDirtyEv@Qt_6 6.6.1
+ _ZN16QQuick3DGeometry12setIndexDataERK10QByteArray@Qt_6 6.6.1
+ _ZN16QQuick3DGeometry12setIndexDataEiRK10QByteArray@Qt_6 6.6.1
+ _ZN16QQuick3DGeometry13setTargetDataERK10QByteArray@Qt_6 6.6.1
+ _ZN16QQuick3DGeometry13setTargetDataEiRK10QByteArray@Qt_6 6.6.1
+ _ZN16QQuick3DGeometry13setVertexDataERK10QByteArray@Qt_6 6.6.1
+ _ZN16QQuick3DGeometry13setVertexDataEiRK10QByteArray@Qt_6 6.6.1
+ _ZN16QQuick3DGeometry15geometryChangedEv@Qt_6 6.7.2
+ _ZN16QQuick3DGeometry16setPrimitiveTypeENS_13PrimitiveTypeE@Qt_6 6.6.1
+ _ZN16QQuick3DGeometry16staticMetaObjectE@Qt_6 6.6.1
+ _ZN16QQuick3DGeometry17geometryNodeDirtyEv@Qt_6 6.6.1
+ _ZN16QQuick3DGeometry17updateSpatialNodeEP21QSSGRenderGraphObject@Qt_6 6.6.1
+ _ZN16QQuick3DGeometry18addTargetAttributeERKNS_15TargetAttributeE@Qt_6 6.6.1
+ _ZN16QQuick3DGeometry18addTargetAttributeEjNS_9Attribute8SemanticEii@Qt_6 6.6.1
+ _ZN16QQuick3DGeometry5clearEv@Qt_6 6.6.1
+ _ZN16QQuick3DGeometry9addSubsetEiiRK9QVector3DS2_RK7QString@Qt_6 6.6.1
+ _ZN16QQuick3DGeometry9setBoundsERK9QVector3DS2_@Qt_6 6.6.1
+ _ZN16QQuick3DGeometry9setStrideEi@Qt_6 6.6.1
+ _ZN16QQuick3DGeometryC1EP14QQuick3DObject@Qt_6 6.6.1
+ _ZN16QQuick3DGeometryC2EP14QQuick3DObject@Qt_6 6.6.1
+ _ZN16QQuick3DGeometryD0Ev@Qt_6 6.6.1
+ _ZN16QQuick3DGeometryD1Ev@Qt_6 6.6.1
+ _ZN16QQuick3DGeometryD2Ev@Qt_6 6.6.1
+ _ZN18QQuick3DInstancing11qt_metacallEN11QMetaObject4CallEiPPv@Qt_6 6.6.1
+ _ZN18QQuick3DInstancing11qt_metacastEPKc@Qt_6 6.6.1
+ _ZN18QQuick3DInstancing13instanceColorEi@Qt_6 6.6.1
+ _ZN18QQuick3DInstancing13instanceScaleEi@Qt_6 6.6.1
+ _ZN18QQuick3DInstancing14instanceBufferEPi@Qt_6 6.6.1
+ _ZN18QQuick3DInstancing16getInstanceEntryEi@Qt_6 6.6.1
+ _ZN18QQuick3DInstancing16instancePositionEi@Qt_6 6.6.1
+ _ZN18QQuick3DInstancing16instanceRotationEi@Qt_6 6.6.1
+ _ZN18QQuick3DInstancing16staticMetaObjectE@Qt_6 6.6.1
+ _ZN18QQuick3DInstancing17instanceNodeDirtyEv@Qt_6 6.6.1
+ _ZN18QQuick3DInstancing17updateSpatialNodeEP21QSSGRenderGraphObject@Qt_6 6.6.1
+ _ZN18QQuick3DInstancing18instanceCustomDataEi@Qt_6 6.6.1
+ _ZN18QQuick3DInstancing18setHasTransparencyEb@Qt_6 6.6.1
+ _ZN18QQuick3DInstancing19calculateTableEntryERK9QVector3DS2_S2_RK6QColorRK9QVector4D@Qt_6 6.6.1
+ _ZN18QQuick3DInstancing20instanceTableChangedEv@Qt_6 6.6.1
+ _ZN18QQuick3DInstancing22hasTransparencyChangedEv@Qt_6 6.6.1
+ _ZN18QQuick3DInstancing22setDepthSortingEnabledEb@Qt_6 6.6.1
+ _ZN18QQuick3DInstancing24setInstanceCountOverrideEi@Qt_6 6.6.1
+ _ZN18QQuick3DInstancing26depthSortingEnabledChangedEv@Qt_6 6.6.1
+ _ZN18QQuick3DInstancing28instanceCountOverrideChangedEv@Qt_6 6.6.1
+ _ZN18QQuick3DInstancing33calculateTableEntryFromQuaternionERK9QVector3DS2_RK11QQuaternionRK6QColorRK9QVector4D@Qt_6 6.6.1
+ _ZN18QQuick3DInstancing9markDirtyEv@Qt_6 6.6.1
+ _ZN18QQuick3DInstancingC1EP14QQuick3DObject@Qt_6 6.6.1
+ _ZN18QQuick3DInstancingC2EP14QQuick3DObject@Qt_6 6.6.1
+ _ZN18QQuick3DInstancingD0Ev@Qt_6 6.6.1
+ _ZN18QQuick3DInstancingD1Ev@Qt_6 6.6.1
+ _ZN18QQuick3DInstancingD2Ev@Qt_6 6.6.1
+ _ZN19QQuick3DTextureData11qt_metacallEN11QMetaObject4CallEiPPv@Qt_6 6.6.1
+ _ZN19QQuick3DTextureData11qt_metacastEPKc@Qt_6 6.6.1
+ _ZN19QQuick3DTextureData12markAllDirtyEv@Qt_6 6.6.1
+ _ZN19QQuick3DTextureData14setTextureDataERK10QByteArray@Qt_6 6.6.1
+ _ZN19QQuick3DTextureData16staticMetaObjectE@Qt_6 6.6.1
+ _ZN19QQuick3DTextureData17updateSpatialNodeEP21QSSGRenderGraphObject@Qt_6 6.6.1
+ _ZN19QQuick3DTextureData18setHasTransparencyEb@Qt_6 6.6.1
+ _ZN19QQuick3DTextureData20textureDataNodeDirtyEv@Qt_6 6.6.1
+ _ZN19QQuick3DTextureData7setSizeERK5QSize@Qt_6 6.6.1
+ _ZN19QQuick3DTextureData8setDepthEi@Qt_6 6.6.1
+ _ZN19QQuick3DTextureData9setFormatENS_6FormatE@Qt_6 6.6.1
+ _ZN19QQuick3DTextureDataC1EP14QQuick3DObject@Qt_6 6.6.1
+ _ZN19QQuick3DTextureDataC2EP14QQuick3DObject@Qt_6 6.6.1
+ _ZN19QQuick3DTextureDataD0Ev@Qt_6 6.6.1
+ _ZN19QQuick3DTextureDataD1Ev@Qt_6 6.6.1
+ _ZN19QQuick3DTextureDataD2Ev@Qt_6 6.6.1
+ _ZN23QQuick3DRenderExtension11qt_metacallEN11QMetaObject4CallEiPPv@Qt_6 6.7.2
+ _ZN23QQuick3DRenderExtension11qt_metacastEPKc@Qt_6 6.7.2
+ _ZN23QQuick3DRenderExtension16staticMetaObjectE@Qt_6 6.7.2
+ _ZN23QQuick3DRenderExtensionC1EP14QQuick3DObject@Qt_6 6.7.2
+ _ZN23QQuick3DRenderExtensionC2EP14QQuick3DObject@Qt_6 6.7.2
+ _ZN23QQuick3DRenderExtensionD0Ev@Qt_6 6.7.2
+ _ZN23QQuick3DRenderExtensionD1Ev@Qt_6 6.7.2
+ _ZN23QQuick3DRenderExtensionD2Ev@Qt_6 6.7.2
+ _ZN8QQuick3D18idealSurfaceFormatEi@Qt_6 6.6.1
+ _ZNK14QQuick3DObject10childItemsEv@Qt_6 6.6.1
+ _ZNK14QQuick3DObject10metaObjectEv@Qt_6 6.6.1
+ _ZNK14QQuick3DObject10parentItemEv@Qt_6 6.6.1
+ _ZNK14QQuick3DObject19isComponentCompleteEv@Qt_6 6.6.1
+ _ZNK14QQuick3DObject5stateEv@Qt_6 6.6.1
+ _ZNK16QQuick3DGeometry10metaObjectEv@Qt_6 6.6.1
+ _ZNK16QQuick3DGeometry10subsetNameEi@Qt_6 6.6.1
+ _ZNK16QQuick3DGeometry10targetDataEv@Qt_6 6.6.1
+ _ZNK16QQuick3DGeometry10vertexDataEv@Qt_6 6.6.1
+ _ZNK16QQuick3DGeometry11subsetCountEi@Qt_6 6.6.1
+ _ZNK16QQuick3DGeometry11subsetCountEv@Qt_6 6.6.1
+ _ZNK16QQuick3DGeometry12subsetOffsetEi@Qt_6 6.6.1
+ _ZNK16QQuick3DGeometry13primitiveTypeEv@Qt_6 6.6.1
+ _ZNK16QQuick3DGeometry14attributeCountEv@Qt_6 6.6.1
+ _ZNK16QQuick3DGeometry15subsetBoundsMaxEi@Qt_6 6.6.1
+ _ZNK16QQuick3DGeometry15subsetBoundsMinEi@Qt_6 6.6.1
+ _ZNK16QQuick3DGeometry15targetAttributeEi@Qt_6 6.6.1
+ _ZNK16QQuick3DGeometry20targetAttributeCountEv@Qt_6 6.6.1
+ _ZNK16QQuick3DGeometry6strideEv@Qt_6 6.6.1
+ _ZNK16QQuick3DGeometry9attributeEi@Qt_6 6.6.1
+ _ZNK16QQuick3DGeometry9boundsMaxEv@Qt_6 6.6.1
+ _ZNK16QQuick3DGeometry9boundsMinEv@Qt_6 6.6.1
+ _ZNK16QQuick3DGeometry9indexDataEv@Qt_6 6.6.1
+ _ZNK18QQuick3DInstancing10metaObjectEv@Qt_6 6.6.1
+ _ZNK18QQuick3DInstancing15hasTransparencyEv@Qt_6 6.6.1
+ _ZNK18QQuick3DInstancing18InstanceTableEntry11getPositionEv@Qt_6 6.6.1
+ _ZNK18QQuick3DInstancing18InstanceTableEntry11getRotationEv@Qt_6 6.6.1
+ _ZNK18QQuick3DInstancing18InstanceTableEntry8getColorEv@Qt_6 6.6.1
+ _ZNK18QQuick3DInstancing18InstanceTableEntry8getScaleEv@Qt_6 6.6.1
+ _ZNK18QQuick3DInstancing19depthSortingEnabledEv@Qt_6 6.6.1
+ _ZNK18QQuick3DInstancing21instanceCountOverrideEv@Qt_6 6.6.1
+ _ZNK19QQuick3DTextureData10metaObjectEv@Qt_6 6.6.1
+ _ZNK19QQuick3DTextureData11textureDataEv@Qt_6 6.6.1
+ _ZNK19QQuick3DTextureData15hasTransparencyEv@Qt_6 6.6.1
+ _ZNK19QQuick3DTextureData4sizeEv@Qt_6 6.6.1
+ _ZNK19QQuick3DTextureData5depthEv@Qt_6 6.6.1
+ _ZNK19QQuick3DTextureData6formatEv@Qt_6 6.6.1
+ _ZNK23QQuick3DRenderExtension10metaObjectEv@Qt_6 6.7.2
+ _ZTI14QQuick3DObject@Qt_6 6.6.1
+ _ZTI16QQuick3DGeometry@Qt_6 6.6.1
+ _ZTI18QQuick3DInstancing@Qt_6 6.6.1
+ _ZTI19QQuick3DTextureData@Qt_6 6.6.1
+ _ZTI23QQuick3DRenderExtension@Qt_6 6.7.2
+ _ZTIFP7QObjectP10QQmlEngineP9QJSEngineE@Qt_6 6.6.1
+ (optional=gccinternal|arch=armel riscv64)_ZTIN9__gnu_cxx7__mutexE@Qt_6 6.6.1
+ _ZTIPFP7QObjectP10QQmlEngineP9QJSEngineE@Qt_6 6.6.1
+ (optional=gccinternal|arch=armel riscv64)_ZTISt11_Mutex_baseILN9__gnu_cxx12_Lock_policyE1EE@Qt_6 6.6.1
+ (optional=gccinternal|arch=armel riscv64)_ZTISt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE1EE@Qt_6 6.6.1
+ (optional=gccinternal|arch=armel armhf)_ZTISt19_Sp_make_shared_tag@Qt_6 6.6.1
+ _ZTIZN9QMetaType17registerConverterI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEN9QtPrivate33QSequentialIterableConvertFunctorIS3_EEEEbT1_EUlPKvPvE_@Qt_6 6.6.1
+ _ZTIZN9QMetaType17registerConverterI5QListI4QUrlE9QIterableI13QMetaSequenceEN9QtPrivate33QSequentialIterableConvertFunctorIS3_EEEEbT1_EUlPKvPvE_@Qt_6 6.6.1
+ _ZTIZN9QMetaType19registerMutableViewI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEN9QtPrivate37QSequentialIterableMutableViewFunctorIS3_EEEEbT1_EUlPvSB_E_@Qt_6 6.6.1
+ _ZTIZN9QMetaType19registerMutableViewI5QListI4QUrlE9QIterableI13QMetaSequenceEN9QtPrivate37QSequentialIterableMutableViewFunctorIS3_EEEEbT1_EUlPvSB_E_@Qt_6 6.6.1
+ _ZTS14QQuick3DObject@Qt_6 6.6.1
+ _ZTS16QQuick3DGeometry@Qt_6 6.6.1
+ _ZTS18QQuick3DInstancing@Qt_6 6.6.1
+ _ZTS19QQuick3DTextureData@Qt_6 6.6.1
+ _ZTS23QQuick3DRenderExtension@Qt_6 6.7.2
+ _ZTS23QSSGRenderInstanceTable@Qt_6 6.6.1
+ _ZTSFP7QObjectP10QQmlEngineP9QJSEngineE@Qt_6 6.6.1
+ (arch=armel riscv64)_ZTSN9__gnu_cxx7__mutexE@Qt_6 6.6.1
+ _ZTSPFP7QObjectP10QQmlEngineP9QJSEngineE@Qt_6 6.6.1
+ (optional=gccinternal|arch=armel riscv64)_ZTSSt11_Mutex_baseILN9__gnu_cxx12_Lock_policyE1EE@Qt_6 6.6.1
+ (optional=gccinternal|arch=armel riscv64)_ZTSSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE1EE@Qt_6 6.6.1
+ (optional=gccinternal|arch=armel riscv64)_ZTSSt23_Sp_counted_ptr_inplaceI26QSSGRenderContextInterfaceSaIvELN9__gnu_cxx12_Lock_policyE1EE@Qt_6 6.6.1
+ _ZTSZN9QMetaType17registerConverterI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEN9QtPrivate33QSequentialIterableConvertFunctorIS3_EEEEbT1_EUlPKvPvE_@Qt_6 6.6.1
+ _ZTSZN9QMetaType17registerConverterI5QListI4QUrlE9QIterableI13QMetaSequenceEN9QtPrivate33QSequentialIterableConvertFunctorIS3_EEEEbT1_EUlPKvPvE_@Qt_6 6.6.1
+ _ZTSZN9QMetaType19registerMutableViewI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEN9QtPrivate37QSequentialIterableMutableViewFunctorIS3_EEEEbT1_EUlPvSB_E_@Qt_6 6.6.1
+ _ZTSZN9QMetaType19registerMutableViewI5QListI4QUrlE9QIterableI13QMetaSequenceEN9QtPrivate37QSequentialIterableMutableViewFunctorIS3_EEEEbT1_EUlPvSB_E_@Qt_6 6.6.1
+ _ZTV14QQuick3DObject@Qt_6 6.6.1
+ _ZTV16QQuick3DGeometry@Qt_6 6.6.1
+ _ZTV18QQuick3DInstancing@Qt_6 6.6.1
+ _ZTV19QQuick3DTextureData@Qt_6 6.6.1
+ _ZTV23QQuick3DRenderExtension@Qt_6 6.7.2
+ (optional=templinst)_ZZN9QMetaType21registerConverterImplI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEEEbSt8functionIFbPKvPvEES_S_E10unregister@Qt_6 6.6.1
+ (optional=templinst)_ZZN9QMetaType21registerConverterImplI5QListI4QUrlE9QIterableI13QMetaSequenceEEEbSt8functionIFbPKvPvEES_S_E10unregister@Qt_6 6.6.1
+ (optional=templinst)_ZZN9QMetaType23registerMutableViewImplI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEEEbSt8functionIFbPvS8_EES_S_E10unregister@Qt_6 6.6.1
+ (optional=templinst)_ZZN9QMetaType23registerMutableViewImplI5QListI4QUrlE9QIterableI13QMetaSequenceEEEbSt8functionIFbPvS8_EES_S_E10unregister@Qt_6 6.6.1
+ _ZZNSt19_Sp_make_shared_tag5_S_tiEvE5__tag@Qt_6 6.6.1
+ (c++)"non-virtual thunk to QQuick3DGeometry::~QQuick3DGeometry()@Qt_6" 6.6.1
+ (c++)"non-virtual thunk to QQuick3DInstancing::~QQuick3DInstancing()@Qt_6" 6.6.1
+ (c++)"non-virtual thunk to QQuick3DObject::classBegin()@Qt_6" 6.6.1
+ (c++)"non-virtual thunk to QQuick3DObject::componentComplete()@Qt_6" 6.6.1
+ (c++)"non-virtual thunk to QQuick3DObject::~QQuick3DObject()@Qt_6" 6.6.1
+ (c++)"non-virtual thunk to QQuick3DRenderExtension::~QQuick3DRenderExtension()@Qt_6" 6.7.2
+ (c++)"non-virtual thunk to QQuick3DTextureData::~QQuick3DTextureData()@Qt_6" 6.6.1
