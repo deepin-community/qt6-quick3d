@@ -1,8 +1,8 @@
-# SymbolsHelper-Confirmed: 6.7.2 amd64
+# SymbolsHelper-Confirmed: 6.8.0 amd64
 libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
-| libqt6quick3d6 #MINVER#, qt6-quick3d-private-abi (= 6.7.2)
+| libqt6quick3d6 #MINVER#, qt6-quick3d-private-abi (= 6.8.0)
 * Build-Depends-Packages: qt6-quick3d-dev, qt6-quick3d-private-dev
- NonQt@NonQt 6.7.2
+ NonQt@NonQt 6.8.0
  Qt_6@Qt_6 6.6.1
  (symver)Qt_6_PRIVATE_API 0 1
  _Z24q_quaternionInterpolatorRK11QQuaternionS1_d@Qt_6 6.6.1
@@ -50,7 +50,7 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN16QQuick3DGeometry13setTargetDataEiRK10QByteArray@Qt_6 6.6.1
  _ZN16QQuick3DGeometry13setVertexDataERK10QByteArray@Qt_6 6.6.1
  _ZN16QQuick3DGeometry13setVertexDataEiRK10QByteArray@Qt_6 6.6.1
- _ZN16QQuick3DGeometry15geometryChangedEv@Qt_6 6.7.2
+ _ZN16QQuick3DGeometry15geometryChangedEv@Qt_6 6.8.0
  _ZN16QQuick3DGeometry16setPrimitiveTypeENS_13PrimitiveTypeE@Qt_6 6.6.1
  _ZN16QQuick3DGeometry16staticMetaObjectE@Qt_6 6.6.1
  _ZN16QQuick3DGeometry17geometryNodeDirtyEv@Qt_6 6.6.1
@@ -109,14 +109,14 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZN19QQuick3DTextureDataD0Ev@Qt_6 6.6.1
  _ZN19QQuick3DTextureDataD1Ev@Qt_6 6.6.1
  _ZN19QQuick3DTextureDataD2Ev@Qt_6 6.6.1
- _ZN23QQuick3DRenderExtension11qt_metacallEN11QMetaObject4CallEiPPv@Qt_6 6.7.2
- _ZN23QQuick3DRenderExtension11qt_metacastEPKc@Qt_6 6.7.2
- _ZN23QQuick3DRenderExtension16staticMetaObjectE@Qt_6 6.7.2
- _ZN23QQuick3DRenderExtensionC1EP14QQuick3DObject@Qt_6 6.7.2
- _ZN23QQuick3DRenderExtensionC2EP14QQuick3DObject@Qt_6 6.7.2
- _ZN23QQuick3DRenderExtensionD0Ev@Qt_6 6.7.2
- _ZN23QQuick3DRenderExtensionD1Ev@Qt_6 6.7.2
- _ZN23QQuick3DRenderExtensionD2Ev@Qt_6 6.7.2
+ _ZN23QQuick3DRenderExtension11qt_metacallEN11QMetaObject4CallEiPPv@Qt_6 6.8.0
+ _ZN23QQuick3DRenderExtension11qt_metacastEPKc@Qt_6 6.8.0
+ _ZN23QQuick3DRenderExtension16staticMetaObjectE@Qt_6 6.8.0
+ _ZN23QQuick3DRenderExtensionC1EP14QQuick3DObject@Qt_6 6.8.0
+ _ZN23QQuick3DRenderExtensionC2EP14QQuick3DObject@Qt_6 6.8.0
+ _ZN23QQuick3DRenderExtensionD0Ev@Qt_6 6.8.0
+ _ZN23QQuick3DRenderExtensionD1Ev@Qt_6 6.8.0
+ _ZN23QQuick3DRenderExtensionD2Ev@Qt_6 6.8.0
  _ZN8QQuick3D18idealSurfaceFormatEi@Qt_6 6.6.1
  _ZNK14QQuick3DObject10childItemsEv@Qt_6 6.6.1
  _ZNK14QQuick3DObject10metaObjectEv@Qt_6 6.6.1
@@ -155,12 +155,12 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZNK19QQuick3DTextureData4sizeEv@Qt_6 6.6.1
  _ZNK19QQuick3DTextureData5depthEv@Qt_6 6.6.1
  _ZNK19QQuick3DTextureData6formatEv@Qt_6 6.6.1
- _ZNK23QQuick3DRenderExtension10metaObjectEv@Qt_6 6.7.2
+ _ZNK23QQuick3DRenderExtension10metaObjectEv@Qt_6 6.8.0
  _ZTI14QQuick3DObject@Qt_6 6.6.1
  _ZTI16QQuick3DGeometry@Qt_6 6.6.1
  _ZTI18QQuick3DInstancing@Qt_6 6.6.1
  _ZTI19QQuick3DTextureData@Qt_6 6.6.1
- _ZTI23QQuick3DRenderExtension@Qt_6 6.7.2
+ _ZTI23QQuick3DRenderExtension@Qt_6 6.8.0
  _ZTIFP7QObjectP10QQmlEngineP9QJSEngineE@Qt_6 6.6.1
  (optional=gccinternal|arch=armel riscv64)_ZTIN9__gnu_cxx7__mutexE@Qt_6 6.6.1
  _ZTIPFP7QObjectP10QQmlEngineP9QJSEngineE@Qt_6 6.6.1
@@ -175,7 +175,7 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZTS16QQuick3DGeometry@Qt_6 6.6.1
  _ZTS18QQuick3DInstancing@Qt_6 6.6.1
  _ZTS19QQuick3DTextureData@Qt_6 6.6.1
- _ZTS23QQuick3DRenderExtension@Qt_6 6.7.2
+ _ZTS23QQuick3DRenderExtension@Qt_6 6.8.0
  _ZTS23QSSGRenderInstanceTable@Qt_6 6.6.1
  _ZTSFP7QObjectP10QQmlEngineP9QJSEngineE@Qt_6 6.6.1
  (arch=armel riscv64)_ZTSN9__gnu_cxx7__mutexE@Qt_6 6.6.1
@@ -191,7 +191,7 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  _ZTV16QQuick3DGeometry@Qt_6 6.6.1
  _ZTV18QQuick3DInstancing@Qt_6 6.6.1
  _ZTV19QQuick3DTextureData@Qt_6 6.6.1
- _ZTV23QQuick3DRenderExtension@Qt_6 6.7.2
+ _ZTV23QQuick3DRenderExtension@Qt_6 6.8.0
  (optional=templinst)_ZZN9QMetaType21registerConverterImplI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEEEbSt8functionIFbPKvPvEES_S_E10unregister@Qt_6 6.6.1
  (optional=templinst)_ZZN9QMetaType21registerConverterImplI5QListI4QUrlE9QIterableI13QMetaSequenceEEEbSt8functionIFbPKvPvEES_S_E10unregister@Qt_6 6.6.1
  (optional=templinst)_ZZN9QMetaType23registerMutableViewImplI5QListI10QMatrix4x4E9QIterableI13QMetaSequenceEEEbSt8functionIFbPvS8_EES_S_E10unregister@Qt_6 6.6.1
@@ -202,5 +202,5 @@ libQt6Quick3D.so.6 libqt6quick3d6 #MINVER#
  (c++)"non-virtual thunk to QQuick3DObject::classBegin()@Qt_6" 6.6.1
  (c++)"non-virtual thunk to QQuick3DObject::componentComplete()@Qt_6" 6.6.1
  (c++)"non-virtual thunk to QQuick3DObject::~QQuick3DObject()@Qt_6" 6.6.1
- (c++)"non-virtual thunk to QQuick3DRenderExtension::~QQuick3DRenderExtension()@Qt_6" 6.7.2
+ (c++)"non-virtual thunk to QQuick3DRenderExtension::~QQuick3DRenderExtension()@Qt_6" 6.8.0
  (c++)"non-virtual thunk to QQuick3DTextureData::~QQuick3DTextureData()@Qt_6" 6.6.1
