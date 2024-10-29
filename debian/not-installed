@@ -99,7 +99,7 @@ usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DXr/QtQuick3DXrVersion
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DXr/qtquick3dxrexports.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DXr/qtquick3dxrglobal.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DXr/qtquick3dxrversion.h
-usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3D/Qt6Quick3DVersionlessAliasTargets.cmake
+#usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3D/Qt6Quick3DVersionlessAliasTargets.cmake
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtOpenXR/QtOpenXRDepends
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtOpenXR/openxr/CMakeLists.txt
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtOpenXR/openxr/openxr.h
@@ -139,4 +139,4 @@ usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DXr/QtQuick3DXrVersion
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DXr/qtquick3dxrexports.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DXr/qtquick3dxrglobal.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DXr/qtquick3dxrversion.h
-usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3D/Qt6Quick3DVersionlessAliasTargets.cmake
+#usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3D/Qt6Quick3DVersionlessAliasTargets.cmake

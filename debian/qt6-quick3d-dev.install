@@ -90,6 +90,7 @@ usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3D/Qt6Quick3DMacros.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3D/Qt6Quick3DTargets-none.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3D/Qt6Quick3DTargets.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3D/Qt6Quick3DVersionlessTargets.cmake
+usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3D/*.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DAssetImport/*.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DAssetImport/Qt6AssimpImporterPluginAdditionalTargetInfo.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DAssetImport/Qt6AssimpImporterPluginConfig.cmake
