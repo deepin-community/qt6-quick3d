@@ -1,3 +1,9 @@
+qt6-quick3d (6.8.0-0deepin1) unstable; urgency=medium
+
+  * add loong64 support
+
+ -- lichenggang <lichenggang@deepin.org>  Sun, 03 Nov 2024 03:11:36 +0800
+
 qt6-quick3d (6.8.0-0deepin) unstable; urgency=medium
 
   * New upstream release (6.8.0).
