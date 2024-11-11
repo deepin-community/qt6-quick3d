@@ -6,6 +6,11 @@ include /usr/share/dpkg/architecture.mk
 
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all optimize=+lto
 
+
+cmake_extra_args += \
+        -DFEATURE_quick3dxr_openxr:BOOL=OFF \
+        -DFEATURE_system_openxr:BOOL=OFF
+
 # QT_HOST_PATH isn't passed in cross-builds
 ifneq ($(DEB_BUILD_ARCH),$(DEB_HOST_ARCH))
 	cmake_extra_args += \
@@ -13,6 +18,8 @@ ifneq ($(DEB_BUILD_ARCH),$(DEB_HOST_ARCH))
 		-DQT_HOST_PATH_CMAKE_DIR=/usr/lib/$(DEB_BUILD_MULTIARCH)/cmake \
 		-DQT_BUILD_TOOLS_WHEN_CROSSCOMPILING=ON
 endif
+
+
 
 %:
 	dh $@ --with pkgkde_symbolshelper --buildsystem=cmake+ninja
@@ -24,10 +31,10 @@ override_dh_auto_configure:
 		$(cmake_extra_args)
 
 override_dh_auto_build-indep:
-	dh_auto_build
+	dh_auto_build -- docs
 
 override_dh_auto_install-indep:
-	DESTDIR=$(CURDIR)/debian/tmp dh_auto_build
+	DESTDIR=$(CURDIR)/debian/tmp dh_auto_build -- install_docs
 	# Remove build path from index files.
 #	find $(CURDIR)/debian/tmp/usr/share/qt6/doc -type f -name *.index -exec \
 #		sed -i 's@$(CURDIR)/@@g' {} \;
