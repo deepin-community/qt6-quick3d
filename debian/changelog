@@ -1,3 +1,9 @@
+qt6-quick3d (6.8.0-0deepin2) unstable; urgency=medium
+
+  * OFF system_openxr:BOOL quick3dxr_openxr:BOOL
+
+ -- lichenggang <lichenggang@deepin.org>  Mon, 11 Nov 2024 16:36:51 +0800
+
 qt6-quick3d (6.8.0-0deepin1) unstable; urgency=medium
 
   * add loong64 support
