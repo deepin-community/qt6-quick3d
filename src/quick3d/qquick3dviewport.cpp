@@ -1,5 +1,7 @@
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qquick3dviewport_p.h"
 #include "qquick3dsceneenvironment_p.h"
@@ -20,6 +22,7 @@
 #include <QtQuick3DRuntimeRender/private/qssglayerrenderdata_p.h>
 
 #include <QtQuick3DUtils/private/qssgassert_p.h>
+#include <QtQuick3DUtils/private/qssgfrustum_p.h>
 
 #include <qsgtextureprovider.h>
 #include <QSGSimpleTextureNode>
@@ -39,9 +42,8 @@
 
 QT_BEGIN_NAMESPACE
 
-Q_LOGGING_CATEGORY(lcEv, "qt.quick3d.event")
-Q_LOGGING_CATEGORY(lcPick, "qt.quick3d.pick")
-Q_LOGGING_CATEGORY(lcHover, "qt.quick3d.hover")
+Q_STATIC_LOGGING_CATEGORY(lcEv, "qt.quick3d.event")
+Q_STATIC_LOGGING_CATEGORY(lcPick, "qt.quick3d.pick")
 
 static bool isforceInputHandlingSet()
 {
@@ -52,7 +54,7 @@ static bool isforceInputHandlingSet()
 struct ViewportTransformHelper : public QQuickDeliveryAgent::Transform
 {
     static void removeAll() {
-        for (auto o : owners) {
+        for (const auto &o : std::as_const(owners)) {
             if (!o.isNull())
                 o->setSceneTransform(nullptr);
         }
@@ -189,7 +191,7 @@ public:
 
 /*!
     \qmltype View3D
-    \inherits QQuickItem
+    \inherits Item
     \inqmlmodule QtQuick3D
     \brief Provides a viewport on which to render a 3D scene.
 
@@ -247,7 +249,6 @@ QQuick3DViewport::QQuick3DViewport(QQuickItem *parent)
     setFlag(ItemHasContents);
     m_camera = nullptr;
     m_sceneRoot = new QQuick3DSceneRootNode(this);
-    m_environment = new QQuick3DSceneEnvironment(m_sceneRoot);
     m_renderStats = new QQuick3DRenderStats();
     QQuick3DSceneManager *sceneManager = new QQuick3DSceneManager();
     QQuick3DObjectPrivate::get(m_sceneRoot)->refSceneManager(*sceneManager);
@@ -292,6 +293,8 @@ QQuick3DViewport::~QQuick3DViewport()
 
     delete m_sceneRoot;
     m_sceneRoot = nullptr;
+
+    delete m_builtInEnvironment;
 
     // m_renderStats is tightly coupled with the render thread, so can't delete while we
     // might still be rendering.
@@ -355,6 +358,12 @@ QQmlListProperty<QObject> QQuick3DViewport::data()
     This property specifies which \l Camera is used to render the scene. If this
     property is not set, then the first enabled camera in the scene will be used.
 
+    \note It is strongly recommended to set this property explicitly rather than relying on
+    automatic camera selection. When multiple cameras are present in the scene, automatic
+    selection does not guarantee which camera will be chosen. When \l{Node::}{layers}
+    are used, explicitly specifying the camera also avoids unnecessary re-evaluation of
+    scene nodes.
+
     \note If this property contains a camera that's not \l {Node::visible}{visible} then
     no further attempts to find a camera will be done.
 
@@ -370,10 +379,26 @@ QQuick3DCamera *QQuick3DViewport::camera() const
 
     This property specifies the SceneEnvironment used to render the scene.
 
+    \note Setting this property to \c null will reset the SceneEnvironment to the default.
+
     \sa SceneEnvironment
 */
 QQuick3DSceneEnvironment *QQuick3DViewport::environment() const
 {
+    if (!m_environment) {
+        if (!m_builtInEnvironment) {
+            m_builtInEnvironment = new QQuick3DSceneEnvironment;
+            // Check that we are on the "correct" thread, and move the environment to the
+            // correct thread if not. This can happen when environment() is called from the
+            // sync and no scene environment has been set.
+            if (QThread::currentThread() != m_sceneRoot->thread())
+                m_builtInEnvironment->moveToThread(m_sceneRoot->thread());
+            m_builtInEnvironment->setParentItem(m_sceneRoot);
+        }
+
+        return m_builtInEnvironment;
+    }
+
     return m_environment;
 }
 
@@ -381,7 +406,19 @@ QQuick3DSceneEnvironment *QQuick3DViewport::environment() const
     \qmlproperty QtQuick3D::Node QtQuick3D::View3D::scene
     \readonly
 
-    Holds the root \l Node of the View3D's scene.
+    Returns the root \l Node of the View3D's scene.
+
+    To define the 3D scene that is visualized in the View3D:
+
+    \list
+    \li  Define a hierarchy of \l{Node}{Node-based} items as children of
+        the View3D directly, then this will become the implicit \l scene of the
+        View3D.
+    \li Reference an existing scene by using the \l importScene property and
+        set it to the root \l Node of the scene you want to visualize. This
+        \l Node does not have to be an ancestor of the View3D, and you can have
+        multiple View3Ds that import the same scene.
+    \endlist
 
     \sa importScene
 */
@@ -393,12 +430,27 @@ QQuick3DNode *QQuick3DViewport::scene() const
 /*!
     \qmlproperty QtQuick3D::Node QtQuick3D::View3D::importScene
 
-    This property defines the reference node of the scene to render to the viewport.
-    The node does not have to be a child of the View3D. This referenced node becomes
-    a sibling with child nodes of View3D, if there are any.
+    This property defines the reference node of the scene to render to the
+    viewport. The node does not have to be a child of the View3D. This
+    referenced node becomes a sibling with child nodes of View3D, if there are
+    any.
 
-    \note This property can only be set once, and subsequent changes will have no
-    effect.
+    \note Scenes can only be shared between View3D items that are in the same
+    \l{QQuickWindow}{window}.
+
+    \note When sharing scenes between multiple View3D items the imported scene should
+    be imported in whole, that is, importing a subtree of a scene is not supported.
+    If multiple View3Ds need to show different parts of the same shared scene,
+    consider using \l {Node::}{layers} instead.
+
+    \note This property can only be set once, and subsequent changes will have
+    no effect.
+
+    You can also define a hierarchy of \l{Node}{Node-based} items as children of
+    the View3D directly, then this will become the implicit scene of the
+    View3D.
+
+    To return the current scene of the View3D, use the \l scene property.
 
     \sa Node
 */
@@ -531,8 +583,10 @@ QQuick3DSceneRenderer *QQuick3DViewport::createRenderer() const
             }
         }
 
-        if (rci)
+        if (rci) {
             renderer = new QQuick3DSceneRenderer(rci);
+            Q_QUICK3D_PROFILE_ASSIGN_ID(this, renderer);
+        }
     }
 
     return renderer;
@@ -664,6 +718,7 @@ void QQuick3DViewport::itemChange(QQuickItem::ItemChange change, const QQuickIte
             m_renderStats->setWindow(value.window);
         }
     } else if (change == ItemVisibleHasChanged && isVisible()) {
+        m_visibilityChanged = true;
         update();
     }
 }
@@ -736,6 +791,9 @@ void QQuick3DViewport::setEnvironment(QQuick3DSceneEnvironment *environment)
     m_environment = environment;
     if (m_environment && !m_environment->parentItem())
         m_environment->setParentItem(m_sceneRoot);
+
+    QQuick3DObjectPrivate::attachWatcherPriv(m_sceneRoot, this, &QQuick3DViewport::setEnvironment, environment, m_environment);
+
     emit environmentChanged();
     update();
 }
@@ -762,37 +820,8 @@ void QQuick3DViewport::setImportScene(QQuick3DNode *inScene)
     }
 
     m_importScene = inScene;
-    if (m_importScene) {
-        auto privateObject = QQuick3DObjectPrivate::get(m_importScene);
-        if (!privateObject->sceneManager) {
-            // If object doesn't already have scene manager, check from its children
-            QQuick3DSceneManager *manager = findChildSceneManager(m_importScene);
-            // If still not found, use the one from the scene root (scenes defined outside of an view3d)
-            if (!manager)
-                manager = QQuick3DObjectPrivate::get(m_sceneRoot)->sceneManager;
-            if (manager) {
-                manager->setWindow(window());
-                privateObject->refSceneManager(*manager);
-            }
-            // At this point some manager will exist
-            Q_ASSERT(privateObject->sceneManager);
-        }
-
-        connect(privateObject->sceneManager, &QQuick3DSceneManager::needsUpdate,
-                this, &QQuickItem::update);
-
-        QQuick3DNode *scene = inScene;
-        while (scene) {
-            QQuick3DSceneRootNode *rn = qobject_cast<QQuick3DSceneRootNode *>(scene);
-            scene = rn ? rn->view3D()->importScene() : nullptr;
-
-            if (scene) {
-                connect(QQuick3DObjectPrivate::get(scene)->sceneManager,
-                        &QQuick3DSceneManager::needsUpdate,
-                        this, &QQuickItem::update);
-            }
-        }
-    }
+    if (m_importScene)
+        updateSceneManagerForImportScene();
 
     emit importSceneChanged();
     update();
@@ -983,6 +1012,12 @@ QVector3D QQuick3DViewport::mapTo3DScene(const QVector3D &viewPos) const
     and return information about the nearest intersection with an object in the scene.
 
     This can, for instance, be called with mouse coordinates to find the object under the mouse cursor.
+
+    Triangles that the material's \l {Material::cullMode}{cull mode} discards
+    when rendering are not picked either, so only geometry that is actually
+    visible along the ray is reported.
+
+    \sa pickAll(), pickSubset(), pickInRect()
 */
 QQuick3DPickResult QQuick3DViewport::pick(float x, float y) const
 {
@@ -1009,6 +1044,8 @@ QQuick3DPickResult QQuick3DViewport::pick(float x, float y) const
     This can, for instance, be called with mouse coordinates to find the object under the mouse cursor.
 
     \since 6.8
+
+    \sa pickAll(), pickSubset(), pickInRect()
 */
 QQuick3DPickResult QQuick3DViewport::pick(float x, float y, QQuick3DModel *model) const
 {
@@ -1042,6 +1079,8 @@ QQuick3DPickResult QQuick3DViewport::pick(float x, float y, QQuick3DModel *model
     Works with both property list<Model> and dynamic JavaScript arrays of models.
 
     \since 6.8
+
+    \sa pick(), pickAll(), pickInRect()
 */
 QList<QQuick3DPickResult> QQuick3DViewport::pickSubset(float x, float y, const QJSValue &models) const
 {
@@ -1127,6 +1166,8 @@ QList<QQuick3DPickResult> QQuick3DViewport::pickSubset(float x, float y, const Q
     This can, for instance, be called with mouse coordinates to find the object under the mouse cursor.
 
     \since 6.2
+
+    \sa pick(), pickSubset(), pickInRect()
 */
 QList<QQuick3DPickResult> QQuick3DViewport::pickAll(float x, float y) const
 {
@@ -1159,6 +1200,10 @@ QList<QQuick3DPickResult> QQuick3DViewport::pickAll(float x, float y) const
     This can, for instance, be called with the position and forward vector of
     any object in a scene to see what object is in front of an item. This
     makes it possible to do picking from any point in the scene.
+
+    Triangles that the material's \l {Material::cullMode}{cull mode} discards
+    when rendering are not picked either, so only geometry that is actually
+    visible along the ray is reported.
 
     \since 6.2
 */
@@ -1209,7 +1254,151 @@ QList<QQuick3DPickResult> QQuick3DViewport::rayPickAll(const QVector3D &origin, 
     return processedResultList;
 }
 
-void QQuick3DViewport::processPointerEventFromRay(const QVector3D &origin, const QVector3D &direction, QPointerEvent *event)
+/*!
+    \qmlmethod pickResult View3D::rayPick(vector3d origin, vector3d direction, Model model)
+
+    This method will "shoot" a ray into the scene starting at \a origin and in
+    \a direction and return information about the intersection between the ray and the specified \a model.
+
+    \since 6.11
+*/
+QQuick3DPickResult QQuick3DViewport::rayPick(const QVector3D &origin, const QVector3D &direction, QQuick3DModel *model) const
+{
+    QQuick3DSceneRenderer *renderer = getRenderer();
+    if (!renderer)
+        return QQuick3DPickResult();
+
+    const QSSGRenderRay ray(origin, direction);
+
+    const auto renderNode = static_cast<QSSGRenderNode *>(QQuick3DObjectPrivate::get(model)->spatialNode);
+    const auto resultList = renderer->syncPickOne(ray, renderNode);
+    return getNearestPickResult(resultList);
+}
+
+/*!
+    \qmlmethod pickResult View3D::closestPointPick(vector3d origin, float radius, Model model)
+
+    This method will find the point on the surface of \a model that is nearest to \a origin, within a distance of
+    \a radius. If \a model is \c null, the closest object within \a radius will be found.
+
+    If no such object exists, \c null is returned.
+
+     \since 6.11
+*/
+QQuick3DPickResult QQuick3DViewport::closestPointPick(const QVector3D &origin, float radius, QQuick3DModel *model) const
+{
+    QQuick3DSceneRenderer *renderer = getRenderer();
+
+    if (!renderer)
+        return QQuick3DPickResult();
+    QSSGRenderNode *renderNode = nullptr;
+    if (model) {
+        renderNode = static_cast<QSSGRenderNode *>(QQuick3DObjectPrivate::get(model)->spatialNode);
+        if (Q_UNLIKELY(!renderNode))
+            return QQuick3DPickResult{};
+    }
+
+    const auto pickResult = renderer->syncPickClosestPoint(origin, radius * radius, renderNode);
+    if (!pickResult.has_value())
+        return QQuick3DPickResult{};
+    return processPickResult(pickResult.value());
+}
+
+/*!
+    \qmlmethod list<Object3D> View3D::pickInRect(point start, point end)
+    \since 6.11
+
+    This method picks all objects within a rectangular region defined by
+    \a start and \a end points in view coordinates.
+
+    Returns a list of objects that are within the specified rectangle. This
+    can be used for marquee selection, where the user drags a rectangle to
+    select multiple objects.
+
+    \sa pick(), pickAll(), pickSubset()
+*/
+QList<QQuick3DObject *> QQuick3DViewport::pickInRect(const QPointF &start, const QPointF &end) const
+{
+    const qreal minX = qMin(start.x(), end.x());
+    const qreal maxX = qMax(start.x(), end.x());
+    const qreal minY = qMin(start.y(), end.y());
+    const qreal maxY = qMax(start.y(), end.y());
+
+    const qreal ndc[4] = {
+        2.0f * minX / width() - 1.0f, // left
+        2.0f * maxX / width() - 1.0f, // right
+        // flip Y-coordinates
+        1.0f - 2.0f * maxY / height(), // bottom
+        1.0f - 2.0f * minY / height(), // top
+    };
+
+    const float near = 0.0f;
+    const float far = 1.0f;
+    enum { L, R, B, T }; // left, right, bottom, top
+    const QVector4D ndcCorners[8] = {
+        // Near plane
+        QVector4D(ndc[L], ndc[B], near, 1.0f), // 0: bottom-left  | n0
+        QVector4D(ndc[R], ndc[B], near, 1.0f), // 1: bottom-right | n1
+        QVector4D(ndc[L], ndc[T], near, 1.0f), // 3: top-left     | n2
+        QVector4D(ndc[R], ndc[T], near, 1.0f), // 2: top-right    | n3
+        // Far plane
+        QVector4D(ndc[L], ndc[B], far, 1.0f), // 4: bottom-left   | f0
+        QVector4D(ndc[R], ndc[B], far, 1.0f), // 5: bottom-right  | f1
+        QVector4D(ndc[L], ndc[T], far, 1.0f), // 7: top-left      | f2
+        QVector4D(ndc[R], ndc[T], far, 1.0f), // 6: top-right     | f3
+    };
+
+    QMatrix4x4 viewProjection;
+    if (this->camera()) {
+        if (auto camera = static_cast<QSSGRenderCamera *>(QQuick3DObjectPrivate::get(this->camera())->spatialNode))
+            camera->calculateViewProjectionMatrix(camera->localTransform, camera->projection, viewProjection);
+    }
+    QMatrix4x4 viewProjectionInverted = viewProjection.inverted();
+
+    QVector3D worldCorners[8];
+    for (int i = 0; i < 8; ++i) {
+        QVector4D worldPoint = viewProjectionInverted * ndcCorners[i];
+        worldCorners[i] = worldPoint.toVector3D() / worldPoint.w(); // perspective divide
+    }
+
+    // Frustum
+    //
+    //    f2 ------------f3
+    //     |             |
+    //     |             |
+    //     |             |
+    //     |             |
+    //    f0 ------------f1
+    //
+    // n2 -------- n3
+    // |           |
+    // |   camera  |
+    // |           |
+    // n0 -------- n1
+    //
+    // CCW winding if inside the frustum and looking toward the face
+    const QSSGFrustum frustum {
+        QSSGPlane(worldCorners[0], worldCorners[4], worldCorners[6]), // L [n0, f0, f2]
+        QSSGPlane(worldCorners[1], worldCorners[3], worldCorners[7]), // R [n1, n3, f3]
+        QSSGPlane(worldCorners[0], worldCorners[1], worldCorners[5]), // B [n0, n1, f1]
+        QSSGPlane(worldCorners[2], worldCorners[6], worldCorners[7]), // T [n2, f2, f3]
+        QSSGPlane(worldCorners[0], worldCorners[2], worldCorners[3]), // N [n0, n2, n3]
+        QSSGPlane(worldCorners[5], worldCorners[7], worldCorners[6]), // F [f1, f3, f2]
+    };
+
+    QList<QQuick3DObject *> ret;
+    if (QQuick3DSceneRenderer *renderer = getRenderer()) {
+        auto nodes = renderer->syncPickInFrustum(frustum);
+        for (const auto *node : std::as_const(nodes)) {
+            if (QQuick3DObject *m = findFrontendNode(node))
+                ret.append(m);
+        }
+    }
+
+    return ret;
+}
+
+void QQuick3DViewport::processPointerEventFromRay(const QVector3D &origin, const QVector3D &direction, QPointerEvent *event) const
 {
     internalPick(event, origin, direction);
 }
@@ -1236,7 +1425,7 @@ public:
 }
 
 /*!
-    \qmlmethod View3D::setTouchpoint(Item target, point position, int pointId, bool pressed)
+    \qmlmethod void View3D::setTouchpoint(Item target, point position, int pointId, bool pressed)
 
     Sends a synthetic touch event to \a target, moving the touch point with ID \a pointId to \a position,
     with \a pressed determining if the point is pressed.
@@ -1276,18 +1465,24 @@ void QQuick3DViewport::setTouchpoint(QQuickItem *target, const QPointF &position
 
     QPointingDevicePrivate *devPriv = QPointingDevicePrivate::get(m_syntheticTouchDevice);
 
-    auto makePoint = [devPriv](int id, QEventPoint::State pointState, QPointF pos) -> QEventPoint {
+    auto makePoint = [devPriv](int id, QEventPoint::State pointState, QPointF pos, quint64 timestamp) -> QEventPoint {
         auto epd = devPriv->pointById(id);
         auto &ep = epd->eventPoint;
         if (pointState != QEventPoint::State::Stationary)
             ep.setAccepted(false);
 
-        auto res = QMutableEventPoint::withTimeStamp(0, id, pointState, pos, pos, pos);
+        auto res = QMutableEventPoint::withTimeStamp(timestamp, id, pointState, pos, pos, pos);
         QMutableEventPoint::update(res, ep);
+
+        if (pointState == QEventPoint::State::Pressed)
+            QMutableEventPoint::setGlobalPressPosition(res, pos);
+        else if (ep.state() != QEventPoint::State::Unknown)
+            QMutableEventPoint::setGlobalPressPosition(res, ep.globalPressPosition());
+
         return res;
     };
 
-    auto sendTouchEvent = [&](QQuickItem *t, const QPointF &position, int pointId, QEventPoint::State pointState) -> void {
+    auto sendTouchEvent = [&](QQuickItem *t, const QPointF &position, int pointId, QEventPoint::State pointState, quint64 timestamp) -> void {
         QList<QEventPoint> points;
         bool otherPoint = false; // Does the event have another point already?
         for (int i = 0; i < m_touchState.size(); ++i) {
@@ -1295,11 +1490,11 @@ void QQuick3DViewport::setTouchpoint(QQuickItem *target, const QPointF &position
             if (ts.target != t)
                 continue;
             if (i == pointId) {
-                auto newPoint = makePoint(i, pointState, position);
+                auto newPoint = makePoint(i, pointState, position, timestamp);
                 points << newPoint;
             } else if (ts.isPressed) {
                 otherPoint = true;
-                points << makePoint(i, QEventPoint::Stationary, ts.position);
+                points << makePoint(i, QEventPoint::Stationary, ts.position, timestamp);
             }
         }
 
@@ -1312,6 +1507,7 @@ void QQuick3DViewport::setTouchpoint(QQuickItem *target, const QPointF &position
             type = QEvent::Type::TouchUpdate;
 
         QTouchEvent ev(type, m_syntheticTouchDevice, {}, points);
+        ev.setTimestamp(timestamp);
 
         if (t) {
             // Actually send event:
@@ -1331,13 +1527,15 @@ void QQuick3DViewport::setTouchpoint(QQuickItem *target, const QPointF &position
         }
     };
 
+    auto timestamp = QDateTime::currentMSecsSinceEpoch();
+
     // Send a release event to the previous target
     if (prevState.target && !sameTarget)
-        sendTouchEvent(prevState.target, prevState.position, pointId, QEventPoint::Released);
+        sendTouchEvent(prevState.target, prevState.position, pointId, QEventPoint::Released, timestamp);
 
     // Now send an event for the new state
     QEventPoint::State newState = isPress ? QEventPoint::Pressed : isRelease ? QEventPoint::Released : QEventPoint::Updated;
-    sendTouchEvent(target, position, pointId, newState);
+    sendTouchEvent(target, position, pointId, newState, timestamp);
 }
 
 QQuick3DLightmapBaker *QQuick3DViewport::maybeLightmapBaker()
@@ -1358,8 +1556,31 @@ QQuick3DLightmapBaker *QQuick3DViewport::lightmapBaker()
 */
 void QQuick3DViewport::bakeLightmap()
 {
-    lightmapBaker()->bake();
+    QQuick3DSceneRenderer *renderer = getRenderer();
+    if (!renderer || !renderer->m_layer->renderData)
+        return;
+
+    const bool currentlyBaking = renderer->m_layer->renderData->lightmapBaker != nullptr;
+
+    if (!currentlyBaking)
+        lightmapBaker()->bake();
 }
+
+/*!
+    \internal
+*/
+void QQuick3DViewport::denoiseLightmap()
+{
+    QQuick3DSceneRenderer *renderer = getRenderer();
+    if (!renderer || !renderer->m_layer->renderData)
+        return;
+
+    const bool currentlyBaking = renderer->m_layer->renderData->lightmapBaker != nullptr;
+
+    if (!currentlyBaking)
+        lightmapBaker()->denoise();
+}
+
 
 void QQuick3DViewport::setGlobalPickingEnabled(bool isEnabled)
 {
@@ -1373,6 +1594,7 @@ void QQuick3DViewport::setGlobalPickingEnabled(bool isEnabled)
 void QQuick3DViewport::invalidateSceneGraph()
 {
     m_node = nullptr;
+    m_renderNode = nullptr;
 }
 
 QQuick3DSceneRenderer *QQuick3DViewport::getRenderer() const
@@ -1713,9 +1935,9 @@ bool QQuick3DViewport::forwardEventToSubscenes(QPointerEvent *event,
     originalScenePositions.resize(event->pointCount());
     for (int pointIndex = 0; pointIndex < event->pointCount(); ++pointIndex)
         originalScenePositions[pointIndex] = event->point(pointIndex).scenePosition();
-    for (auto subscene : visitedSubscenes) {
+    for (const auto &subscene : visitedSubscenes) {
         QQuickItem *subsceneRoot = subscene.first;
-        auto &subsceneInfo = subscene.second;
+        const auto &subsceneInfo = subscene.second;
         Q_ASSERT(subsceneInfo.eventPointScenePositions.size() == event->pointCount());
         auto da = QQuickItemPrivate::get(subsceneRoot)->deliveryAgent();
         for (int pointIndex = 0; pointIndex < event->pointCount(); ++pointIndex) {
@@ -1835,7 +2057,7 @@ bool QQuick3DViewport::singlePointPick(QSinglePointEvent *event, const QVector3D
     for (const auto &pickResult : pickResults) {
         auto [item, position] = getItemAndPosition(pickResult);
         if (!item)
-            continue;
+            break;
         if (item == m_prevMouseItem && (position - m_prevMousePos).manhattanLength() < jitterLimit && !event->button()) {
             withinJitterLimit = true;
             break;
@@ -1873,7 +2095,7 @@ bool QQuick3DViewport::singlePointPick(QSinglePointEvent *event, const QVector3D
     return delivered;
 }
 
-QPair<QQuickItem *, QPointF> QQuick3DViewport::getItemAndPosition(const QSSGRenderPickResult &pickResult)
+QPair<QQuickItem *, QPointF> QQuick3DViewport::getItemAndPosition(const QSSGRenderPickResult &pickResult) const
 {
     QQuickItem *subsceneRootItem = nullptr;
     QPointF subscenePosition;
@@ -1969,14 +2191,18 @@ QQuick3DPickResult QQuick3DViewport::processPickResult(const QSSGRenderPickResul
     QQuick3DObject *frontendObject = findFrontendNode(pickResult.m_hitObject);
 
     QQuick3DModel *model = qobject_cast<QQuick3DModel *>(frontendObject);
-    if (model)
+    if (model) {
+        auto itemAndPosition = getItemAndPosition(pickResult);
         return QQuick3DPickResult(model,
                                   ::sqrtf(pickResult.m_distanceSq),
                                   pickResult.m_localUVCoords,
                                   pickResult.m_scenePosition,
                                   pickResult.m_localPosition,
                                   pickResult.m_faceNormal,
-                                  pickResult.m_instanceIndex);
+                                  pickResult.m_sceneNormal,
+                                  pickResult.m_instanceIndex,
+                                  itemAndPosition.first);
+    }
 
     QQuick3DItem2D *frontend2DItem = qobject_cast<QQuick3DItem2D *>(frontendObject);
     if (frontend2DItem && frontend2DItem->contentItem()) {
@@ -2004,7 +2230,7 @@ QQuick3DSceneManager *QQuick3DViewport::findChildSceneManager(QQuick3DObject *in
         return manager;
 
     auto children = QQuick3DObjectPrivate::get(inObject)->childItems;
-    for (auto child : children) {
+    for (auto *child : std::as_const(children)) {
         if (auto m = QQuick3DObjectPrivate::get(child)->sceneManager) {
             manager = m;
             break;
@@ -2053,6 +2279,109 @@ QQmlListProperty<QQuick3DObject> QQuick3DViewport::extensions()
 void QQuick3DViewport::rebuildExtensionList()
 {
     m_extensionListDirty = true;
+    update();
+}
+
+/*!
+    \internal
+
+    Private constructor for the QQuick3DViewport class so we can differentiate between
+    a regular QQuick3DViewport and one created for a specific usage, like XR.
+ */
+QQuick3DViewport::QQuick3DViewport(PrivateInstanceType type, QQuickItem *parent)
+    : QQuick3DViewport(parent)
+{
+    m_isXrViewInstance = type == PrivateInstanceType::XrViewInstance;
+}
+
+void QQuick3DViewport::updateCameraForLayer(const QQuick3DViewport &view3D, QSSGRenderLayer &layerNode)
+{
+    layerNode.explicitCameras.clear();
+    if (!view3D.m_multiViewCameras.isEmpty()) {
+        for (QQuick3DCamera *camera : std::as_const(view3D.m_multiViewCameras))
+            layerNode.explicitCameras.append(static_cast<QSSGRenderCamera *>(QQuick3DObjectPrivate::get(camera)->spatialNode));
+    } else if (view3D.camera()) {
+        if (QSSGRenderCamera *camera = static_cast<QSSGRenderCamera *>(QQuick3DObjectPrivate::get(view3D.camera())->spatialNode))
+            layerNode.explicitCameras.append(camera);
+    }
+
+    // Ensure these have a parent. All nodes need to be in the node tree somewhere, even if they're technically "parentless"
+    // or we'll not assign a storage slot for them or update them.
+    for (QSSGRenderCamera *camera : std::as_const(layerNode.explicitCameras)) {
+        if (!camera->parent)
+            layerNode.addChild(*camera);
+    }
+}
+
+void QQuick3DViewport::updateSceneManagerForImportScene()
+{
+    auto privateObject = QQuick3DObjectPrivate::get(m_importScene);
+    if (!privateObject->sceneManager) {
+        // If object doesn't already have scene manager, check from its children
+        QQuick3DSceneManager *manager = findChildSceneManager(m_importScene);
+        // If still not found, use the one from the scene root (scenes defined outside of an view3d)
+        if (!manager)
+            manager = QQuick3DObjectPrivate::get(m_sceneRoot)->sceneManager;
+        if (manager) {
+            manager->setWindow(window());
+            privateObject->refSceneManager(*manager);
+        }
+
+        // In the case m_sceneRoot doesn't have a valid sceneManager,
+        // it means the view3d is not valid now.
+        if (!privateObject->sceneManager)
+            return;
+
+    }
+    connect(privateObject->sceneManager, &QQuick3DSceneManager::needsUpdate,
+            this, &QQuickItem::update, Qt::UniqueConnection);
+    connect(privateObject->sceneManager, &QObject::destroyed,
+            this, [&](QObject *) {
+                auto privateObject = QQuick3DObjectPrivate::get(m_importScene);
+                privateObject->sceneManager = nullptr;
+                updateSceneManagerForImportScene();
+            }, Qt::DirectConnection);
+
+    QQuick3DNode *scene = m_importScene;
+    while (scene) {
+        QQuick3DSceneRootNode *rn = qobject_cast<QQuick3DSceneRootNode *>(scene);
+        scene = rn ? rn->view3D()->importScene() : nullptr;
+
+        if (scene) {
+            connect(QQuick3DObjectPrivate::get(scene)->sceneManager,
+                    &QQuick3DSceneManager::needsUpdate,
+                    this, &QQuickItem::update, Qt::UniqueConnection);
+        }
+    }
+}
+
+/*!
+    \qmlproperty enumeration QtQuick3D::View3D::renderOverrides
+
+    Controls how Qt Quick 3D performs rendering.
+
+    \value View3D.None Rendering proceeds normally. Internal passes are scheduled as required by the
+    features used in the application.
+
+    \value View3D.DisableInternalPasses Disables Qt Quick 3D's internal rendering passes.
+    When this mode is set, the application is responsible for producing and presenting the final frame.
+    Typically, this involves implementing custom \l {User-Defined Render Passes in Qt Quick 3D}
+    {user passes} and presenting the result to the viewport using \l {SimpleQuadRenderer} or a
+    custom \l {QQuick3DRenderExtension}{render extension}.
+*/
+
+QQuick3DViewport::RenderOverrides QQuick3DViewport::renderOverrides() const
+{
+    return m_renderOverrides;
+}
+
+void QQuick3DViewport::setRenderOverrides(RenderOverrides newRenderOverrides)
+{
+    if (m_renderOverrides == newRenderOverrides)
+        return;
+    m_renderOverrides = newRenderOverrides;
+    emit renderOverridesChanged();
+
     update();
 }
 

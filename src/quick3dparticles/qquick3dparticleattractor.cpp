@@ -1,5 +1,7 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qquick3dparticleattractor_p.h"
 #include "qquick3dparticlerandomizer_p.h"
@@ -233,7 +235,7 @@ void QQuick3DParticleAttractor::updateShapePositions()
             pCount = m_positionsAmount;
         } else {
             if (!m_particles.isEmpty()) {
-                for (auto p : m_particles) {
+                for (auto *p : std::as_const(m_particles)) {
                     auto pp = qobject_cast<QQuick3DParticle *>(p);
                     pCount += pp->maxAmount();
                 }

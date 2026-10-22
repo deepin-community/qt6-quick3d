@@ -1,5 +1,7 @@
 // Copyright (C) 2024 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QQUICK3DXRHANDINPUT_P_H
 #define QQUICK3DXRHANDINPUT_P_H
@@ -21,6 +23,8 @@
 #include <QQuaternion>
 #include <QtQml/qqml.h>
 
+#include <QtQuick3DXr/private/qtquick3dxrglobal_p.h>
+
 QT_BEGIN_NAMESPACE
 
 class QQuick3DXrHandInput : public QObject
@@ -28,12 +32,7 @@ class QQuick3DXrHandInput : public QObject
     Q_OBJECT
 
 public:
-    enum class HandPoseSpace {
-        GripPose,
-        AimPose
-    };
-    Q_ENUM(HandPoseSpace)
-
+    using HandPoseSpace = QtQuick3DXr::HandPoseSpace;
 
     explicit QQuick3DXrHandInput(QObject *parent = nullptr);
 
@@ -72,7 +71,7 @@ private:
     QList<QVector3D> m_jointPositions;
     QList<QQuaternion> m_jointRotations;
     QVector3D m_pokePosition;
-    bool m_isHandTracking;
+    bool m_isHandTracking = false;
 };
 
 QT_END_NAMESPACE

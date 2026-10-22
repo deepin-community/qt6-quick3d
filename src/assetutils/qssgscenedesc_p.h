@@ -1,5 +1,7 @@
 // Copyright (C) 2022 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QSSGSCENEDESCRIPTION_P_H
 #define QSSGSCENEDESCRIPTION_P_H
@@ -42,6 +44,7 @@
 #include <qmetatype.h>
 #include <QtQuick3DUtils/private/qssginvasivelinkedlist_p.h>
 
+#include <QtGui/qquaternion.h>
 
 QT_BEGIN_NAMESPACE
 

@@ -9,7 +9,7 @@ Rectangle {
     View3D {
         anchors.fill: parent
 
-        PerspectiveCamera {
+        camera: PerspectiveCamera {
             z: 300
             y: 100
         }
@@ -29,12 +29,10 @@ Rectangle {
 
         Box {
             usedInBakedLighting: true
-            lightmapBaseResolution: 256
             bakedLightmap: BakedLightmap {
                 // enabled==false means the lightmap is not actually loaded and used
                 enabled: false
                 key: "box"
-                loadPrefix: "lightmaps"
             }
             scale: Qt.vector3d(100, 100, 100)
         }

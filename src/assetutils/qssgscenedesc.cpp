@@ -1,5 +1,7 @@
 // Copyright (C) 2022 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qssgscenedesc_p.h"
 
@@ -58,8 +60,8 @@ void QSSGSceneDesc::Scene::cleanup()
     qDeleteAll(resources);
     resources.clear();
 
-    for (auto *anim: animations) {
-        for (auto *ch: anim->channels) {
+    for (auto *anim : std::as_const(animations)) {
+        for (auto *ch : std::as_const(anim->channels)) {
             qDeleteAll(ch->keys);
             ch->keys.clear();
             delete ch;
@@ -96,7 +98,7 @@ void QSSGSceneDesc::destructValue(QVariant &value)
 
 void QSSGSceneDesc::destructNode(Node &node)
 {
-    for (auto *prop : node.properties)
+    for (auto *prop : std::as_const(node.properties))
         delete prop;
     // Not necessary to clear the list as long as we only call this from the destructor
 }

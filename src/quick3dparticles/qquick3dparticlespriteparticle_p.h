@@ -1,5 +1,7 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QQUICK3DSPRITEPARTICLE_H
 #define QQUICK3DSPRITEPARTICLE_H
@@ -25,6 +27,8 @@
 #include <QtQuick3DParticles/private/qquick3dparticlespritesequence_p.h>
 #include <QtQuick3D/private/qquick3dabstractlight_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrenderparticles_p.h>
+
+#include <array>
 
 QT_BEGIN_NAMESPACE
 
@@ -164,6 +168,7 @@ protected:
     void updateNodes();
     void deleteNodes();
     void markNodesDirty();
+    void updateNodeLayers() override;
 
     QMap<const QQuick3DParticleEmitter *, PerEmitterData> m_perEmitterData;
     QVector<SpriteParticleData> m_spriteParticleData;
@@ -181,7 +186,7 @@ private:
     // Call this whenever features which may affect the level change
     void updateFeatureLevel();
 
-    QHash<QByteArray, QMetaObject::Connection> m_connections;
+    std::array<QMetaObject::Connection, 3> m_connections;
     PerEmitterData n_noPerEmitterData;
     BlendMode m_blendMode = SourceOver;
     QQuick3DTexture *m_sprite = nullptr;

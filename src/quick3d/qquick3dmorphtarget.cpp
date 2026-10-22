@@ -1,5 +1,7 @@
 // Copyright (C) 2020 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qquick3dmorphtarget_p.h"
 
@@ -10,7 +12,7 @@ QT_BEGIN_NAMESPACE
 
 /*!
     \qmltype MorphTarget
-    \inherits Object
+    \inherits Object3D
     \inqmlmodule QtQuick3D
     \brief Defines the properties of a morph target.
 
@@ -36,7 +38,7 @@ QQuick3DMorphTarget::~QQuick3DMorphTarget()
 }
 
 /*!
-    \qmlproperty float MorphTarget::weight
+    \qmlproperty real MorphTarget::weight
 
     Specifies the weight of the current morph target. The weight is the multiplication factor used
     by the linear interpolation. A weight of 1 means that this target is fully applied. A weight of

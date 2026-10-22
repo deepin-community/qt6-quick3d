@@ -1,7 +1,10 @@
 // Copyright (C) 2024 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qquick3dxractionmapper_p.h"
+#include "qquick3dxrabstracthapticeffect_p.h"
 
 QT_BEGIN_NAMESPACE
 
@@ -9,14 +12,14 @@ QQuick3DXrActionMapper::QQuick3DXrActionMapper(QObject *parent) : QObject(parent
 {
 }
 
-static inline quint32 actionIntKey(const QQuick3DXrInputAction::Action id, const QQuick3DXrInputAction::Hand hand)
+static inline quint32 actionIntKey(const QQuick3DXrInputAction::Action id, const QtQuick3DXr::Controller controller)
 {
-    return quint16(id) | (quint32(hand) << 16);
+    return quint16(id) | (quint32(controller) << 16);
 }
 
-static inline QString actionStringKey(const QString &name, const QQuick3DXrInputAction::Hand hand)
+static inline QString actionStringKey(const QString &name, const QtQuick3DXr::Controller controller)
 {
-    return QString::number(hand) + name;
+    return QString::number(uint(controller)) + name;
 }
 
 QQuick3DXrActionMapper *QQuick3DXrActionMapper::instance()
@@ -25,7 +28,7 @@ QQuick3DXrActionMapper *QQuick3DXrActionMapper::instance()
     return &instance;
 }
 
-void QQuick3DXrActionMapper::handleInput(QQuick3DXrInputAction::Action id, QQuick3DXrInputAction::Hand hand, const char *shortName, float value)
+void QQuick3DXrActionMapper::handleInput(QQuick3DXrInputAction::Action id, QtQuick3DXr::Controller controller, const char *shortName, float value)
 {
     auto *that = instance();
     auto set = [](auto action, auto value) {
@@ -39,13 +42,20 @@ void QQuick3DXrActionMapper::handleInput(QQuick3DXrInputAction::Action id, QQuic
 
     QList<QQuick3DXrInputAction *> actions;
     if (id == QQuick3DXrInputAction::CustomAction) {
-        actions = that->m_customActions.values(actionStringKey(name, hand));
+        actions = that->m_customActions.values(actionStringKey(name, controller));
     } else {
-        actions = that->m_actions.values(actionIntKey(id, hand));
+        actions = that->m_actions.values(actionIntKey(id, controller));
     }
 
     for (const auto &action : std::as_const(actions))
-        set(action, value);
+        if (action->enabled())
+            set(action, value);
+}
+
+QList<QPointer<QQuick3DXrHapticFeedback>> QQuick3DXrActionMapper::getHapticEffects(QtQuick3DXr::Controller controller)
+{
+    auto *that = instance();
+    return that->m_hapticData[uint(controller)].m_hapticEffects;
 }
 
 // Note: it is the responsibility of the caller to call removeAction() before the action is destroyed or actionId/actionName is changed
@@ -54,16 +64,23 @@ void QQuick3DXrActionMapper::registerAction(QQuick3DXrInputAction *action)
     auto *that = instance();
 
     const auto &idList = action->actionId();
-    const auto hand = action->hand();
+    const auto controller = static_cast<QtQuick3DXr::Controller>(action->controller());
 
     if (idList.isEmpty()) {
-        that->m_customActions.insert(actionStringKey(action->actionName(), hand), action);
+        that->m_customActions.insert(actionStringKey(action->actionName(), controller), action);
     } else {
         for (const auto &id : idList) {
             if (id != QQuick3DXrInputAction::CustomAction)
-                that->m_actions.insert(actionIntKey(id, hand), action);
+                that->m_actions.insert(actionIntKey(id, controller), action);
         }
     }
+}
+
+void QQuick3DXrActionMapper::registerHapticEffect(QPointer<QQuick3DXrHapticFeedback> action)
+{
+    auto *that = instance();
+
+    that->m_hapticData[size_t(action->controller())].m_hapticEffects.append(action);
 }
 
 void QQuick3DXrActionMapper::removeAction(QQuick3DXrInputAction *action)
@@ -71,20 +88,27 @@ void QQuick3DXrActionMapper::removeAction(QQuick3DXrInputAction *action)
     auto *that = instance();
 
     const auto idList = action->actionId();
-    const auto hand = action->hand();
+    const auto controller = static_cast<QtQuick3DXr::Controller>(action->controller());
     if (idList.isEmpty()) {
         that->m_customActions.remove(action->actionName(), action);
     } else {
         for (const auto &id : idList) {
             if (id != QQuick3DXrInputAction::CustomAction)
-                that->m_actions.remove(actionIntKey(id, hand));
+                that->m_actions.remove(actionIntKey(id, controller));
         }
     }
 }
 
+void QQuick3DXrActionMapper::removeHapticEffect(QQuick3DXrHapticFeedback *action)
+{
+    auto *that = instance();
+    QList<QPointer<QQuick3DXrHapticFeedback>> list = that->m_hapticData[size_t(action->controller())].m_hapticEffects;
+    list.removeAt(list.indexOf(action));
+}
+
 /*!
     \qmltype XrInputAction
-    \inherits Item
+    \inherits QtObject
     \inqmlmodule QtQuick3D.Xr
     \brief Represents an action from an input controller.
 
@@ -182,7 +206,7 @@ QQuick3DXrInputAction::~QQuick3DXrInputAction()
 }
 
 /*!
-    \qmlproperty float XrInputAction::value
+    \qmlproperty real XrInputAction::value
     \brief The analog value of the input action.
 
     For analog inputs, such as a thumbstick position, this property holds
@@ -262,18 +286,263 @@ void QQuick3DXrInputAction::setActionId(const QList<Action> &newActionId)
     emit actionIdChanged();
 }
 
+/*!
+    \qmlproperty enumeration QtQuick3D.Xr::XrInputAction::hand
+    \deprecated [6.10] This property is deprecated, use \l{XrInputAction::}{controller} instead.
+    \brief The Controller that this input action will apply to.
 
-QQuick3DXrInputAction::Hand QQuick3DXrInputAction::hand() const
+    Specifies the hand ro react to.
+
+    It can be one of:
+
+    \value XrInputAction.LeftHand
+    \value XrInputAction.RightHand
+    \value XrInputAction.Unknown
+ */
+
+QQuick3DXrInputAction::Controller QQuick3DXrInputAction::hand() const
 {
-    return m_hand;
+    return static_cast<Controller>(m_controller);
 }
 
-void QQuick3DXrInputAction::setHand(Hand newHand)
+void QQuick3DXrInputAction::setHand(Controller newHand)
 {
-    if (m_hand == newHand)
+    setController(newHand);
+}
+
+/*!
+    \qmlproperty enumeration QtQuick3D.Xr::XrInputAction::controller
+    \brief The Controller that this input action will apply to.
+    \since 6.10
+
+    Specifies the controller to react to.
+
+    It can be one of:
+
+    \value XrInputAction.LeftController
+    \value XrInputAction.RightController
+    \value XrInputAction.Unknown
+    \value XrInputAction.LeftHand (alias for \c LeftController)
+    \value XrInputAction.RightHand (alias for \c RightController)
+
+    \note In Qt 6.9, this property was called "hand"
+ */
+
+QQuick3DXrInputAction::Controller QQuick3DXrInputAction::controller() const
+{
+    return static_cast<Controller>(m_controller);
+}
+
+void QQuick3DXrInputAction::setController(Controller newController)
+{
+    if (m_controller == newController)
         return;
-    m_hand = newHand;
+    m_controller = newController;
+    emit controllerChanged();
     emit handChanged();
+}
+
+/*!
+    \qmlproperty bool XrInputAction::enabled
+    \since 6.9
+
+    This property determines whether the input action will react to events.
+    \default true
+*/
+
+bool QQuick3DXrInputAction::enabled() const
+{
+    return m_enabled;
+}
+
+void QQuick3DXrInputAction::setEnabled(bool newEnabled)
+{
+    if (m_enabled == newEnabled)
+        return;
+    m_enabled = newEnabled;
+    emit enabledChanged();
+
+}
+
+/*!
+    \qmltype XrHapticFeedback
+    \inherits QtObject
+    \inqmlmodule QtQuick3D.Xr
+    \brief Controls haptic feedback for an XR controller.
+    \since 6.9
+
+    Haptic feedback typically involves applying a short vibration to a controller to provide a tactile
+    experience when an event happens. This can give the illusion of touching a button, for example.
+
+    There are two ways of using XrHapticFeedback:
+
+    \list
+    \li Imperatively, by calling the \l start function
+    \li Declaratively, by specifying \l trigger and \l condition
+    \endlist
+
+    The following code makes the right-hand controller vibrate when the value of the \c someObject.hit property
+    changes from \c false to \c true:
+
+    \qml
+    XrHapticFeedback {
+        controller: XrHapticFeedback.RightController
+        condition: XrHapticFeedback.RisingEdge
+        trigger: someObject.hit
+        hapticEffect: XrSimpleHapticEffect {
+            amplitude: 0.5
+            duration: 300
+            frequency: 3000
+        }
+    }
+    \endqml
+ */
+
+QQuick3DXrHapticFeedback::QQuick3DXrHapticFeedback(QObject *parent)
+    : QObject(parent)
+{
+}
+
+QQuick3DXrHapticFeedback::~QQuick3DXrHapticFeedback()
+{
+    QQuick3DXrActionMapper::removeHapticEffect(this);
+}
+
+void QQuick3DXrHapticFeedback::classBegin()
+{
+}
+
+void QQuick3DXrHapticFeedback::componentComplete()
+{
+    QQuick3DXrActionMapper::registerHapticEffect(this);
+    m_componentComplete = true;
+}
+
+/*!
+    \qmlproperty enumeration QtQuick3D.Xr::XrHapticFeedback::controller
+    \brief The Controller that this haptic feedback will apply to.
+
+    It can be one of:
+
+    \value XrHapticFeedback.LeftController
+    \value XrHapticFeedback.RightController
+    \value XrHapticFeedback.UnknownController
+ */
+
+QQuick3DXrHapticFeedback::Controller QQuick3DXrHapticFeedback::controller() const
+{
+    return m_controller;
+}
+
+void QQuick3DXrHapticFeedback::setController(Controller newController)
+{
+    if (m_controller == newController)
+        return;
+    m_controller = newController;
+    emit controllerChanged();
+}
+
+/*!
+    \qmlproperty bool XrHapticFeedback::trigger
+    \brief Trigger for the haptic feedback
+
+    This property defines what the haptic effect will react to.
+    The \l condition property determines how the trigger is interpreted.
+
+    \sa start condition
+ */
+bool QQuick3DXrHapticFeedback::trigger()
+{
+    return m_trigger;
+}
+
+void QQuick3DXrHapticFeedback::setTrigger(bool newTrigger)
+{
+    if (m_trigger == newTrigger)
+        return;
+
+    switch (m_condition)
+    {
+    case Condition::RisingEdge:
+        if (newTrigger)
+            start();
+        break;
+    case Condition::TrailingEdge:
+        if (!newTrigger)
+            start();
+        break;
+    }
+    m_trigger = newTrigger;
+    emit triggerChanged();
+}
+
+/*!
+    \qmlproperty XrHapticEffect XrHapticFeedback::hapticEffect
+
+    This property describes the effect that is applied to the controller when the haptic feedback is triggered.
+ */
+
+QQuick3DXrAbstractHapticEffect *QQuick3DXrHapticFeedback::hapticEffect() const
+{
+    return m_hapticEffect;
+}
+
+void QQuick3DXrHapticFeedback::setHapticEffect(QQuick3DXrAbstractHapticEffect *newHapticEffect)
+{
+    if (m_hapticEffect == newHapticEffect)
+        return;
+    m_hapticEffect = newHapticEffect;
+    emit hapticEffectChanged();
+}
+
+/*!
+    \qmlproperty enumeration QtQuick3D.Xr::XrHapticFeedback::condition
+    \brief The condition for triggering this haptic feedback.
+    \default XrHapticFeedback.RisingEdge
+
+    This property specifies how the \l trigger property is interpreted
+
+    It can be one of:
+
+    \value XrHapticFeedback.RisingEdge The haptic effect starts when \l trigger changes from \c false to \c true.
+    \value XrHapticFeedback.TrailingEdge The haptic effect starts when \l trigger changes from \c true to \c false.
+ */
+enum QQuick3DXrHapticFeedback::Condition QQuick3DXrHapticFeedback::condition() const
+{
+    return m_condition;
+}
+
+void QQuick3DXrHapticFeedback::setCondition(enum Condition newCondition)
+{
+    if (m_condition == newCondition)
+        return;
+    m_condition = newCondition;
+    emit conditionChanged();
+}
+
+/*!
+    \qmlmethod void XrHapticFeedback::start()
+    \brief Starts the haptic feedback effect.
+ */
+void QQuick3DXrHapticFeedback::start()
+{
+    m_pending = true;
+}
+
+/*!
+    \qmlmethod void XrHapticFeedback::stop()
+    \brief Stops the haptic feedback effect.
+ */
+void QQuick3DXrHapticFeedback::stop()
+{
+    m_pending = false;
+}
+
+bool QQuick3DXrHapticFeedback::testAndClear()
+{
+    bool t = m_pending;
+    m_pending = false;
+    return t;
 }
 
 QT_END_NAMESPACE

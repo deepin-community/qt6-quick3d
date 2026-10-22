@@ -1,5 +1,7 @@
 // Copyright (C) 2022 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "assimpimporter.h"
 
@@ -14,11 +16,11 @@ QT_BEGIN_NAMESPACE
 AssimpImporter::AssimpImporter()
 {
     QFile optionFile(":/assimpimporter/options.json");
-    optionFile.open(QIODevice::ReadOnly);
-    QByteArray options = optionFile.readAll();
-    optionFile.close();
-    auto optionsDocument = QJsonDocument::fromJson(options);
-    m_options = optionsDocument.object();
+    if (optionFile.open(QIODevice::ReadOnly)) {
+        QByteArray options = optionFile.readAll();
+        auto optionsDocument = QJsonDocument::fromJson(options);
+        m_options = optionsDocument.object();
+    }
 }
 
 AssimpImporter::~AssimpImporter()

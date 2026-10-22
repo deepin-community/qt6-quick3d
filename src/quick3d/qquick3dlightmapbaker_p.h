@@ -1,5 +1,7 @@
 // Copyright (C) 2023 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QQUICK3DLIGHTMAPBAKER_P_H
 #define QQUICK3DLIGHTMAPBAKER_P_H
@@ -28,10 +30,11 @@ class Q_QUICK3D_EXPORT QQuick3DLightmapBaker : public QObject
 public:
     enum class BakingStatus {
         None,
-        Progress,
+        Info,
         Warning,
         Error,
         Cancelled,
+        Failed,
         Complete
     };
 
@@ -41,16 +44,19 @@ public:
         bool isCancelled() const;
 
     private:
-        std::atomic_int cancelFlag = 0;
+        bool cancelFlag = false;
     };
 
-    typedef std::function<void(BakingStatus, std::optional<QString>, BakingControl*)> Callback;
+    typedef std::function<void(const QVariantMap &, BakingControl*)> Callback;
 
     explicit QQuick3DLightmapBaker(QQuick3DViewport *view);
     ~QQuick3DLightmapBaker();
 
     void bake(Callback callback);
     void bake();
+
+    void denoise(Callback callback);
+    void denoise();
 
 private slots:
     void onLmCancelButtonClicked();
@@ -60,7 +66,9 @@ private:
     void updateView();
 
     bool m_bakingRequested = false;
-    BakingControl *m_bakingControl;
+    bool m_denoisingRequested = false;
+    bool m_currentlyBaking = false;
+    BakingControl *m_bakingControl = nullptr;
     QQuick3DViewport *m_view = nullptr;
     Callback m_callback;
 

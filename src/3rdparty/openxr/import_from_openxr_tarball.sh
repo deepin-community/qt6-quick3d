@@ -54,6 +54,7 @@ FILES="
     src/xr_generated_dispatch_table.c
     src/xr_generated_dispatch_table_core.h
     src/xr_generated_dispatch_table_core.c
+    src/common/android_logging.h
     src/common/extra_algorithms.h
     src/common/filesystem_utils.cpp
     src/common/filesystem_utils.hpp
@@ -81,6 +82,8 @@ FILES="
     src/loader/loader_logger_recorders.cpp
     src/loader/loader_logger_recorders.hpp
     src/loader/loader_platform.hpp
+    src/loader/loader_properties.cpp
+    src/loader/loader_properties.hpp
     src/loader/manifest_file.cpp
     src/loader/manifest_file.hpp
     src/loader/runtime_interface.cpp

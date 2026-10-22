@@ -1,5 +1,7 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qssglightmapuvgenerator_p.h"
 #include "xatlas.h"
@@ -11,7 +13,7 @@ QSSGLightmapUVGeneratorResult QSSGLightmapUVGenerator::run(const QByteArray &pos
                                                            const QByteArray &uv0,
                                                            const QByteArray &index,
                                                            QSSGMesh::Mesh::ComponentType indexComponentType,
-                                                           uint baseResolution)
+                                                           float texelsPerUnit)
 {
     QSSGLightmapUVGeneratorResult result;
 
@@ -60,7 +62,8 @@ QSSGLightmapUVGeneratorResult QSSGLightmapUVGenerator::run(const QByteArray &pos
     xatlas::PackOptions packOptions;
     packOptions.maxChartSize = 4096;
     packOptions.padding = 1;
-    packOptions.resolution = baseResolution;
+    packOptions.resolution = 0;
+    packOptions.texelsPerUnit = texelsPerUnit;
     packOptions.blockAlign = true;
 
     xatlas::ChartOptions chartOptions;

@@ -1,5 +1,7 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QQUICK3DPARTICLEDATA_H
 #define QQUICK3DPARTICLEDATA_H
@@ -49,8 +51,10 @@ struct QQuick3DParticleData
 {
     QVector3D startPosition;
     QVector3D startVelocity;
+    QVector3D surfaceNormal;
     // Use Vector3b to reduce the memory usage, rotations work with less accuracy.
     // These need to be qint8 and not quint8 as rotations can go either direction.
+
     Vector3b startRotation;
     Vector3b startRotationVelocity;
     Color4ub startColor;
@@ -67,6 +71,7 @@ struct QQuick3DParticleData
     // Might not be necessary, check later
     int index = 0;
     // Size: 12+12+3+3+4+4+4+4+4+4 = 54 bytes
+    bool reversed = false;
 };
 
 // Data structure for storing bursts

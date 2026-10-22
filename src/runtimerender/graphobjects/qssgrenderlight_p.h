@@ -1,6 +1,8 @@
 // Copyright (C) 2008-2012 NVIDIA Corporation.
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QSSG_RENDER_LIGHT_H
 #define QSSG_RENDER_LIGHT_H
@@ -67,16 +69,18 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderLight : public QSSGRenderNode
     SoftShadowQuality m_softShadowQuality = SoftShadowQuality::PCF4;
 
     float m_pcfFactor = 2.0f;
+    bool m_use32BitShadowmap = false;
 
-    bool m_bakingEnabled;
-    bool m_fullyBaked; // direct+indirect
+    bool m_bakingEnabled = false;
+    bool m_fullyBaked = false; // direct+indirect
 
     // Cascading shadow map options
-    float m_csmSplit1 = 0.0f;
+    float m_csmSplit1 = 0.1f;
     float m_csmSplit2 = 0.25f;
     float m_csmSplit3 = 0.5f;
     int m_csmNumSplits = 0;
     float m_csmBlendRatio = 0.05f;
+    bool m_lockShadowmapTexels = false;
 
     // Defaults to directional light
     explicit QSSGRenderLight(Type type = Type::DirectionalLight);

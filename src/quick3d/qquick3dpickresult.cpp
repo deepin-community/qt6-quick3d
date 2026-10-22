@@ -1,5 +1,7 @@
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qquick3dpickresult_p.h"
 #include "qquick3dmodel_p.h"
@@ -30,22 +32,23 @@ QQuick3DPickResult::QQuick3DPickResult(QQuick3DModel *hitObject,
                                        const QVector3D &scenePosition,
                                        const QVector3D &position,
                                        const QVector3D &normal,
-                                       int instanceIndex)
+                                       const QVector3D &sceneNormal,
+                                       int instanceIndex,
+                                       QQuickItem *itemHit)
     : m_objectHit(hitObject)
     , m_distance(distanceFromCamera)
     , m_uvPosition(uvPosition)
     , m_scenePosition(scenePosition)
     , m_position(position)
     , m_normal(normal)
+    , m_sceneNormal(sceneNormal)
     , m_instanceIndex(instanceIndex)
-    , m_itemHit(nullptr)
+    , m_itemHit(itemHit)
     , m_hitType(QQuick3DPickResultEnums::HitType::Model)
 {
+
 }
 
-// NB: we are intentionally storing the sceneNormal in the "m_normal" member variable
-// as 2D Items always have the same face normal, but we can't calculate the scene normal
-// on demand either. This logic should be handled in the respective getters.
 QQuick3DPickResult::QQuick3DPickResult(QQuickItem *itemHit,
                                        float distanceFromCamera,
                                        const QVector2D &uvPosition,
@@ -57,7 +60,8 @@ QQuick3DPickResult::QQuick3DPickResult(QQuickItem *itemHit,
     , m_uvPosition(uvPosition)
     , m_scenePosition(scenePosition)
     , m_position(position)
-    , m_normal(sceneNormal)
+    , m_normal({ 0, 0, 1 })
+    , m_sceneNormal(sceneNormal)
     , m_instanceIndex(-1)
     , m_itemHit(itemHit)
     , m_hitType(QQuick3DPickResultEnums::HitType::Item)
@@ -80,7 +84,7 @@ QQuick3DModel *QQuick3DPickResult::objectHit() const
 }
 
 /*!
-    \qmlproperty float pickResult::distance
+    \qmlproperty real pickResult::distance
     \readonly
 
     This property holds the distance between the pick origin and the hit position
@@ -138,13 +142,15 @@ QVector3D QQuick3DPickResult::position() const
     This property holds the normal of the face that was hit in local coordinate
     space.
 
+    \note This is the geometric normal of the face, which for a face that was
+    hit on its back side points away from the ray. Back sides are only picked
+    when the material's \l {Material::cullMode}{cull mode} does not discard
+    them.
+
     \note for 2D Items this will always be (0, 0, 1).
 */
 QVector3D QQuick3DPickResult::normal() const
 {
-    if (m_itemHit)
-        return QVector3D(0, 0, 1);
-
     return m_normal;
 }
 
@@ -158,10 +164,7 @@ QVector3D QQuick3DPickResult::normal() const
 */
 QVector3D QQuick3DPickResult::sceneNormal() const
 {
-    if (m_objectHit)
-        return m_objectHit->mapDirectionToScene(m_normal);
-
-    return m_normal;
+    return m_sceneNormal;
 }
 
 

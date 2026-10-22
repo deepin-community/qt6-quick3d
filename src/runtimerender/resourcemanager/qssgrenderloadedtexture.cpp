@@ -1,6 +1,7 @@
 // Copyright (C) 2008-2012 NVIDIA Corporation.
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:critical reason:data-parser
 
 #include <QtQuick3DRuntimeRender/private/qssgrenderloadedtexture_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendererutil_p.h>
@@ -19,7 +20,14 @@
 #define TINYEXR_USE_MINIZ 0
 #define TINYEXR_USE_THREAD 1
 #include <zlib.h>
+QT_WARNING_PUSH
+QT_WARNING_DISABLE_CLANG("-Wunused-parameter")
+QT_WARNING_DISABLE_CLANG("-Wunused-function")
+QT_WARNING_DISABLE_GCC("-Wunused-parameter")
+QT_WARNING_DISABLE_GCC("-Wunused-function")
 #include <tinyexr.h>
+QT_WARNING_POP
+#include "qssglightmapio_p.h"
 
 QT_BEGIN_NAMESPACE
 
@@ -27,7 +35,13 @@ QT_BEGIN_NAMESPACE
 QSharedPointer<QIODevice> QSSGInputUtil::getStreamForFile(const QString &inPath, bool inQuiet, QString *outPath)
 {
     QFile *file = nullptr;
-    QString tryPath = inPath.startsWith(QLatin1String("qrc:/")) ? inPath.mid(3) : inPath;
+    QString tryPath = inPath;
+    if (tryPath.startsWith(QLatin1String("qrc:/"))) {
+        tryPath = inPath.mid(3);
+    } else if (tryPath.startsWith(QLatin1String("file://"))) {
+        tryPath = inPath.mid(7);
+    }
+
     QFileInfo fi(tryPath);
     bool found = fi.exists();
     if (!found && fi.isNativePath()) {
@@ -285,7 +299,7 @@ static QImage loadImage(const QString &inPath, bool flipVertical)
 
     image.convertTo(targetFormat); // convert to a format mappable to QRhiTexture::Format
     if (flipVertical)
-        image.mirror(); // Flip vertically to the conventional Y-up orientation
+        image.flip(); // Flip vertically to the conventional Y-up orientation
     return image;
 }
 
@@ -335,6 +349,11 @@ QSSGLoadedTexture *QSSGLoadedTexture::loadCompressedImage(const QString &inPath)
             ? retval->textureFileData.glInternalFormat()
             : retval->textureFileData.glFormat();
     retval->format = fromGLtoTextureFormat(glFormat);
+
+    // SRGB8 ASTC formats are always sRGB
+    if ((retval->format.format >= QSSGRenderTextureFormat::SRGB8_Alpha8_ASTC_4x4) &&
+        (retval->format.format <= QSSGRenderTextureFormat::SRGB8_Alpha8_ASTC_12x12))
+        retval->isSRGB = true;
 
     delete reader;
     imageFile.close();
@@ -699,6 +718,13 @@ QSSGLoadedTexture *loadExr(const QSharedPointer<QIODevice> &source, const QSSGRe
     return imageData;
 
 }
+}
+
+QSSGLoadedTexture *QSSGLoadedTexture::loadLightmapImage(const QString &inPath, const QSSGRenderTextureFormat &inFormat, const QString &key)
+{
+    if (auto stream = QSSGInputUtil::getStreamForFile(inPath))
+        return QSSGLightmapLoader::createTexture(stream, inFormat, key);
+    return nullptr;
 }
 
 QSSGLoadedTexture *QSSGLoadedTexture::loadHdrImage(const QSharedPointer<QIODevice> &source, const QSSGRenderTextureFormat &inFormat)

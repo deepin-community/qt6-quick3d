@@ -1,5 +1,7 @@
 // Copyright (C) 2024 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QQUICK3DXRMANAGER_P_H
 #define QQUICK3DXRMANAGER_P_H
@@ -53,7 +55,7 @@ public:
 
     bool isValid() const;
 
-    void setPassthroughEnabled(bool enabled);
+    [[nodiscard]] bool setPassthroughEnabled(bool enabled);
     bool isPassthroughEnabled() const;
 
     QtQuick3DXr::FoveationLevel getFixedFoveationLevel() const;
@@ -72,6 +74,7 @@ public:
     void setMultiViewRenderingEnabled(bool enable);
     bool isMultiViewRenderingEnabled() const;
     bool isMultiViewRenderingSupported() const;
+    static bool isMultiviewRenderingDisabled();
 
     void setXROrigin(QQuick3DXrOrigin *origin);
 
@@ -79,7 +82,6 @@ public:
 
 private Q_SLOTS:
     void update();
-    void processSpatialEvents(const QJsonObject &events);
 
 Q_SIGNALS:
     void initialized();
@@ -87,6 +89,7 @@ Q_SIGNALS:
     void xrOriginChanged();
     void frameReady();
     void referenceSpaceChanged();
+    void multiViewRenderingEnabledChanged();
 
 protected:
     bool event(QEvent *e) override;
@@ -99,7 +102,6 @@ private:
 
     bool setupGraphics();
 
-    void processXrEvents();
     void renderFrame();
 
     void preSetupQuickScene();

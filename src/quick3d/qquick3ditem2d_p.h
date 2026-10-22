@@ -1,5 +1,7 @@
 // Copyright (C) 2020 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QSSGITEM2D_H
 #define QSSGITEM2D_H
@@ -25,9 +27,9 @@
 QT_BEGIN_NAMESPACE
 
 class QSGLayer;
-class QSGRenderer;
 class QSGRootNode;
 class QQuickRootItem;
+
 class Q_AUTOTEST_EXPORT QQuick3DItem2D : public QQuick3DNode, public QQuickItemChangeListener
 {
     Q_OBJECT
@@ -41,7 +43,6 @@ public:
     void itemDestroyed(QQuickItem *item) override;
 
 private Q_SLOTS:
-    void invalidated();
     void updatePicking();
     void derefWindow(QObject *win);
 
@@ -56,12 +57,9 @@ private:
     void markAllDirty() override;
 
     QVector<QQuickItem *> m_sourceItems;
-    QSGRenderer *m_renderer = nullptr;
-    QSGRootNode *m_rootNode = nullptr;
     QQuickWindow *m_window = nullptr;
     QQuickItem *m_contentItem = nullptr;
     bool m_pickingDirty = true;
-    QPointer<QQuick3DSceneManager> m_sceneManagerForLayer;
 };
 
 QT_END_NAMESPACE

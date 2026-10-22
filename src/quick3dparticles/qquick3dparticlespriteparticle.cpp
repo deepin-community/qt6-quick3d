@@ -1,5 +1,7 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qquick3dparticlespriteparticle_p.h"
 #include "qquick3dparticleemitter_p.h"
@@ -24,22 +26,23 @@ QT_BEGIN_NAMESPACE
 QQuick3DParticleSpriteParticle::QQuick3DParticleSpriteParticle(QQuick3DNode *parent)
     : QQuick3DParticle(parent)
 {
-    m_connections.insert("maxAmount", QObject::connect(this, &QQuick3DParticle::maxAmountChanged, this, [this]() {
-        handleMaxAmountChanged(m_maxAmount);
-    }));
-    m_connections.insert("system", QObject::connect(this, &QQuick3DParticle::systemChanged, this, [this]() {
-        handleSystemChanged(system());
-    }));
-    m_connections.insert("sortMode", QObject::connect(this, &QQuick3DParticle::sortModeChanged, this, [this]() {
-        markNodesDirty();
-    }));
+    m_connections = std::array{
+            connect(this, &QQuick3DParticle::maxAmountChanged, this, [this] {
+                handleMaxAmountChanged(m_maxAmount);
+            }),
+            connect(this, &QQuick3DParticle::systemChanged, this, [this] {
+                handleSystemChanged(system());
+            }),
+            connect(this, &QQuick3DParticle::sortModeChanged,
+                    this, &QQuick3DParticleSpriteParticle::markNodesDirty),
+    };
 }
 
 QQuick3DParticleSpriteParticle::~QQuick3DParticleSpriteParticle()
 {
     if (m_spriteSequence)
         m_spriteSequence->m_parentParticle = nullptr;
-    for (const auto &connection : std::as_const(m_connections))
+    for (auto &connection : m_connections)
         QObject::disconnect(connection);
     deleteNodes();
 
@@ -185,7 +188,7 @@ QQmlListProperty<QQuick3DAbstractLight> QQuick3DParticleSpriteParticle::lights()
 }
 
 /*!
-    \qmlproperty float SpriteParticle3D::offsetX
+    \qmlproperty real SpriteParticle3D::offsetX
     \since 6.3
 
     This property defines the particles offset in the X axis
@@ -196,7 +199,7 @@ float QQuick3DParticleSpriteParticle::offsetX() const
 }
 
 /*!
-    \qmlproperty float SpriteParticle3D::offsetY
+    \qmlproperty real SpriteParticle3D::offsetY
     \since 6.3
 
     This property defines the particles offset in the Y axis
@@ -459,6 +462,7 @@ void QQuick3DParticleSpriteParticle::handleSystemChanged(QQuick3DParticleSystem 
         value.particleUpdateNode = new ParticleUpdateNode(system);
         value.particleUpdateNode->m_particle = this;
     }
+    updateNodeLayers();
 }
 
 void QQuick3DParticleSpriteParticle::updateNodes()
@@ -471,6 +475,16 @@ void QQuick3DParticleSpriteParticle::markNodesDirty()
 {
     for (const PerEmitterData &value : std::as_const(m_perEmitterData))
         value.particleUpdateNode->m_nodeDirty = true;
+}
+
+void QQuick3DParticleSpriteParticle::updateNodeLayers()
+{
+    auto *psystem = system();
+    if (!psystem)
+        return;
+    const int layers = psystem->layers();
+    for (const PerEmitterData &value : std::as_const(m_perEmitterData))
+        value.particleUpdateNode->setLayers(layers);
 }
 
 void QQuick3DParticleSpriteParticle::updateFeatureLevel()
@@ -524,6 +538,7 @@ int QQuick3DParticleSpriteParticle::nextCurrentIndex(const QQuick3DParticleEmitt
         perEmitter.emitter = emitter;
         perEmitter.particleUpdateNode->m_particle = this;
         perEmitter.emitterIndex = m_nextEmitterIndex++;
+        updateNodeLayers();
     }
     auto &perEmitter = m_perEmitterData[emitter];
     int index = QQuick3DParticle::nextCurrentIndex(emitter);

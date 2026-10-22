@@ -1,5 +1,7 @@
 // Copyright (C) 2024 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qquick3dxrcontroller_p.h"
 
@@ -11,6 +13,8 @@
 
 #include "qquick3dxrview_p.h"
 #include "qquick3dxractionmapper_p.h"
+
+#include <QtGui/qquaternion.h>
 
 QT_BEGIN_NAMESPACE
 
@@ -38,14 +42,16 @@ QQuick3DXrController::QQuick3DXrController()
     Specifies the controller to track.
 
     It can be one of:
-    \value XrController.ControllerNone
-    \value XrController.ControllerLeft
-    \value XrController.ControllerRight
+    \value XrController.LeftController
+    \value XrController.RightController
+    \value XrController.UnknownController
+    \value XrController.LeftHand (alias for \c LeftController)
+    \value XrController.RightHand (alias for \c RightController)
 */
 
 QQuick3DXrController::Controller QQuick3DXrController::controller() const
 {
-    return m_controller;
+    return static_cast<QQuick3DXrController::Controller>(m_controller);
 }
 
 void QQuick3DXrController::setController(QQuick3DXrController::Controller newController)
@@ -78,9 +84,9 @@ void QQuick3DXrController::setController(QQuick3DXrController::Controller newCon
 QQuick3DXrHandInput *QQuick3DXrController::handInput() const
 {
     if (m_inputManager && m_inputManager->isValid()) {
-        if (m_controller == ControllerRight)
+        if (m_controller == Controller::ControllerRight)
             return m_inputManager->rightHandInput();
-        else if (m_controller == ControllerLeft)
+        else if (m_controller == Controller::ControllerLeft)
             return m_inputManager->leftHandInput();
     }
 
@@ -177,22 +183,17 @@ bool QQuick3DXrController::isActive() const
     return m_isActive;
 }
 
-QtQuick3DXr::Hand QtQuick3DXr::handForController(QQuick3DXrController::Controller controller)
+QtQuick3DXr::Handedness QtQuick3DXr::handednessForController(QtQuick3DXr::Controller controller)
 {
-    QSSG_ASSERT(controller != QQuick3DXrController::ControllerNone, return QQuick3DXrInputManager::Hand::RightHand);
+    QSSG_ASSERT(controller != QtQuick3DXr::Controller::UnknownController, return QtQuick3DXr::Handedness::Right);
     switch (controller) {
-    case QQuick3DXrController::ControllerLeft:
-        return QQuick3DXrInputManager::Hand::LeftHand;
-    case QQuick3DXrController::ControllerRight:
-        return QQuick3DXrInputManager::Hand::RightHand;
+    case QtQuick3DXr::Controller::LeftController:
+        return QtQuick3DXr::Handedness::Left;
+    case QtQuick3DXr::Controller::RightController:
+        return QtQuick3DXr::Handedness::Right;
     default:
         Q_UNREACHABLE();
     }
-}
-
-QtQuick3DXr::HandPoseSpace QtQuick3DXr::pose_cast(QQuick3DXrController::HandPoseSpace poseSpace)
-{
-    return static_cast<QtQuick3DXr::HandPoseSpace>(poseSpace);
 }
 
 QT_END_NAMESPACE

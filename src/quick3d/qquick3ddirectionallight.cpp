@@ -1,5 +1,7 @@
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qquick3ddirectionallight_p.h"
 #include "qquick3dobject_p.h"
@@ -64,6 +66,7 @@ QT_BEGIN_NAMESPACE
     direction of the DirectionalLight node's Z axis.
 
     \image directionallight-1.png
+           {Green circle showing directional light emitting along Z axis}
 
     Rotating 60 degrees around the X axis would lead to the following. Instead
     of emitting straight in the direction of the Z axis, the light is now
@@ -76,6 +79,7 @@ QT_BEGIN_NAMESPACE
     \endqml
 
     \image directionallight-2.png
+           {Green circle with shading showing rotated directional light}
 
     For further usage examples, see \l{Qt Quick 3D - Lights Example}.
 
@@ -83,20 +87,24 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty float DirectionalLight::csmSplit1
+    \qmlproperty real DirectionalLight::csmSplit1
+    \since 6.8
+
     This property defines where the first cascade of the shadow map split will occur when
     CSM is active.
 
     Range: \c{[0.0, 1.0]}
 
-    Default value: \c{0}
+    Default value: \c{0.1}
 
     \sa csmSplit2, csmSplit3
     \note This property is only used when DirectionalLight::csmNumSplits is greater than \c{0}.
 */
 
 /*!
-    \qmlproperty float DirectionalLight::csmSplit2
+    \qmlproperty real DirectionalLight::csmSplit2
+    \since 6.8
+
     This property defines where the second cascade of the shadow map split will occur when
     CSM is active.
 
@@ -109,7 +117,9 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty float DirectionalLight::csmSplit3
+    \qmlproperty real DirectionalLight::csmSplit3
+    \since 6.8
+
     This property defines where the third cascade of the shadow map split will occur when
     CSM is active.
 
@@ -123,6 +133,8 @@ QT_BEGIN_NAMESPACE
 
 /*!
     \qmlproperty int DirectionalLight::csmNumSplits
+    \since 6.8
+
     This property defines the number of splits the frustum should be split by when
     rendering the shadowmap. No splits means that the shadowmap will be rendered
     so that it covers the bounding box of all shadow casting and receiving objects.
@@ -135,13 +147,26 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty float DirectionalLight::csmBlendRatio
+    \qmlproperty real DirectionalLight::csmBlendRatio
+    \since 6.8
+
     This property defines how much of the shadow of any cascade should be blended
     together with the previous one.
 
     Range: \c{[0.0, 1.0]}
 
     Default value: \c{0.05}
+*/
+
+/*!
+    \qmlproperty bool DirectionalLight::lockShadowmapTexels
+    \since 6.9
+
+    When this property is enabled, the shadowmap texels are "locked" in position in the
+    world eliminating shadow edge shimmering at the cost of bigger shadowmap texels.
+    It works by using uniform sized, and texel aligned shadowmaps for each cascade.
+
+    Default value: \c{false}
 */
 
 QQuick3DDirectionalLight::QQuick3DDirectionalLight(QQuick3DNode *parent)
@@ -170,6 +195,11 @@ int QQuick3DDirectionalLight::csmNumSplits() const
 float QQuick3DDirectionalLight::csmBlendRatio() const
 {
     return m_csmBlendRatio;
+}
+
+bool QQuick3DDirectionalLight::lockShadowmapTexels() const
+{
+    return m_lockShadowmapTexels;
 }
 
 void QQuick3DDirectionalLight::setCsmSplit1(float newcsmSplit1)
@@ -232,6 +262,17 @@ void QQuick3DDirectionalLight::setCsmBlendRatio(float newcsmBlendRatio)
     update();
 }
 
+void QQuick3DDirectionalLight::setLockShadowmapTexels(bool newLockShadowmapTexels)
+{
+    if (m_lockShadowmapTexels == newLockShadowmapTexels)
+        return;
+
+    m_lockShadowmapTexels = newLockShadowmapTexels;
+    emit lockShadowmapTexelsChanged();
+    m_dirtyFlags.setFlag(QQuick3DAbstractLight::DirtyFlag::ShadowDirty);
+    update();
+}
+
 QSSGRenderGraphObject *QQuick3DDirectionalLight::updateSpatialNode(QSSGRenderGraphObject *node)
 {
     if (!node) {
@@ -246,6 +287,7 @@ QSSGRenderGraphObject *QQuick3DDirectionalLight::updateSpatialNode(QSSGRenderGra
         light->m_csmSplit3 = m_csmSplit3;
         light->m_csmNumSplits = m_csmNumSplits;
         light->m_csmBlendRatio = m_csmBlendRatio;
+        light->m_lockShadowmapTexels = m_lockShadowmapTexels;
     }
 
     QQuick3DAbstractLight::updateSpatialNode(node); // Marks the light node dirty if m_dirtyFlags != 0

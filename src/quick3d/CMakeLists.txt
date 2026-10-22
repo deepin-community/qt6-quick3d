@@ -38,6 +38,7 @@ qt_internal_add_module(Quick3D
         qquick3dquaternionanimation.cpp qquick3dquaternionanimation_p.h
         qquick3dquaternionutils.cpp qquick3dquaternionutils_p.h
         qquick3dreflectionprobe.cpp qquick3dreflectionprobe_p.h
+        qquick3drenderpass.cpp qquick3drenderpass_p.h
         qquick3drenderstats.cpp qquick3drenderstats_p.h
         qquick3drepeater.cpp qquick3drepeater_p.h
         qquick3dresourceloader.cpp qquick3dresourceloader_p.h
@@ -51,6 +52,7 @@ qt_internal_add_module(Quick3D
         qquick3dmorphtarget.cpp qquick3dmorphtarget_p.h
         qquick3dtexture.cpp qquick3dtexture_p.h
         qquick3dtexturedata.cpp qquick3dtexturedata.h qquick3dtexturedata_p.h
+        qquick3dskymaterial_p.h qquick3dskymaterial.cpp
         qquick3dskin.cpp qquick3dskin_p.h
         qquick3dutils_p.h
         qquick3dviewport.cpp qquick3dviewport_p.h
@@ -61,8 +63,10 @@ qt_internal_add_module(Quick3D
         qquick3dspecularglossymaterial.cpp qquick3dspecularglossymaterial_p.h
         qquick3dfog.cpp qquick3dfog_p.h
         qquick3dlightmapbaker.cpp qquick3dlightmapbaker_p.h
+        qquick3dcontentlayer.cpp qquick3dcontentlayer_p.h
         extensions/qquick3drenderextensions.cpp extensions/qquick3drenderextensions.h
         extensions/qquick3dextensionhelpers.cpp extensions/qquick3dextensionhelpers.h
+        extensions/qquick3dtextureproviderextension.cpp extensions/qquick3dtextureproviderextension.h extensions/qquick3dtextureproviderextension_p.h
     SSG_HEADER_FILTERS
         "(^|/)qquick3dextensionhelpers\\.h$"
     DEFINES
@@ -96,6 +100,7 @@ qt_internal_add_qml_module(Quick3D
     PLUGIN_TARGET qquick3dplugin
     NO_PLUGIN_OPTIONAL
     NO_GENERATE_PLUGIN_SOURCE
+    QML_FILES LightmapperOutputWindow.qml
 )
 
 qt_internal_extend_target(qquick3dplugin

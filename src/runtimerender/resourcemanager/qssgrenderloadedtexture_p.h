@@ -1,6 +1,8 @@
 // Copyright (C) 2008-2012 NVIDIA Corporation.
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QSSG_RENDER_LOADED_TEXTURE_H
 #define QSSG_RENDER_LOADED_TEXTURE_H
@@ -96,6 +98,7 @@ public:
     static QSSGLoadedTexture *loadCompressedImage(const QString &inPath);
     static QSSGLoadedTexture *loadHdrImage(const QSharedPointer<QIODevice> &source, const QSSGRenderTextureFormat &inFormat);
     static QSSGLoadedTexture *loadTextureData(QSSGRenderTextureData *textureData);
+    static QSSGLoadedTexture *loadLightmapImage(const QString &inPath, const QSSGRenderTextureFormat &inFormat, const QString &key);
 };
 QT_END_NAMESPACE
 

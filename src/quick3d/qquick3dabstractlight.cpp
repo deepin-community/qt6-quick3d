@@ -1,5 +1,7 @@
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qquick3dabstractlight_p.h"
 #include "qquick3dobject_p.h"
@@ -89,10 +91,11 @@ QT_BEGIN_NAMESPACE
     produces better quality shadows.
 
     Supported quality values are:
-    \value Light.ShadowMapQualityLow Render shadowmap using 256x256 texture.
-    \value Light.ShadowMapQualityMedium Render shadowmap using 512x512 texture.
-    \value Light.ShadowMapQualityHigh Render shadowmap using 1024x1024 texture.
-    \value Light.ShadowMapQualityVeryHigh Render shadowmap using 2048x2048 texture.
+    \value Light.ShadowMapQualityLow Render shadowmap using a 256x256 texture.
+    \value Light.ShadowMapQualityMedium Render shadowmap using a 512x512 texture.
+    \value Light.ShadowMapQualityHigh Render shadowmap using a 1024x1024 texture.
+    \value Light.ShadowMapQualityVeryHigh Render shadowmap using a 2048x2048 texture.
+    \value Light.ShadowMapQualityUltra Render shadowmap using a 4096x4096 texture.
 
     The default value is \c Light.ShadowMapQualityLow
 */
@@ -161,7 +164,11 @@ QT_BEGIN_NAMESPACE
 
 /*!
     \qmlproperty enumeration Light::softShadowQuality
-    The property controls the soft shadow quality.
+    \since 6.8
+
+    The property suggests the soft shadow quality that should be used when
+    shadows are enabled. The actual number of samples used when rendering shadows
+    is determined by highest quality set by any light used by a material.
 
     \value Light.Hard No soft shadows.
     \value Light.PCF4 Percentage-closer filtering soft shadows with 4 samples.
@@ -172,11 +179,15 @@ QT_BEGIN_NAMESPACE
 
     Default value: \c Light.PCF4
 
+    \note Currently values larger than 16 samples will be treated as 16 samples.
+
     \sa Light::pcfFactor, Light::shadowFilter
 */
 
 /*!
     \qmlproperty real Light::pcfFactor
+    \since 6.8
+
     The property controls the PCF (percentage-closer filtering) factor. This
     value tries to approximate the radius of a PCF filtering in world space.
 
@@ -186,6 +197,17 @@ QT_BEGIN_NAMESPACE
     Default value: \c{2.0}
 
     \sa Light::softShadowQuality
+*/
+
+/*!
+    \qmlproperty bool Light::use32BitShadowmap
+    \since 6.9
+
+    The property controls if a 32-bit shadowmap depth buffer should be used for the light.
+
+    Default value: \c{false}
+
+    \sa Light::castsShadow
 */
 
 QQuick3DAbstractLight::QQuick3DAbstractLight(QQuick3DNodePrivate &dd, QQuick3DNode *parent)
@@ -258,6 +280,11 @@ QQuick3DAbstractLight::QSSGBakeMode QQuick3DAbstractLight::bakeMode() const
 float QQuick3DAbstractLight::pcfFactor() const
 {
     return m_pcfFactor;
+}
+
+bool QQuick3DAbstractLight::use32BitShadowmap() const
+{
+    return m_use32BitShadowmap;
 }
 
 void QQuick3DAbstractLight::markAllDirty()
@@ -393,6 +420,17 @@ void QQuick3DAbstractLight::setPcfFactor(float pcfFactor)
     update();
 }
 
+void QQuick3DAbstractLight::setUse32BitShadowmap(bool use32BitShadowmap)
+{
+    if (m_use32BitShadowmap == use32BitShadowmap)
+        return;
+
+    m_use32BitShadowmap = use32BitShadowmap;
+    m_dirtyFlags.setFlag(DirtyFlag::ShadowDirty);
+    emit use32BitShadowmapChanged();
+    update();
+}
+
 void QQuick3DAbstractLight::setShadowMapFar(float shadowMapFar)
 {
     if (qFuzzyCompare(m_shadowMapFar, shadowMapFar))
@@ -424,6 +462,8 @@ quint32 QQuick3DAbstractLight::mapToShadowResolution(QSSGShadowMapQuality qualit
         return 1024;
     case QSSGShadowMapQuality::ShadowMapQualityVeryHigh:
         return 2048;
+    case QSSGShadowMapQuality::ShadowMapQualityUltra:
+        return 4096;
     default:
         break;
     }
@@ -463,6 +503,7 @@ QSSGRenderGraphObject *QQuick3DAbstractLight::updateSpatialNode(QSSGRenderGraphO
         light->m_shadowMapFar = m_shadowMapFar;
         light->m_shadowFilter = m_shadowFilter;
         light->m_pcfFactor = m_pcfFactor;
+        light->m_use32BitShadowmap = m_use32BitShadowmap;
     }
 
     if (m_dirtyFlags.testFlag(DirtyFlag::BakeModeDirty)) {

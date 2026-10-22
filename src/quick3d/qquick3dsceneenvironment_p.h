@@ -1,5 +1,7 @@
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QSSGSCENEENVIRONMENT_H
 #define QSSGSCENEENVIRONMENT_H
@@ -28,6 +30,8 @@
 #include <QtQuick3D/private/qquick3dlightmapper_p.h>
 #include <QtQuick3D/private/qquick3ddebugsettings_p.h>
 #include <QtQuick3D/private/qquick3dfog_p.h>
+#include <QtQuick3D/private/qquick3drenderpass_p.h>
+#include <QtQuick3D/private/qquick3dskymaterial_p.h>
 
 QT_BEGIN_NAMESPACE
 
@@ -39,6 +43,7 @@ class Q_QUICK3D_EXPORT QQuick3DSceneEnvironment : public QQuick3DObject
     Q_PROPERTY(QQuick3DEnvironmentAAModeValues antialiasingMode READ antialiasingMode WRITE setAntialiasingMode NOTIFY antialiasingModeChanged)
     Q_PROPERTY(QQuick3DEnvironmentAAQualityValues antialiasingQuality READ antialiasingQuality WRITE setAntialiasingQuality NOTIFY antialiasingQualityChanged)
 
+    Q_PROPERTY(QQuick3DEnvironmentTemporalAAMode temporalAAMode READ temporalAAMode WRITE setTemporalAAMode NOTIFY temporalAAModeChanged REVISION(6, 11))
     Q_PROPERTY(bool temporalAAEnabled READ temporalAAEnabled WRITE setTemporalAAEnabled NOTIFY temporalAAEnabledChanged)
     Q_PROPERTY(float temporalAAStrength READ temporalAAStrength WRITE setTemporalAAStrength NOTIFY temporalAAStrengthChanged)
     Q_PROPERTY(QQuick3DEnvironmentBackgroundTypes backgroundMode READ backgroundMode WRITE setBackgroundMode NOTIFY backgroundModeChanged)
@@ -55,6 +60,7 @@ class Q_QUICK3D_EXPORT QQuick3DSceneEnvironment : public QQuick3DObject
     Q_PROPERTY(bool aoEnabled READ aoEnabled WRITE setAoEnabled NOTIFY aoEnabledChanged REVISION(6, 5))
 
     Q_PROPERTY(QQuick3DTexture *lightProbe READ lightProbe WRITE setLightProbe NOTIFY lightProbeChanged)
+    Q_PROPERTY(QQuick3DSkyMaterial *skyMaterial READ skyMaterial WRITE setSkyMaterial NOTIFY skyMaterialChanged REVISION(6, 12))
     Q_PROPERTY(float probeExposure READ probeExposure WRITE setProbeExposure NOTIFY probeExposureChanged)
     Q_PROPERTY(float probeHorizon READ probeHorizon WRITE setProbeHorizon NOTIFY probeHorizonChanged)
     Q_PROPERTY(QVector3D probeOrientation READ probeOrientation WRITE setProbeOrientation NOTIFY probeOrientationChanged)
@@ -74,6 +80,8 @@ class Q_QUICK3D_EXPORT QQuick3DSceneEnvironment : public QQuick3DObject
     Q_PROPERTY(QRect scissorRect READ scissorRect WRITE setScissorRect NOTIFY scissorRectChanged REVISION(6, 5))
 
     Q_PROPERTY(QQuick3DFog *fog READ fog WRITE setFog NOTIFY fogChanged REVISION(6, 5))
+
+    Q_PROPERTY(QQuick3DEnvironmentOITMethod oitMethod READ oitMethod WRITE setOitMethod NOTIFY oitMethodChanged REVISION(6, 9))
 
     QML_NAMED_ELEMENT(SceneEnvironment)
 
@@ -99,7 +107,8 @@ public:
         Unspecified,
         Color,
         SkyBox,
-        SkyBoxCubeMap
+        SkyBoxCubeMap,
+        SkyMaterial
     };
     Q_ENUM(QQuick3DEnvironmentBackgroundTypes)
 
@@ -112,11 +121,27 @@ public:
     };
     Q_ENUM(QQuick3DEnvironmentTonemapModes)
 
+    enum QQuick3DEnvironmentOITMethod
+    {
+        OITNone = 0,
+        OITWeightedBlended,
+        OITLinkedList
+    };
+    Q_ENUM(QQuick3DEnvironmentOITMethod)
+
+    enum QQuick3DEnvironmentTemporalAAMode
+    {
+        TAADefault = 0,
+        TAAMotionVector
+    };
+    Q_ENUM(QQuick3DEnvironmentTemporalAAMode)
+
     explicit QQuick3DSceneEnvironment(QQuick3DObject *parent = nullptr);
     ~QQuick3DSceneEnvironment() override;
 
     QQuick3DEnvironmentAAModeValues antialiasingMode() const;
     QQuick3DEnvironmentAAQualityValues antialiasingQuality() const;
+    Q_REVISION(6, 11) QQuick3DEnvironmentTemporalAAMode temporalAAMode() const;
     bool temporalAAEnabled() const;
     float temporalAAStrength() const;
 
@@ -133,6 +158,7 @@ public:
     Q_REVISION(6, 5) void setAoEnabled(bool newAoEnabled);
 
     QQuick3DTexture *lightProbe() const;
+    Q_REVISION(6, 12) QQuick3DSkyMaterial *skyMaterial() const;
     float probeExposure() const;
     float probeHorizon() const;
     QVector3D probeOrientation() const;
@@ -154,6 +180,8 @@ public:
 
     Q_REVISION(6, 5) QQuick3DFog *fog() const;
 
+    QQuick3DEnvironmentOITMethod Q_REVISION(6, 9) oitMethod() const;
+
     bool gridEnabled() const;
     void setGridEnabled(bool newGridEnabled);
 
@@ -166,6 +194,7 @@ public:
 public Q_SLOTS:
     void setAntialiasingMode(QQuick3DSceneEnvironment::QQuick3DEnvironmentAAModeValues antialiasingMode);
     void setAntialiasingQuality(QQuick3DSceneEnvironment::QQuick3DEnvironmentAAQualityValues antialiasingQuality);
+    Q_REVISION(6, 11) void setTemporalAAMode(const QQuick3DEnvironmentTemporalAAMode &newTemporalAAMode);
     void setTemporalAAEnabled(bool temporalAAEnabled);
     void setTemporalAAStrength(float strength);
 
@@ -180,6 +209,7 @@ public Q_SLOTS:
     void setAoBias(float aoBias);
 
     void setLightProbe(QQuick3DTexture *lightProbe);
+    Q_REVISION(6, 12) void setSkyMaterial(QQuick3DSkyMaterial *skyMaterial);
     void setProbeExposure(float probeExposure);
     void setProbeHorizon(float probeHorizon);
     void setProbeOrientation(const QVector3D &orientation);
@@ -200,9 +230,12 @@ public Q_SLOTS:
 
     Q_REVISION(6, 5) void setFog(QQuick3DFog *fog);
 
+    Q_REVISION(6, 9) void setOitMethod(QQuick3DSceneEnvironment::QQuick3DEnvironmentOITMethod mode);
+
 Q_SIGNALS:
     void antialiasingModeChanged();
     void antialiasingQualityChanged();
+    Q_REVISION(6, 11) void temporalAAModeChanged();
     void temporalAAEnabledChanged();
     void temporalAAStrengthChanged();
 
@@ -218,6 +251,7 @@ Q_SIGNALS:
     Q_REVISION(6, 5) void aoEnabledChanged();
 
     void lightProbeChanged();
+    Q_REVISION(6, 12) void skyMaterialChanged();
     void probeExposureChanged();
     void probeHorizonChanged();
     void probeOrientationChanged();
@@ -237,6 +271,8 @@ Q_SIGNALS:
 
     Q_REVISION(6, 5) void fogChanged();
 
+    Q_REVISION(6, 9) void oitMethodChanged();
+
 protected:
     QSSGRenderGraphObject *updateSpatialNode(QSSGRenderGraphObject *node) override;
     void itemChange(ItemChange, const ItemChangeData &) override;
@@ -245,6 +281,12 @@ protected:
 
 private:
     friend class QQuick3DSceneRenderer;
+
+    enum InternalDirtyFlag : quint32
+    {
+        LightmapperDirty = 0x1,
+    };
+    using InternalDirtyFlagT = std::underlying_type_t<InternalDirtyFlag>;
 
     static constexpr float defaultAoDistance() { return 5.0f; }
 
@@ -259,6 +301,7 @@ private:
 
     QQuick3DEnvironmentAAModeValues m_antialiasingMode = NoAA;
     QQuick3DEnvironmentAAQualityValues m_antialiasingQuality = High;
+    QQuick3DEnvironmentTemporalAAMode m_temporalAAMode =  TAADefault;
     bool m_temporalAAEnabled = false;
     float m_temporalAAStrength = 0.3f;
     bool m_specularAAEnabled = false;
@@ -274,6 +317,7 @@ private:
     bool m_aoDither = false;
     bool m_aoEnabled = false;
     QQuick3DTexture *m_lightProbe = nullptr;
+    QQuick3DSkyMaterial *m_skyMaterial = nullptr;
     float m_probeExposure = 1.0f;
     float m_probeHorizon = 0.0f;
     QVector3D m_probeOrientation;
@@ -293,6 +337,8 @@ private:
     float m_gridScale = 1.0f;
     QQuick3DFog *m_fog = nullptr;
     QMetaObject::Connection m_fogSignalConnection;
+    QQuick3DEnvironmentOITMethod m_oitMethod = QQuick3DEnvironmentOITMethod::OITNone;
+    InternalDirtyFlagT m_dirtyFlags = { LightmapperDirty };
 };
 
 QT_END_NAMESPACE

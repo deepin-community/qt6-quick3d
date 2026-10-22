@@ -27,8 +27,11 @@
 #include <QtQuick3DRuntimeRender/private/qssgrhieffectsystem_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrhicustommaterialsystem_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgdebugdrawsystem_p.h>
+#include <QtQuick3DRuntimeRender/private/qssgrenderroot_p.h>
 
 #include <rhi/qshaderbaker.h>
+
+#include <memory>
 
 static inline void qDryRunPrintQsbcAdd(const QByteArray &id)
 {
@@ -42,6 +45,7 @@ static void initBaker(QShaderBaker *baker, QRhi *rhi)
     // TODO: For simplicity we're just going to add all off these for now.
     outputs.append({ QShader::SpirvShader, QShaderVersion(100) }); // Vulkan 1.0
     outputs.append({ QShader::HlslShader, QShaderVersion(50) }); // Shader Model 5.0
+    outputs.append({ QShader::HlslShader, QShaderVersion(60) }); // Shader Model 6.0
     outputs.append({ QShader::MslShader, QShaderVersion(12) }); // Metal 1.2
     outputs.append({ QShader::GlslShader, QShaderVersion(300, QShaderVersion::GlslEs) }); // GLES 3.0+
     outputs.append({ QShader::GlslShader, QShaderVersion(140) }); // OpenGL 3.1+
@@ -95,9 +99,15 @@ bool GenShaders::process(const MaterialParser::SceneData &sceneData,
     const QString outputFolder = outDir.canonicalPath() + QDir::separator() + resourceFolderRelative;
 
     QSSGRenderLayer layer;
+    if (!layer.rootNode) {
+        auto *rootNode = new QSSGRenderRoot;
+        rootNode->addChild(layer);
+        layer.rootNode = rootNode;
+    }
     renderContext->renderer()->setViewport(QRect(QPoint(), QSize(888,666)));
     const auto &renderer = renderContext->renderer();
-    QSSGLayerRenderData layerData(layer, *renderer);
+    const auto layerDataPtr = std::make_unique<QSSGLayerRenderData>(layer, *renderer);
+    auto &layerData = *layerDataPtr;
 
     const auto &shaderLibraryManager = renderContext->shaderLibraryManager();
     const auto &shaderCache = renderContext->shaderCache();
@@ -105,7 +115,6 @@ bool GenShaders::process(const MaterialParser::SceneData &sceneData,
 
     bool aaIsDirty = false;
     bool temporalIsDirty = false;
-    float ssaaMultiplier = 1.5f;
 
     QQuick3DViewport *view3D = sceneData.viewport;
     Q_ASSERT(view3D);
@@ -189,7 +198,16 @@ bool GenShaders::process(const MaterialParser::SceneData &sceneData,
         nodes.append(node);
     }
 
-    QQuick3DRenderLayerHelpers::updateLayerNodeHelper(*view3D, layer, aaIsDirty, temporalIsDirty, ssaaMultiplier);
+    // Ensure all spatial node types are in the render tree
+    for (auto *node : std::as_const(nodes)) {
+        if (QSSGRenderGraphObject::isNodeType(node->type)) {
+            QSSGRenderNode *n = static_cast<QSSGRenderNode *>(node);
+            if (!n->parent)
+                layer.addChild(*n);
+        }
+    }
+
+    QQuick3DRenderLayerHelpers::updateLayerNodeHelper(*view3D, renderContext, layer, aaIsDirty, temporalIsDirty);
 
     const QString outCollectionFile = outputFolder + QString::fromLatin1(QSSGShaderCache::shaderCollectionFile());
     QQsbIODeviceCollection qsbc(outCollectionFile);
@@ -199,7 +217,9 @@ bool GenShaders::process(const MaterialParser::SceneData &sceneData,
     QByteArray shaderString;
     const auto generateShaderForModel = [&](QSSGRenderModel &model) {
         layerData.resetForFrame();
-        layer.addChild(model);
+        if (!model.parent)
+            layer.addChild(model);
+        layerData.layer.rootNode->reindex();
         layerData.prepareForRender();
 
         const auto &features = layerData.getShaderFeatures();
@@ -217,7 +237,7 @@ bool GenShaders::process(const MaterialParser::SceneData &sceneData,
 
         auto generateShader = [&](const QSSGShaderFeatures &features) {
             if ((renderable->type == QSSGSubsetRenderable::Type::DefaultMaterialMeshSubset)) {
-                auto shaderPipeline = QSSGRendererPrivate::generateRhiShaderPipelineImpl(*static_cast<QSSGSubsetRenderable *>(renderable), *shaderLibraryManager, *shaderCache, *shaderProgramGenerator, propertyTable, features, shaderString);
+                auto shaderPipeline = QSSGRendererPrivate::generateRhiShaderPipelineImpl(*static_cast<QSSGSubsetRenderable *>(renderable), *shaderLibraryManager, *shaderCache, *shaderProgramGenerator, propertyTable, features, {/*shaderAugmentation*/}, shaderString);
                 if (shaderPipeline != nullptr) {
                     const auto qsbcFeatureList = QQsbCollection::toFeatureSet(features);
                     const QByteArray qsbcKey = QQsbCollection::EntryDesc::generateSha(shaderString, qsbcFeatureList);
@@ -304,8 +324,7 @@ bool GenShaders::process(const MaterialParser::SceneData &sceneData,
         nodes.append(renderEffect);
 
         const auto &commands = renderEffect->commands;
-        for (const QSSGRenderEffect::Command &c : commands) {
-            QSSGCommand *command = c.command;
+        for (const QSSGCommand *command : commands) {
             if (command->m_type == CommandType::BindShader) {
                 auto bindShaderCommand = static_cast<const QSSGBindShader &>(*command);
                 for (const auto isYUpInFramebuffer : { true, false }) { // Generate effects for both up-directions.

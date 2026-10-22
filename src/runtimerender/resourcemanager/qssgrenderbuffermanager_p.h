@@ -1,6 +1,8 @@
 // Copyright (C) 2008-2012 NVIDIA Corporation.
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QSSG_RENDER_BUFFER_MANAGER_H
 #define QSSG_RENDER_BUFFER_MANAGER_H
@@ -21,6 +23,8 @@
 #include <QtQuick3DRuntimeRender/private/qssgrendermesh_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendererutil_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgrendershadercache_p.h>
+#include <QtQuick3DRuntimeRender/private/qssguserrenderpassmanager_p.h>
+#include <QtQuick3DRuntimeRender/private/qssgrenderuserpass_p.h>
 #include <QtQuick3DUtils/private/qssgmesh_p.h>
 
 #include <QtQuick3DUtils/private/qquick3dprofiler_p.h>
@@ -56,23 +60,14 @@ class QQuick3DRenderExtension;
 
 struct QSSGMeshProcessingOptions
 {
-    bool wantsLightmapUVs = false;
-    uint lightmapBaseResolution = 0;
-    QString meshFileOverride;
+    QString lightmapPath;
+    QString lightmapKey;
 
     inline bool isCompatible(const QSSGMeshProcessingOptions &other) const
     {
-        // a mesh postprocessing request with no-lightmap-UVs is compatible
-        // with a previously processed mesh regardless of having generated
-        // lightmap UVs or not
-        if (!wantsLightmapUVs)
-            return true;
-
         // if lightmap UVs are wanted, the request can only use other's data
-        // if that generated lightmap UVs with the matching resolution
-        return other.wantsLightmapUVs && lightmapBaseResolution == other.lightmapBaseResolution;
-
-        // meshFileOverride plays no role here
+        // if the lightmap key is identical
+        return lightmapPath == other.lightmapPath && lightmapKey == other.lightmapKey;
     }
 };
 
@@ -96,6 +91,7 @@ public:
         QSSGRenderPath path;
         int mipMode;
         int type;
+        QString key;
     };
 
     struct CustomImageCacheKey {
@@ -134,22 +130,25 @@ public:
     QSSGRenderImageTexture loadRenderImage(const QSSGRenderImage *image,
                                            MipMode inMipMode = MipModeFollowRenderImage,
                                            LoadRenderImageFlags flags = LoadWithFlippedY);
+    QSSGRenderImageTexture loadTextureData(QSSGRenderTextureData *data, MipMode inMipMode);
     QSSGRenderImageTexture loadLightmap(const QSSGRenderModel &model);
     QSSGRenderImageTexture loadSkinmap(QSSGRenderTextureData *skin);
 
-    QSSGRenderMesh *getMeshForPicking(const QSSGRenderModel &model) const;
-    QSSGBounds3 getModelBounds(const QSSGRenderModel *model) const;
+    QSSGRenderMesh *getMeshForPicking(const QSSGRenderModel &model, const QString &lightmap) const;
+    QSSGBounds3 getModelBounds(const QSSGRenderModel *model);
 
-    QSSGRenderMesh *loadMesh(const QSSGRenderModel *model);
+    QSSGRenderMesh *loadMesh(const QSSGRenderModel &model);
+    QSSGMesh::Mesh loadLightmapMesh(const QSSGRenderModel &model);
 
     // Called at the end of the frame to release unreferenced geometry and textures
     void cleanupUnreferencedBuffers(quint32 frameId, QSSGRenderLayer *layer);
     void resetUsageCounters(quint32 frameId, QSSGRenderLayer *layer);
 
-    void releaseGeometry(QSSGRenderGeometry *geometry);
+    void releaseGeometry(QSSGRenderGeometry *geometry, const QString &lightmapSource = QString());
     void releaseTextureData(const QSSGRenderTextureData *data);
     void releaseTextureData(const CustomImageCacheKey &key);
     void releaseExtensionResult(const QSSGRenderExtension &rext);
+    void releaseUserRenderPass(const QSSGRenderUserPass &upass);
 
     void commitBufferResourceUpdates();
 
@@ -157,6 +156,7 @@ public:
 
     static std::unique_ptr<QSSGMeshBVH> loadMeshBVH(const QSSGRenderPath &inSourcePath);
     static std::unique_ptr<QSSGMeshBVH> loadMeshBVH(QSSGRenderGeometry *geometry);
+    static std::unique_ptr<QSSGMeshBVH> loadMeshBVH(const QSSGMesh::Mesh &mesh);
 
     static QSSGMesh::Mesh loadMeshData(const QSSGRenderPath &inSourcePath);
     QSSGMesh::Mesh loadMeshData(const QSSGRenderGeometry *geometry);
@@ -181,8 +181,13 @@ public:
     const QHash<ImageCacheKey, ImageData> &getImageMap() const { return imageMap; }
     const QHash<CustomImageCacheKey, ImageData> &getCustomTextureMap() const { return customTextureMap; }
     const QHash<QSGTexture *, ImageData> &getSGImageMap() const { return qsgImageMap; }
-    const QHash<QSSGRenderPath, MeshData> &getMeshMap() const { return meshMap; }
-    const QHash<QSSGRenderGeometry *, MeshData> &getCustomMeshMap() const { return customMeshMap; }
+    const QHash<std::pair<QSSGRenderPath, QString>, MeshData> &getMeshMap() const { return meshMap; }
+    const QHash<std::pair<QSSGRenderGeometry *, QString>, MeshData> &getCustomMeshMap() const { return customMeshMap; }
+
+    void setLightmapSource(const QString &source);
+    void setCurrentlyLightmapBaking(bool value);
+
+    void registerUserRenderPassManager(const QSSGUserRenderPassManagerPtr &userPassManager);
 
 private:
     void clear();
@@ -206,7 +211,6 @@ private:
     QSSGRenderMesh *loadRenderMesh(QSSGRenderGeometry *geometry, QSSGMeshProcessingOptions options);
 
     QSSGRenderMesh *createRenderMesh(const QSSGMesh::Mesh &mesh, const QString &debugObjectName = {});
-    QSSGRenderImageTexture loadTextureData(QSSGRenderTextureData *data, MipMode inMipMode);
     bool createEnvironmentMap(const QSSGLoadedTexture *inImage, QSSGRenderImageTexture *outTexture, const QString &debugObjectName);
 
     void releaseMesh(const QSSGRenderPath &inSourcePath);
@@ -219,8 +223,11 @@ private:
     QHash<CustomImageCacheKey, ImageData> customTextureMap;     // Textures (QQuick3DTextureData)
     QHash<QSGTexture *, ImageData> qsgImageMap;                 // Textures (from Qt Quick)
     QHash<const QSSGRenderExtension *, ImageData> renderExtensionTexture; // Textures (from QQuick3DRenderExtension)
-    QHash<QSSGRenderPath, MeshData> meshMap;                    // Meshes (specififed by path)
-    QHash<QSSGRenderGeometry *, MeshData> customMeshMap;        // Meshes (QQuick3DGeometry)
+    QHash<std::pair<QSSGRenderPath, QString>, MeshData> meshMap; // Meshes (specififed by path)
+    QHash<std::pair<QSSGRenderGeometry *, QString>, MeshData> customMeshMap; // Meshes (QQuick3DGeometry)
+
+    using QSSGUserRenderPassManagerWeakPtr = std::weak_ptr<QSSGUserRenderPassManager>;
+    std::vector<QSSGUserRenderPassManagerWeakPtr> userRenderPassManagers;
 
     QRhiResourceUpdateBatch *meshBufferUpdates = nullptr;
     QMutex meshBufferMutex;
@@ -229,18 +236,24 @@ private:
     quint32 frameResetIndex = 0;
     QSSGRenderLayer *currentLayer = nullptr;
     MemoryStats stats;
+
+    QString lightmapSource;
+    bool lightmapFileValid = false;
+    bool lightmapSourceDirty = true;
+    bool currentlyLightmapBaking = false;
+    bool validateLightmap();
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(QSSGBufferManager::LoadRenderImageFlags)
 
 inline size_t qHash(const QSSGBufferManager::ImageCacheKey &k, size_t seed) Q_DECL_NOTHROW
 {
-    return qHash(k.path, seed) ^ k.mipMode ^ k.type;
+    return qHash(k.path, seed) ^ k.mipMode ^ k.type ^ qHash(k.key, seed);
 }
 
 inline bool operator==(const QSSGBufferManager::ImageCacheKey &a, const QSSGBufferManager::ImageCacheKey &b) Q_DECL_NOTHROW
 {
-    return a.path == b.path && a.mipMode == b.mipMode && a.type == b.type;
+    return a.path == b.path && a.mipMode == b.mipMode && a.type == b.type && a.key == b.key;
 }
 
 size_t qHash(const QSSGBufferManager::CustomImageCacheKey &k, size_t seed) noexcept;

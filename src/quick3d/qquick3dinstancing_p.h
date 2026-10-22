@@ -1,5 +1,7 @@
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef Q_QUICK3D_INSTANCING_P_H
 #define Q_QUICK3D_INSTANCING_P_H
@@ -32,6 +34,8 @@ public:
     bool m_instanceDataChanged = true;
     bool m_instanceCountOverrideChanged = false;
     bool m_depthSortingEnabled = false;
+    QVector3D m_shadowBoundsMinimum = QVector3D(1, 1, 1);
+    QVector3D m_shadowBoundsMaximum = QVector3D(-1, -1, -1);
 };
 
 class Q_QUICK3D_EXPORT QQuick3DInstanceListEntry : public QQuick3DObject

@@ -1,5 +1,7 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QQUICK3DPARTICLETRAILEMITTER_H
 #define QQUICK3DPARTICLETRAILEMITTER_H
@@ -45,7 +47,7 @@ Q_SIGNALS:
 
 protected:
     friend class QQuick3DParticleSystem;
-    void emitTrailParticles(const QVector3D &centerPos, int emitAmount, int triggerType);
+    void emitTrailParticles(const QVector3D &centerPos, int emitAmount, int triggerType, const QVector3D &normal, const QVector3D &velocity);
     bool hasBursts() const;
     void clearBursts();
 

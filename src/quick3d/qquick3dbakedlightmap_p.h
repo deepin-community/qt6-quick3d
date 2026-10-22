@@ -1,5 +1,7 @@
 // Copyright (C) 2022 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QQUICK3DBAKEDLIGHTMAP_P_H
 #define QQUICK3DBAKEDLIGHTMAP_P_H
@@ -45,7 +47,7 @@ Q_SIGNALS:
     void loadPrefixChanged();
 
 private:
-    bool m_enabled = false;
+    bool m_enabled = true;
     QString m_key;
     QString m_loadPrefix;
 };

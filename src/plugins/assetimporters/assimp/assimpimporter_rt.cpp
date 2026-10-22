@@ -1,5 +1,7 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "assimpimporter.h"
 
@@ -14,6 +16,9 @@
 #include <QtQuick3DAssetImport/private/qssgassetimporter_p.h>
 #include <QtQuick3DAssetUtils/private/qssgscenedesc_p.h>
 #include <QtQuick3DAssetUtils/private/qssgsceneedit_p.h>
+#include <QtQuick3DAssetUtils/private/qssgqmlutilities_p.h>
+
+#include <QtQuick3DUtils/private/qssgutils_p.h>
 
 // ASSIMP INC
 #include <assimp/Importer.hpp>
@@ -127,10 +132,8 @@ struct SceneInfo
         bool binaryKeyframes = false;
         bool forceMipMapGeneration = false;
         bool useFloatJointIndices = false;
-        bool generateLightmapUV = false;
         bool designStudioWorkarounds = false;
 
-        int lightmapBaseResolution = 1024;
         float globalScaleValue = 1.0;
 
         bool generateMeshLODs = false;
@@ -189,7 +192,10 @@ ResourceIOStream::ResourceIOStream(const char *pFile, const char *pMode) : file(
         openMode |= QFile::WriteOnly;
     if (mode.endsWith("t"))
         openMode |= QFile::Text;
-    file.open(openMode);
+    if (!file.open(openMode)) {
+        qWarning("Failed to open file %s: %s",
+                 qPrintable(file.fileName()), qPrintable(file.errorString()));
+    }
 }
 
 size_t ResourceIOStream::Read(void *pvBuffer, size_t pSize, size_t pCount)
@@ -285,8 +291,12 @@ static void setNodeProperties(QSSGSceneDesc::Node &target,
                               aiMatrix4x4 *transformCorrection)
 {
     // objectName
-    if (target.name.isNull())
-        target.name = fromAiString(source.mName);
+    if (target.name.isNull()) {
+        if (source.mName.length > 0)
+            target.name = fromAiString(source.mName);
+        else
+            target.name = QSSGQmlUtilities::getQmlElementName(target);
+    }
 
     // Apply correction if necessary
     aiMatrix4x4 transformMatrix;
@@ -444,7 +454,10 @@ static void setMaterialProperties(QSSGSceneDesc::Material &target, const aiMater
 {
     if (target.name.isNull()) {
         aiString materialName = source.GetName();
-        target.name = fromAiString(materialName);
+        if (materialName.length > 0)
+            target.name = fromAiString(materialName);
+        else
+            target.name = QSSGQmlUtilities::getQmlElementName(target);
     }
 
     const auto createTextureNode = [&sceneInfo, &target](const aiMaterial &material, aiTextureType textureType, unsigned int index) {
@@ -526,8 +539,9 @@ static void setMaterialProperties(QSSGSceneDesc::Material &target, const aiMater
             aiColor4D baseColorFactor;
             result = source.Get(AI_MATKEY_BASE_COLOR, baseColorFactor);
             if (result == aiReturn_SUCCESS) {
-                QSSGSceneDesc::setProperty(target, "baseColor", &QQuick3DPrincipledMaterial::setBaseColor, aiColorToQColor(baseColorFactor));
-
+                // Some special handling required since baseColorFactor's are stored as linear factors and need to be converted for Qt Quick
+                const QColor sRGBBaseColorFactor = QSSGUtils::color::linearTosRGB(QVector4D(baseColorFactor.r, baseColorFactor.g, baseColorFactor.b, baseColorFactor.a));
+                QSSGSceneDesc::setProperty(target, "baseColor", &QQuick3DPrincipledMaterial::setBaseColor, sRGBBaseColorFactor);
             } else {
                 // Also try diffuse color as a fallback
                 aiColor3D diffuseColor;
@@ -756,6 +770,18 @@ static void setMaterialProperties(QSSGSceneDesc::Material &target, const aiMater
                                            float(ior));
         }
 
+        {
+            // opacity AI_MATKEY_OPACITY
+            ai_real opacity = 1.0f;
+            result = source.Get(AI_MATKEY_OPACITY, opacity);
+            if (result == aiReturn_SUCCESS)
+                QSSGSceneDesc::setProperty(target, "opacity", &QQuick3DPrincipledMaterial::setOpacity, float(opacity));
+
+            // opacityMap aiTextureType_OPACITY 0
+            if (auto opacityTexture = createTextureNode(source, aiTextureType_OPACITY, 0))
+                QSSGSceneDesc::setProperty(target, "opacityMap", &QQuick3DPrincipledMaterial::setOpacityMap, opacityTexture);
+        }
+
     } else if (type == QSSGSceneDesc::Material::RuntimeType::DefaultMaterial) { // Ver1
         int shadingModel = 0;
         auto material = &source;
@@ -949,8 +975,14 @@ static void setMaterialProperties(QSSGSceneDesc::Material &target, const aiMater
                                            clearcoatRoughnessTexture);
 
             // normal texture
-            if (auto clearcoatNormalTexture = createTextureNode(source, AI_MATKEY_CLEARCOAT_NORMAL_TEXTURE))
+            if (auto clearcoatNormalTexture = createTextureNode(source, AI_MATKEY_CLEARCOAT_NORMAL_TEXTURE)) {
                 QSSGSceneDesc::setProperty(target, "clearcoatNormalMap", &QQuick3DSpecularGlossyMaterial::setClearcoatNormalMap, clearcoatNormalTexture);
+
+                ai_real clearcoatNormalStrength = 0.0f;
+                result = source.Get(AI_MATKEY_GLTF_TEXTURE_SCALE(aiTextureType_CLEARCOAT, 2), clearcoatNormalTexture);
+                if (result == aiReturn_SUCCESS)
+                    QSSGSceneDesc::setProperty(target, "clearcoatNormalStrength", &QQuick3DPrincipledMaterial::setClearcoatNormalStrength, float(clearcoatNormalStrength));
+            }
         }
 
         {
@@ -1195,28 +1227,11 @@ static void setLightProperties(QSSGSceneDesc::Light &target, const aiLight &sour
 }
 
 using MorphAttributes = QQuick3DMorphTarget::MorphTargetAttributes;
-using MorphProperty = QPair<MorphAttributes, float>;
-
-static QVector<MorphProperty> getMorphTargetProperties(const aiMesh &mesh)
-{
-    QVector<MorphProperty> targets;
-    const quint32 numMorphTargets = qMin(8U, mesh.mNumAnimMeshes);
-
-    for (uint i = 0; i < numMorphTargets; ++i) {
-        const auto &animMesh = mesh.mAnimMeshes[i];
-        QQuick3DMorphTarget::MorphTargetAttributes mTarget;
-        if (animMesh->HasPositions())
-            mTarget |= QQuick3DMorphTarget::MorphTargetAttribute::Position;
-        if (animMesh->HasNormals())
-            mTarget |= QQuick3DMorphTarget::MorphTargetAttribute::Normal;
-        if (animMesh->HasTangentsAndBitangents()) {
-            mTarget |= QQuick3DMorphTarget::MorphTargetAttribute::Tangent;
-            mTarget |= QQuick3DMorphTarget::MorphTargetAttribute::Binormal;
-        }
-        targets.push_back(qMakePair(mTarget, animMesh->mWeight));
-    }
-    return targets;
-}
+struct MorphProperty {
+    QByteArray name;
+    MorphAttributes attrib;
+    float weight;
+};
 
 static void setModelProperties(QSSGSceneDesc::Model &target, const aiNode &source, const SceneInfo &sceneInfo)
 {
@@ -1410,13 +1425,28 @@ static void processNode(const SceneInfo &sceneInfo, const aiNode &source, QSSGSc
     if (source.mNumMeshes != 0) {
         // Process morphTargets first and then add them to the modelNode
         using It = decltype(source.mNumMeshes);
-        QVector<MorphProperty> morphProps;
+        QVarLengthArray<MorphProperty> morphProps;
         for (It i = 0, end = source.mNumMeshes; i != end; ++i) {
             const auto &srcScene = sceneInfo.scene;
             const aiMesh &mesh = *srcScene.mMeshes[source.mMeshes[i]];
-            if (mesh.mNumAnimMeshes && mesh.mAnimMeshes) {
-                morphProps = getMorphTargetProperties(mesh);
-                break;
+            const quint32 numMorphTargets = mesh.mNumAnimMeshes;
+            if (numMorphTargets && mesh.mAnimMeshes) {
+                morphProps.reserve(numMorphTargets);
+                for (uint j = 0; j < numMorphTargets; ++j) {
+                    const auto &animMesh = mesh.mAnimMeshes[j];
+                    MorphAttributes attrib;
+                    if (animMesh->HasPositions())
+                        attrib |= QQuick3DMorphTarget::MorphTargetAttribute::Position;
+                    if (animMesh->HasNormals())
+                        attrib |= QQuick3DMorphTarget::MorphTargetAttribute::Normal;
+                    if (animMesh->HasTangentsAndBitangents()) {
+                        attrib |= QQuick3DMorphTarget::MorphTargetAttribute::Tangent;
+                        attrib |= QQuick3DMorphTarget::MorphTargetAttribute::Binormal;
+                    }
+                    morphProps.append({ fromAiString(animMesh->mName),
+                                           attrib,
+                                           animMesh->mWeight });
+                }
             }
         }
         node = createSceneNode(NodeInfo { 0, QSSGSceneDesc::Node::Type::Model }, source, parent, sceneInfo);
@@ -1429,8 +1459,9 @@ static void processNode(const SceneInfo &sceneInfo, const aiNode &source, QSSGSc
 
                 auto morphNode = new QSSGSceneDesc::MorphTarget;
                 QSSGSceneDesc::addNode(*node, *morphNode);
-                QSSGSceneDesc::setProperty(*morphNode, "weight", &QQuick3DMorphTarget::setWeight, morphProp.second);
-                QSSGSceneDesc::setProperty(*morphNode, "attributes", &QQuick3DMorphTarget::setAttributes, morphProp.first);
+                QSSGSceneDesc::setProperty(*morphNode, "weight", &QQuick3DMorphTarget::setWeight, morphProp.weight);
+                QSSGSceneDesc::setProperty(*morphNode, "attributes", &QQuick3DMorphTarget::setAttributes, morphProp.attrib);
+                morphNode->name = morphProp.name;
                 morphTargets.push_back(morphNode);
 
                 if (!animationNodes.isEmpty()) {
@@ -1516,7 +1547,6 @@ static qreal getRealOption(const QString &optionName, const QJsonObject &options
 
 #define demonPostProcessPresets ( \
     aiProcess_CalcTangentSpace              |  \
-    aiProcess_GenSmoothNormals              |  \
     aiProcess_JoinIdenticalVertices         |  \
     aiProcess_ImproveCacheLocality          |  \
     aiProcess_RemoveRedundantMaterials      |  \
@@ -1650,13 +1680,6 @@ static SceneInfo::Options processSceneOptions(const QJsonObject &optionsObject) 
     sceneOptions.useFloatJointIndices = checkBooleanOption(QStringLiteral("useFloatJointIndices"), options);
     sceneOptions.forceMipMapGeneration = checkBooleanOption(QStringLiteral("generateMipMaps"), options);
     sceneOptions.binaryKeyframes = checkBooleanOption(QStringLiteral("useBinaryKeyframes"), options);
-
-    sceneOptions.generateLightmapUV = checkBooleanOption(QStringLiteral("generateLightmapUV"), options);
-    if (sceneOptions.generateLightmapUV) {
-        qreal v = getRealOption(QStringLiteral("lightmapBaseResolution"), options);
-        sceneOptions.lightmapBaseResolution = v == 0.0 ? 1024 : int(v);
-    }
-
     sceneOptions.generateMeshLODs = checkBooleanOption(QStringLiteral("generateMeshLevelsOfDetail"), options);
     if (sceneOptions.generateMeshLODs) {
         bool recalculateLODNormals = checkBooleanOption(QStringLiteral("recalculateLodNormals"), options);
@@ -1701,6 +1724,12 @@ static QString importImp(const QUrl &url, const QJsonObject &options, QSSGSceneD
 
     if (filePath.startsWith(":"))
         importer->SetIOHandler(new ResourceIOSystem);
+#ifdef Q_OS_WASM
+    // Always use QFile-based IO on wasm, so that URL schemes like
+    // weblocalfile: are handled by Qt's file engine abstraction.
+    else
+        importer->SetIOHandler(new ResourceIOSystem);
+#endif
 
     auto sourceScene = importer->ReadFile(filePath.toStdString(), postProcessSteps);
     if (!sourceScene) {
@@ -1760,8 +1789,9 @@ static QString importImp(const QUrl &url, const QJsonObject &options, QSSGSceneD
                     const auto &nodeName = srcChannel->mName;
                     if (nodeName.length > 0) {
                         const auto morphKeys = srcChannel->mKeys;
-                        const auto numMorphTargets = qMin(morphKeys[0].mNumValuesAndWeights, 8U);
-                        // MorphTarget is renamed with <nodeName> + '_morph' + <targetNumber>
+                        const auto numMorphTargets = morphKeys[0].mNumValuesAndWeights;
+                        // MorphTarget's animations are stored with a name,
+                        // "<nodeName> + '_morph' + <targetNumber>"
                         for (It j = 0; j < numMorphTargets; ++j) {
                             QString morphTargetName(nodeName.C_Str());
                             morphTargetName += QStringLiteral("_morph") + QString::number(j);
@@ -1822,7 +1852,7 @@ static QString importImp(const QUrl &url, const QJsonObject &options, QSSGSceneD
     SceneInfo::TextureMap textureMap;
 
     if (!targetScene.root) {
-        auto root = new QSSGSceneDesc::Node(QSSGSceneDesc::Node::Type::Transform, QSSGSceneDesc::Node::RuntimeType::Node);
+        auto root = new QSSGSceneDesc::Node(QByteArrayLiteral("Root"), QSSGSceneDesc::Node::Type::Transform, QSSGSceneDesc::Node::RuntimeType::Node);
         QSSGSceneDesc::addNode(targetScene, *root);
     }
 
@@ -1913,7 +1943,7 @@ static QString importImp(const QUrl &url, const QJsonObject &options, QSSGSceneD
                     // Target propert[y|ies]
 
                     const auto currentPropertyValue = [targetNode](const char *propertyName) -> QVariant {
-                        for (auto *p : targetNode->properties) {
+                        for (const auto *p : std::as_const(targetNode->properties)) {
                             if (!qstrcmp(propertyName, p->name))
                                 return p->value;
                         }

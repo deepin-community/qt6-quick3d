@@ -1,6 +1,8 @@
 // Copyright (C) 2008-2012 NVIDIA Corporation.
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QSSG_RENDER_RAY_H
 #define QSSG_RENDER_RAY_H
@@ -18,6 +20,7 @@
 
 #include <QtQuick3DUtils/private/qssgbounds3_p.h>
 #include <QtQuick3DUtils/private/qssgplane_p.h>
+#include <QtQuick3DUtils/private/qssgrenderbasetypes_p.h>
 
 #include <QtGui/QVector2D>
 #include <QtGui/QVector3D>
@@ -55,7 +58,8 @@ struct Q_AUTOTEST_EXPORT QSSGRenderRay
                                   const QVector3D &v2,
                                   float &u,
                                   float &v,
-                                  QVector3D &normal);
+                                  QVector3D &normal,
+                                  QSSGCullFaceMode cullMode = QSSGCullFaceMode::Back);
 
     struct IntersectionResult
     {
@@ -65,18 +69,21 @@ struct Q_AUTOTEST_EXPORT QSSGRenderRay
         QVector3D scenePosition;
         QVector3D localPosition;
         QVector3D faceNormal;
+        QVector3D sceneFaceNormal;
         IntersectionResult() = default;
         inline constexpr IntersectionResult(float rl,
                                             const QVector2D &relxy,
                                             const QVector3D &scenePosition,
                                             const QVector3D &localPosition,
-                                            const QVector3D &normal)
+                                            const QVector3D &normal,
+                                            const QVector3D &sceneNormal)
             : intersects(true)
             , rayLengthSquared(rl)
             , relXY(relxy)
             , scenePosition(scenePosition)
             , localPosition(localPosition)
             , faceNormal(normal)
+            , sceneFaceNormal(sceneNormal)
         {}
     };
 
@@ -115,15 +122,17 @@ struct Q_AUTOTEST_EXPORT QSSGRenderRay
                                          const QSSGBounds3 &bounds);
 
     static void intersectWithBVH(const RayData &data,
-                                        const QSSGMeshBVHNode *bvh,
-                                        const QSSGRenderMesh *mesh,
-                                        QVector<IntersectionResult> &intersections,
-                                        int depth = 0);
+                                 const QSSGMeshBVHNode *bvh,
+                                 const QSSGRenderMesh *mesh,
+                                 QVector<IntersectionResult> &intersections,
+                                 QSSGCullFaceMode cullMode = QSSGCullFaceMode::Back,
+                                 int depth = 0);
 
     static QVector<IntersectionResult> intersectWithBVHTriangles(const RayData &data,
                                                                  const std::vector<QSSGMeshBVHTriangle> &bvhTriangles,
                                                                  int triangleOffset,
-                                                                 int triangleCount);
+                                                                 int triangleCount,
+                                                                 QSSGCullFaceMode cullMode = QSSGCullFaceMode::Back);
 
     std::optional<QVector2D> relative(const QMatrix4x4 &inGlobalTransform,
                                         const QSSGBounds3 &inBounds,

@@ -148,10 +148,10 @@ vec3 apply_cas(vec3 color, float exposure, float sharpen_intensity) {
     return max(vec3(0.0), (window * w_rgb + e) * rcp_weight_rgb);
 }
 
-vec3 apply_bcs(vec3 color, vec3 bcs) {
-    color = mix(vec3(0.0), color, bcs.x);
-    color = mix(vec3(0.5), color, bcs.y);
-    color = mix(vec3(dot(vec3(1.0), color) * 0.33333), color, bcs.z);
+vec3 apply_bcs(vec3 color) {
+    color = mix(vec3(0.0), color, adjustmentBrightness);
+    color = mix(vec3(0.5), color, adjustmentContrast);
+    color = mix(vec3(dot(vec3(1.0), color) * 0.33333), color, adjustmentSaturation);
 
     return color;
 }
@@ -252,10 +252,9 @@ vec3 sampleGlowBuffer(sampler2D glowBuffer, int level)
 }
 
 float fixY(float y) {
-    if (qt_normalAdjustViewportFactor > 0.0)
-        return y;
-    const float lut_div = lutSize - 1.0;
-    return lut_div - y;
+    // The LUT texture is uploaded with LoadWithFlippedY, so texelFetch y=k maps
+    // to original image row (lutSize-1-k) on all backends. Un-flip unconditionally.
+    return lutSize - 1.0 - y;
 }
 
 // Gets interpolation percentage for color  channel using floor and diff values.
@@ -437,7 +436,7 @@ void MAIN()
 
     // Brightness, Contrast, Saturation Adjustments
     if (colorAdjustmentsEnabled)
-        color = apply_bcs(color, bcsAdjustments);
+        color = apply_bcs(color);
 
     // Color Grading (LUT)
     if (enableLut) {

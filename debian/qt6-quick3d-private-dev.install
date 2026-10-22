@@ -1,3 +1,4 @@
+#!/usr/bin/dh-exec
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3D/6.*/QtQuick3D/private/*.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3D/6.*/QtQuick3D/ssg/*.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DAssetImport/6.*/QtQuick3DAssetImport/private/*.h
@@ -11,7 +12,7 @@ usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DRuntimeRender/6.*/QtQuick3DRuntim
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DRuntimeRender/6.*/QtQuick3DRuntimeRender/ssg/*.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DUtils/6.*/QtQuick3DUtils/private/*.h
 usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DUtils/6.*/QtQuick3DUtils/ssg/*.h
-usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DGlslParserPrivate/*.cmake
+[alpha amd64 arm64 armel armhf i386 m68k mips64el ppc64 ppc64el riscv64 s390x sparc64] usr/include/${DEB_HOST_MULTIARCH}/qt6/QtQuick3DXr/6.*/QtQuick3DXr/private/*.h
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DGlslParserPrivate/Qt6Quick3DGlslParserPrivateAdditionalTargetInfo.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DGlslParserPrivate/Qt6Quick3DGlslParserPrivateConfig.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DGlslParserPrivate/Qt6Quick3DGlslParserPrivateConfigVersion.cmake
@@ -20,17 +21,16 @@ usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DGlslParserPrivate/Qt6Quick3DGlslPa
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DGlslParserPrivate/Qt6Quick3DGlslParserPrivateTargets-none.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DGlslParserPrivate/Qt6Quick3DGlslParserPrivateTargets.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DGlslParserPrivate/Qt6Quick3DGlslParserPrivateVersionlessTargets.cmake
-usr/lib/${DEB_HOST_MULTIARCH}/qt6/metatypes/qt6quick3dglslparserprivate_none_metatypes.json
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/metatypes/qt6quick3dglslparserprivate_metatypes.json
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3d_private.pri
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3dassetimport_private.pri
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3dassetutils_private.pri
-usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3deffects_private.pri
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3dglslparser_private.pri
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3dhelpers_private.pri
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3dhelpersimpl_private.pri
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3diblbaker_private.pri
-usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3dparticleeffects_private.pri
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3dparticles_private.pri
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3druntimerender_private.pri
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3dutils_private.pri
+[alpha amd64 arm64 armel armhf i386 m68k mips64el ppc64 ppc64el riscv64 s390x sparc64] usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3dxr_private.pri
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/modules/Quick3DGlslParserPrivate.json

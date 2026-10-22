@@ -1,12 +1,13 @@
 // Copyright (C) 2022 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "instancerepeater_p.h"
 #include <math.h>
 #include <QMatrix4x4>
 
 QT_BEGIN_NAMESPACE
-
 
 /*!
     \qmltype InstanceModel
@@ -42,30 +43,6 @@ QT_BEGIN_NAMESPACE
     \sa InstanceRepeater
 */
 
-
-/*
- \table
-    \header
-        \li Qt Core Feature
-        \li Brief Description
-    \row
-        \li \l {Signal and Slots}
-        \li Signals and slots are used for communication
-           between objects.
-    \row
-        \li \l {Layout Management}
-        \li The Qt layout system provides a simple
-           and powerful way of specifying the layout
-           of child widgets.
-    \row
-        \li \l {Drag and Drop}
-        \li Drag and drop provides a simple visual
-           mechanism which users can use to transfer
-           information between and within applications.
-    \endtable
-
-   */
-
 /*!
     \qmlproperty Instancing InstanceModel::instancingTable
 
@@ -83,11 +60,10 @@ QVariant InstanceModel::data(const QModelIndex &index, int role) const
         return QVariant();
     ensureTable();
 
-
     int idx = index.row();
 
     if (idx >= m_count) {
-        qWarning("That's not supposed to happen...");
+        qWarning("InstanceModel: index out of range");
         return QVariant();
     }
 
@@ -139,7 +115,9 @@ void InstanceModel::ensureTable() const
 
 void InstanceModel::reset()
 {
+    beginResetModel();
     m_instanceData.clear();
+    endResetModel();
 }
 
 /*!

@@ -1,5 +1,7 @@
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qquick3dnode_p.h"
 #include "qquick3dnode_p_p.h"
@@ -12,8 +14,10 @@
 
 QT_BEGIN_NAMESPACE
 
-QQuick3DNodePrivate::QQuick3DNodePrivate(QQuick3DObjectPrivate::Type t)
+QQuick3DNodePrivate::QQuick3DNodePrivate(QQuick3DObjectPrivate::Type t,
+                                         QQuick3DContentLayer::LayerFlag layerFlag)
     : QQuick3DObjectPrivate(t)
+    , m_tag(layerFlag)
 {
 
 }
@@ -195,7 +199,7 @@ float QQuick3DNode::z() const
 QQuaternion QQuick3DNode::rotation() const
 {
     Q_D(const QQuick3DNode);
-    return d->m_rotation;
+    return d->m_rotation.toQuaternion();
 }
 
 /*!
@@ -383,7 +387,7 @@ void QQuick3DNodePrivate::calculateGlobalVariables()
 {
     Q_Q(QQuick3DNode);
     m_sceneTransformDirty = false;
-    QMatrix4x4 localTransform = QSSGRenderNode::calculateTransformMatrix(m_position, m_scale, m_pivot, m_rotation);
+    QMatrix4x4 localTransform = QSSGRenderNode::calculateTransformMatrix(m_position, m_scale, m_pivot, m_rotation.toQuaternion());
     QQuick3DNode *parent = q->parentNode();
     if (!parent) {
         m_sceneTransform = localTransform;
@@ -573,8 +577,8 @@ void QQuick3DNodePrivate::markSceneTransformDirty()
     if (m_sceneTransformConnectionCount > 0 || m_directionConnectionCount > 0)
         emitChangesToSceneTransform();
 
-    auto children = QQuick3DObjectPrivate::get(q)->childItems;
-    for (auto child : children) {
+    const auto children = QQuick3DObjectPrivate::get(q)->childItems;
+    for (auto *child : children) {
         if (auto node = qobject_cast<QQuick3DNode *>(child)) {
             QQuick3DNodePrivate::get(node)->markSceneTransformDirty();
         }
@@ -736,7 +740,7 @@ void QQuick3DNode::setEulerRotation(const QVector3D &eulerRotation) {
 }
 
 /*!
-    \qmlmethod QtQuick3D::Node::rotate(real degrees, vector3d axis, enumeration space)
+    \qmlmethod void QtQuick3D::Node::rotate(real degrees, vector3d axis, enumeration space)
 
     Rotates this node around an \a axis by the given \a degrees. The specified
     rotation will be added to the node's current rotation. The axis can
@@ -823,13 +827,18 @@ QSSGRenderGraphObject *QQuick3DNode::updateSpatialNode(QSSGRenderGraphObject *no
         if (!transformIsDirty && !qFuzzyCompare(d->m_scale, QSSGUtils::mat44::getScale(spacialNode->localTransform)))
             transformIsDirty = true;
 
-        if (!transformIsDirty && !qFuzzyCompare(d->m_rotation, QQuaternion::fromRotationMatrix(QSSGUtils::mat44::getUpper3x3(spacialNode->localTransform))))
+        if (!transformIsDirty && d->m_rotation != QQuaternion::fromRotationMatrix(QSSGUtils::mat44::getUpper3x3(spacialNode->localTransform)))
             transformIsDirty = true;
 
         if (transformIsDirty) {
-            spacialNode->localTransform = QSSGRenderNode::calculateTransformMatrix(d->m_position, d->m_scale, d->m_pivot, d->m_rotation);;
+            spacialNode->localTransform = QSSGRenderNode::calculateTransformMatrix(d->m_position, d->m_scale, d->m_pivot, d->m_rotation.toQuaternion());
             spacialNode->markDirty(QSSGRenderNode::DirtyFlag::TransformDirty);
         }
+    }
+
+    if (d->m_tag != spacialNode->tag) {
+        spacialNode->tag = d->m_tag;
+        spacialNode->markDirty(QSSGRenderNode::DirtyFlag::TagDirty);
     }
 
     spacialNode->staticFlags = d->m_staticFlags;
@@ -1006,13 +1015,57 @@ QVector3D QQuick3DNode::eulerRotation() const
 {
     const Q_D(QQuick3DNode);
 
-    return d->m_rotation;
+    return d->m_rotation.toEulerAngles();
 }
 
 void QQuick3DNode::itemChange(ItemChange change, const ItemChangeData &)
 {
     if (change == QQuick3DObject::ItemParentHasChanged)
         QQuick3DNodePrivate::get(this)->markSceneTransformDirty();
+}
+
+/*!
+    \qmlproperty int QtQuick3D::Node::layers
+
+    This property defines the content layers that this node belongs to.
+    The layers can be used to group nodes that belongs together, for example
+    to be rendered together or to be filtered out from rendering.
+    Setting this property on the active \l Camera will cause the camera to
+    only render nodes that belong to the specified layers.
+    The value is a bitmask, where each bit represents a layer.
+
+    By default nodes are assigned to the \c main layer, which is
+    \l {ContentLayer}{ContentLayer.Layer0}.
+
+    \note The layers property is not inherited; setting it on a node does not
+    propagate the value from parent to child. Each node keeps its own layer
+    assignment and must be set individually.
+
+    \sa ContentLayer
+*/
+
+int QQuick3DNode::layers() const
+{
+    const Q_D(QQuick3DNode);
+
+    return QQuick3DContentLayer::LayerFlags::fromInt(d->m_tag.value());
+}
+
+void QQuick3DNode::setLayers(int newLayers)
+{
+    Q_D(QQuick3DNode);
+
+    if (newLayers < 0) {
+        qWarning("QQuick3DNode::setLayers: value must be non-negative");
+        return;
+    }
+
+    if (d->m_tag == quint32(newLayers))
+        return;
+
+    d->m_tag.setValue(newLayers);
+    emit layersChanged();
+    update();
 }
 
 QT_END_NAMESPACE

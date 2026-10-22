@@ -1,5 +1,7 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qquick3dparticlecustomshape_p.h"
 #include "qquick3dparticlerandomizer_p.h"
@@ -14,7 +16,7 @@ QT_BEGIN_NAMESPACE
 
 /*!
     \qmltype ParticleCustomShape3D
-    \inherits ParticleAbtractShape3D
+    \inherits ParticleAbstractShape3D
     \inqmlmodule QtQuick3D.Particles3D
     \brief Loads custom particle shapes for emitters and affectors.
     \since 6.3
@@ -59,6 +61,11 @@ QQuick3DParticleCustomShape::QQuick3DParticleCustomShape(QObject *parent)
     \qmlproperty url ParticleCustomShape3D::source
 
     This property holds the location of the shape file.
+
+     \warning \a source is expected to contain trusted content. Application
+     developers are advised to carefully consider the potential implications
+     before passing in user-provided source files that are not part of the
+     application.
 */
 
 QUrl QQuick3DParticleCustomShape::source() const
@@ -129,10 +136,14 @@ void QQuick3DParticleCustomShape::loadFromSource()
     // Start positions array
     reader.enterContainer();
 
+    m_center = QVector3D();
     while (reader.lastError() == QCborError::NoError && reader.hasNext()) {
         QVector3D pos = QQuick3DParticleShapeDataUtils::readValue(reader, QMetaType::QVector3D).value<QVector3D>();
         m_positions.append(pos);
+        m_center += pos;
     }
+    if (!m_positions.isEmpty())
+        m_center *= 1.0f / float(m_positions.size());
 
     // Leave positions array
     reader.leaveContainer();
@@ -167,6 +178,19 @@ QVector3D QQuick3DParticleCustomShape::getPosition(int particleIndex)
 
     int index = particleIndex % m_positions.size();
     return m_positions.at(index) * parent->scale();
+}
+
+QVector3D QQuick3DParticleCustomShape::getSurfaceNormal(int particleIndex)
+{
+    auto *parent = parentNode();
+    if (!parent || m_positions.isEmpty())
+        return QVector3D();
+
+    if (m_randomizeDirty)
+        doRandomizeData();
+
+    int index = particleIndex % m_positions.size();
+    return (m_positions.at(index) - m_center).normalized();
 }
 
 QT_END_NAMESPACE

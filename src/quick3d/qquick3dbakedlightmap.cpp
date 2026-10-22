@@ -1,5 +1,7 @@
 // Copyright (C) 2022 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qquick3dbakedlightmap_p.h"
 
@@ -7,7 +9,7 @@ QT_BEGIN_NAMESPACE
 
 /*!
     \qmltype BakedLightmap
-    \inherits Object
+    \inherits QtObject
     \inqmlmodule QtQuick3D
     \brief Specifies baked lightmap settings for a model.
     \since 6.4
@@ -34,7 +36,7 @@ QT_BEGIN_NAMESPACE
     For more information on how to bake lightmaps, see the \l Lightmapper
     documentation.
 
-    \note As of Qt 6.4, lightmap baking is in an early technical preview state.
+    \note As of Qt 6.4, lightmap baking is in an early technology preview state.
     Changes to features, quality, and API are likely happen in future releases.
 
     \sa Lightmapper, Model::usedInBakedLighting
@@ -53,45 +55,15 @@ QT_BEGIN_NAMESPACE
     \qmlproperty string BakedLightmap::key
 
     When non-empty and \l enabled is true, the lightmap generated for the model
-    is stored persistently during lightmap baking. The value should be a unique
-    string that is fit to be included in the name of a file in the filesystem.
+    is stored persistently during lightmap baking.
     No other Model in the scene must use the same key.
 
     The default value is empty.
-
-    \sa loadPrefix
  */
 
 /*!
     \qmlproperty string BakedLightmap::loadPrefix
-
-    When non-empty, the value is prepended as a path to the value of \l key
-    when loading the lightmap for the Model. This allows shipping the generated
-    lightmaps in different location than they were written to, for example as
-    embedded resources via the Qt resource system.
-
-    For example, the following enables lightmap generation for a static model,
-    using a unique key for identifying the lightmap data between baking and
-    real runs of the application. Once baking is performed, the generated file
-    can be listed in the application's CMake project as a resource under the
-    \c{/lightmaps} PREFIX, letting the build process pick up the file and
-    include it in the executable.
-
-    \qml
-    Model {
-        source: "model.mesh"
-        y: 10
-        bakedLightmap: BakedLightmap {
-            key: "model34156"
-            loadPrefix: "qrc:/lightmaps"
-            // will attempt to load from :/lightmaps/qlm_model34156.exr at run time
-        }
-    }
-    \endqml
-
-    The default value is empty.
-
-    \sa key
+    \deprecated [6.10] This has no effect. See \l Lightmapper documentation.
  */
 
 bool QQuick3DBakedLightmap::isEnabled() const

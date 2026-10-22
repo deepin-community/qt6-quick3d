@@ -10,7 +10,7 @@ XrView {
     id: xrView
     XrErrorDialog { id: err }
     onInitializeFailed: (errorString) => err.run("XR freeform teleportation", errorString)
-    referenceSpace: XrView.ReferenceSpaceStage
+    referenceSpace: XrView.ReferenceSpaceLocalFloor
 
     environment: ExtendedSceneEnvironment {
         id: extendedSceneEnvironment
@@ -38,24 +38,65 @@ XrView {
 
         XrController {
             id: xrRightController
-            controller: XrController.ControllerRight
+            controller: XrController.RightController
             poseSpace: XrController.AimPose
 
             XrInputAction {
-                hand: XrInputAction.RightHand
+                id: thumbstickX
+                controller: XrInputAction.RightController
                 actionId: [XrInputAction.ThumbstickX]
-                onValueChanged: {
-                    teleporter.xStickValue = value
-                }
             }
 
             XrInputAction {
-                hand: XrInputAction.RightHand
+                id: thumbstickY
+                controller: XrInputAction.RightController
                 actionId: [XrInputAction.ThumbstickY]
-                onValueChanged: {
-                    teleporter.yStickValue = value
-                }
             }
+
+            XrInputAction {
+                id: trackpadX
+                controller: XrInputAction.RightController
+                actionId: [XrInputAction.TrackpadX]
+            }
+
+            XrInputAction {
+                id: trackpadY
+                controller: XrInputAction.RightController
+                actionId: [XrInputAction.TrackpadY]
+            }
+
+            XrInputAction {
+                id: trackpadPressed
+                controller: XrInputAction.RightController
+                actionId: [XrInputAction.TrackpadPressed]
+            }
+
+            XrInputAction {
+                id: indexFingerPinch
+                property bool active: false
+                controller: XrInputAction.RightController
+                actionId: [XrInputAction.IndexFingerPinch]
+                onTriggered: teleporter.toggleTeleport()
+            }
+
+            // Rotate left/right by pinching the middle fingers
+            XrInputAction {
+                id: leftMiddleFingerPinch
+                controller: XrInputAction.LeftController
+                actionId: [XrInputAction.MiddleFingerPinch]
+                onTriggered: teleporter.rotateLeft()
+            }
+
+            XrInputAction {
+                id: rightMiddleFingerPinch
+                controller: XrInputAction.RightController
+                actionId: [XrInputAction.MiddleFingerPinch]
+                onTriggered: teleporter.rotateRight()
+            }
+
+            property real xValue: trackpadPressed.pressed ? trackpadX.value : thumbstickX.value
+            property real yValue: trackpadPressed.pressed ? trackpadY.value : thumbstickY.value
+
 
             Model {
                 source: "#Cube"
@@ -71,10 +112,14 @@ XrView {
     FreeformTeleporter {
         id: teleporter
 
-        rayPicker: xrView
-        cameraOrigin: xrOrigin
-        camera: xrOrigin.camera
+        view: xrView
+        originNode: xrOrigin
+        cameraNode: xrOrigin.camera
         beamHandle: xrRightController
+
+        rotationTriggerValue: xrRightController.xValue
+        teleportTriggerValue: xrRightController.yValue
+
         onDoTeleportation: (cameraOriginPosition)=> {
                                xrOrigin.position = cameraOriginPosition
                            }

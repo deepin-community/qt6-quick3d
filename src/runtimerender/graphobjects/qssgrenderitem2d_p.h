@@ -1,5 +1,7 @@
 // Copyright (C) 2020 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QSSG_RENDER_ITEM2D_H
 #define QSSG_RENDER_ITEM2D_H
@@ -24,22 +26,19 @@
 QT_BEGIN_NAMESPACE
 
 class QSGNode;
-class QSGRenderer;
+class QSGRootNode;
 class QRhiRenderPassDescriptor;
 
 struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderItem2D : public QSSGRenderNode
 {
     Q_DISABLE_COPY(QSSGRenderItem2D)
 
-    QVarLengthArray<QMatrix4x4, 2> mvps;
-    float combinedOpacity = 1.0;
-    float zOrder = 0;
-
-    QPointer<QSGRenderer> m_renderer;
-    QRhiRenderPassDescriptor *m_rp = nullptr;
+    QSGRootNode *m_rootNode = nullptr;
 
     QSSGRenderItem2D();
-    ~QSSGRenderItem2D();
+    ~QSSGRenderItem2D() override;
+
+    QPointer<QObject> m_frontEndObject;
 };
 QT_END_NAMESPACE
 

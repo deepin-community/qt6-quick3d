@@ -1,5 +1,7 @@
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QQUICK3DPICKRESULT_P_H
 #define QQUICK3DPICKRESULT_P_H
@@ -64,7 +66,10 @@ public:
                                 const QVector3D &scenePosition,
                                 const QVector3D &position,
                                 const QVector3D &normal,
-                                int instanceIndex);
+                                const QVector3D &sceneNormal,
+                                int instanceIndex,
+                                QQuickItem *itemHit = 0);
+
     explicit QQuick3DPickResult(QQuickItem *itemHit,
                                 float distanceFromCamera,
                                 const QVector2D &uvPosition,
@@ -89,6 +94,7 @@ private:
     QVector3D m_scenePosition;
     QVector3D m_position;
     QVector3D m_normal;
+    QVector3D m_sceneNormal;
     int m_instanceIndex;
     QQuickItem *m_itemHit;
     QQuick3DPickResultEnums::HitType m_hitType;

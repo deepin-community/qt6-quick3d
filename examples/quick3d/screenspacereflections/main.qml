@@ -65,8 +65,8 @@ Window {
                 eulerRotation.y: 0
                 scale: Qt.vector3d(1, 1, 1)
                 position: Qt.vector3d(50.0, 40.0, 50.0)
-                materials:  DefaultMaterial {
-                    diffuseMap: Texture {
+                materials:  PrincipledMaterial {
+                    baseColorMap: Texture {
                         source: "qt_logo_rect.png"
                     }
                 }
@@ -77,8 +77,8 @@ Window {
                 Model {
                     source: "#Sphere"
                     position: Qt.vector3d(-400.0, screenSpaceReflectionsView.modelHeight, 0.0)
-                    materials: DefaultMaterial {
-                        diffuseColor: "magenta"
+                    materials: PrincipledMaterial {
+                        baseColor: "magenta"
                     }
                 }
             }
@@ -91,8 +91,8 @@ Window {
                     source: "#Sphere"
                     pivot: Qt.vector3d(0, 0.0, 0.0)
                     position: Qt.vector3d(200.0, 0.0, 0.0)
-                    materials: DefaultMaterial {
-                        diffuseColor: "green"
+                    materials: PrincipledMaterial {
+                        baseColor: "green"
                     }
                 }
             }
@@ -105,8 +105,8 @@ Window {
                     source: "#Sphere"
                     eulerRotation.y: 45
                     position: Qt.vector3d(0.0, 0.0, -200.0)
-                    materials: DefaultMaterial {
-                        diffuseColor: "blue"
+                    materials: PrincipledMaterial {
+                        baseColor: "blue"
                     }
                 }
             }
@@ -118,8 +118,8 @@ Window {
                 Model {
                     source: "#Sphere"
                     position: Qt.vector3d(0.0, 0.0, 200.0)
-                    materials: DefaultMaterial {
-                        diffuseColor: "red"
+                    materials: PrincipledMaterial {
+                        baseColor: "red"
                     }
                 }
             }
@@ -167,11 +167,7 @@ Window {
         }
     }
 
-    Frame {
-        background: Rectangle {
-            color: "#c0c0c0"
-            border.color: "#202020"
-        }
+    Pane {
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.margins: 10
@@ -192,7 +188,7 @@ Window {
                     to: 5
                     value: 0.79
                 }
-                Text {
+                Label {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Depth Bias: " + depthBiasSlider.value.toFixed(2);
                 }
@@ -207,7 +203,7 @@ Window {
                     value: 200
                     stepSize: 1
                 }
-                Text {
+                Label {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Ray Distance: " + distanceSlider.value
                 }
@@ -223,7 +219,7 @@ Window {
                     value: 300
                     stepSize: 1
                 }
-                Text {
+                Label {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "March Steps: " + marchSlider.value
                 }
@@ -238,7 +234,7 @@ Window {
                     value: 10
                     stepSize: 1
                 }
-                Text {
+                Label {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Refinement Steps: " + refinementStepsSlider.value
                 }
@@ -252,7 +248,7 @@ Window {
                     to: 1
                     value: 1.0
                 }
-                Text {
+                Label {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Specular: " + specularSlider.value.toFixed(2);
                 }

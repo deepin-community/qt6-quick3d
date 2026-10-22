@@ -1,5 +1,7 @@
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QSSGSCENEMANAGER_P_H
 #define QSSGSCENEMANAGER_P_H
@@ -32,6 +34,10 @@ class QSGDynamicTexture;
 class QQuickWindow;
 class QSSGBufferManager;
 class QSSGRenderContextInterface;
+class QSSGRenderRoot;
+struct QSSGRenderLayer;
+class QSSGRenderExtension;
+class QSSGRenderUserPass;
 
 class Q_QUICK3D_EXPORT QQuick3DWindowAttachment : public QObject
 {
@@ -57,6 +63,8 @@ public:
 
     QQuickWindow *window() const;
 
+    QSSGRenderRoot *rootNode() const { return m_rootNode; }
+
     const std::shared_ptr<QSSGRenderContextInterface> &rci() const { return m_rci; }
     void setRci(const std::shared_ptr<QSSGRenderContextInterface> &rciptr);
 
@@ -65,6 +73,7 @@ public:
 
     void queueForCleanup(QSSGRenderGraphObject *obj);
     void queueForCleanup(QQuick3DSceneManager *manager);
+    void queueForCleanup(QSSGRenderLayer *layer);
 
 Q_SIGNALS:
     void releaseCachedResources();
@@ -75,11 +84,13 @@ private:
     Q_INVOKABLE void onInvalidated();
 
     QPointer<QQuickWindow> m_window;
+    QSSGRenderRoot *m_rootNode = nullptr;
     std::shared_ptr<QSSGRenderContextInterface> m_rci;
     QList<QQuick3DSceneManager *> sceneManagers;
     QList<QQuick3DSceneManager *> sceneManagerCleanupQueue;
     QList<QSSGRenderGraphObject *> pendingResourceCleanupQueue;
     QSet<QSSGRenderGraphObject *> resourceCleanupQueue;
+    QList<QSSGRenderLayer *> pendingLayerCleanupQueue;
 };
 
 class Q_QUICK3D_EXPORT QQuick3DSceneManager : public QObject
@@ -178,11 +189,19 @@ public:
     QVector<QSGDynamicTexture *> qsgDynamicTextures;
     QHash<QSSGRenderGraphObject *, QQuick3DObject *> m_nodeMap;
     QSet<QSSGRenderGraphObject *> resourceLoaders;
+    QList<QSSGRenderExtension *> autoRegisteredExtensions;
+    QList<QSSGRenderUserPass *> userRenderPasses;
     QQuickWindow *m_window = nullptr;
     QPointer<QQuick3DWindowAttachment> wattached;
     int inputHandlingEnabled = 0; // Holds the count of active item2Ds, input disabled if zero.
     bool sharedResourceRemoved = false;
+    bool autoRegisteredExtensionsDirty = false;
     friend QQuick3DObject;
+    struct LightmapSourceTracker
+    {
+        QString lightmapSource;
+        bool isDirty = true;
+    } lightmapSourceTracker;
 
 Q_SIGNALS:
     void needsUpdate();

@@ -1,5 +1,7 @@
 // Copyright (C) 2022 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "infinitegrid_p.h"
 #include <QtQuick3D/private/qquick3dviewport_p.h>
@@ -35,7 +37,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty float InfiniteGrid::gridInterval
+    \qmlproperty real InfiniteGrid::gridInterval
 
     This property defines the distance between grid lines. The default value is \c 1.0.
 */

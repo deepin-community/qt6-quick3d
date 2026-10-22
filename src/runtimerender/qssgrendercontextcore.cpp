@@ -1,6 +1,8 @@
 // Copyright (C) 2008-2012 NVIDIA Corporation.
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qssgrendercontextcore.h"
 #include <QtQuick3DRuntimeRender/private/qssgrendernode_p.h>
@@ -74,6 +76,29 @@ void QSSGRenderContextInterface::releaseCachedResources()
 const std::unique_ptr<QSSGPerFrameAllocator> &QSSGRenderContextInterface::perFrameAllocator() const
 {
     return m_perFrameAllocator;
+}
+
+/*!
+    \internal
+ */
+QSSGRenderContextInterface::QSSGRenderContextInterface(std::unique_ptr<QSSGBufferManager> bufferManager,
+                                                       std::unique_ptr<QSSGRenderer> renderer,
+                                                       std::shared_ptr<QSSGShaderLibraryManager> shaderLibraryManager,
+                                                       std::unique_ptr<QSSGShaderCache> shaderCache,
+                                                       std::unique_ptr<QSSGCustomMaterialSystem> customMaterialSystem,
+                                                       std::unique_ptr<QSSGProgramGenerator> shaderProgramGenerator,
+                                                       std::unique_ptr<QSSGRhiContext> ctx)
+    : QSSGRenderContextInterface {
+        std::move(bufferManager),
+        std::move(renderer),
+        std::move(shaderLibraryManager),
+        std::move(shaderCache),
+        std::move(customMaterialSystem),
+        std::move(shaderProgramGenerator),
+        std::move(ctx),
+        nullptr,
+    }
+{
 }
 
 /*!

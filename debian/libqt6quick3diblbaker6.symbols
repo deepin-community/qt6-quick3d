@@ -1,7 +1,10 @@
-# SymbolsHelper-Confirmed: 6.8.0 amd64
+# SymbolsHelper-Confirmed: 6.12.0 amd64
 libQt6Quick3DIblBaker.so.6 libqt6quick3diblbaker6 #MINVER#
-| libqt6quick3diblbaker6 #MINVER#, qt6-quick3d-private-abi (= 6.8.0)
+| libqt6quick3diblbaker6 #MINVER#, qt6-quick3d-private-abi (= 6.12.0)
 * Build-Depends-Packages: qt6-quick3d-dev, qt6-quick3d-private-dev
- NonQt@NonQt 6.8.0
- Qt_6@Qt_6 6.6.1
- (symver)Qt_6_PRIVATE_API 0 1
+ NonQt@NonQt 6.12.0
+ Qt_6@Qt_6 6.12.0
+ Qt_6_PRIVATE_API@Qt_6_PRIVATE_API 6.12.0
+ _ZN12QSSGIblBaker6importERK7QStringRK4QDirP5QListIS0_E@Qt_6_PRIVATE_API 6.12.0
+ _ZNK12QSSGIblBaker15inputExtensionsEv@Qt_6_PRIVATE_API 6.12.0
+ _ZNK12QSSGIblBaker15outputExtensionEv@Qt_6_PRIVATE_API 6.12.0

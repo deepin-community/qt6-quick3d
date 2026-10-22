@@ -1,5 +1,7 @@
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QSSGFRUSTUMCAMERA_H
 #define QSSGFRUSTUMCAMERA_H
@@ -19,7 +21,7 @@
 
 QT_BEGIN_NAMESPACE
 
-struct QSSGRenderCamera;
+class QSSGRenderCamera;
 class Q_QUICK3D_EXPORT QQuick3DFrustumCamera : public QQuick3DPerspectiveCamera
 {
     Q_OBJECT

@@ -1,6 +1,8 @@
 // Copyright (C) 2008-2012 NVIDIA Corporation.
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QSSGUTILS_H
 #define QSSGUTILS_H
@@ -35,6 +37,107 @@
 class tst_RotationDataClass;
 
 QT_BEGIN_NAMESPACE
+
+enum class HandleType
+{
+    Layer,
+    Node,
+};
+
+using QSSGRenderNodeVersionType = quint16;
+
+template <HandleType>
+class QSSGRenderStorageHandle
+{
+public:
+    using ContextType = quint16;
+    using VersionType = QSSGRenderNodeVersionType;
+    using IndexType = quint32;
+    static constexpr size_t ContextBits = std::numeric_limits<ContextType>::digits;
+    static constexpr size_t VersionBits = std::numeric_limits<VersionType>::digits;
+    static constexpr size_t IndexBits = std::numeric_limits<IndexType>::digits;
+
+    QSSGRenderStorageHandle() = default;
+    explicit QSSGRenderStorageHandle(ContextType ctx, VersionType version, IndexType index)
+        : m_ctx(ctx), m_version(version), m_index(index)
+    {
+    }
+
+    // NOTE: Version should always be > 0 when used (0 = default-constructed / invalid).
+    bool hasId() const { return m_id != 0; }
+
+    ContextType context() const { return m_ctx; }
+    VersionType version() const { return m_version; }
+    IndexType index() const { return m_index; }
+
+    quint64 id() const { return m_id; }
+
+private:
+    union {
+        struct {
+            quint64 m_ctx : ContextBits;
+            quint64 m_version : VersionBits;
+            quint64 m_index : IndexBits;
+        };
+        quint64 m_id = 0;
+    };
+};
+
+using QSSGRenderLayerHandle = QSSGRenderStorageHandle<HandleType::Layer>;
+using QSSGRenderNodeHandle = QSSGRenderStorageHandle<HandleType::Node>;
+
+class QSSGRenderFlag
+{
+public:
+    QSSGRenderFlag() = default;
+    explicit QSSGRenderFlag(quint32 v)
+        : m_value(v)
+    {
+    }
+
+    [[nodiscard]] quint32 value() const { return m_value; }
+
+    void setValue(quint32 v)
+    {
+        m_value = v;
+    }
+
+    void clearFlags(quint32 v = 0xFFFFFFFF)
+    {
+        m_value &= ~v;
+    }
+
+    void setFlag(quint32 v, bool on = true)
+    {
+        if (on)
+            m_value |= v;
+        else
+            m_value &= ~v;
+    }
+
+    [[nodiscard]] bool isSet(quint32 v) const { return (m_value & v) != 0; }
+
+    friend bool operator==(const QSSGRenderFlag &a, const QSSGRenderFlag &b);
+    friend bool operator!=(const QSSGRenderFlag &a, const QSSGRenderFlag &b);
+
+    operator quint32() const noexcept { return m_value; }
+
+private:
+    quint32 m_value = 0;
+};
+
+inline bool operator==(const QSSGRenderFlag &a, const QSSGRenderFlag &b)
+{
+    return a.m_value == b.m_value;
+}
+
+inline bool operator!=(const QSSGRenderFlag &a, const QSSGRenderFlag &b)
+{
+    return !(a == b);
+}
+
+using QSSGRenderNodeTag = QSSGRenderFlag;
+
 
 namespace QSSGUtils {
 
@@ -105,6 +208,7 @@ QVector3D Q_QUICK3DUTILS_EXPORT inverseRotated(const QQuaternion &q, const QVect
 }
 
 namespace color {
+QColor Q_QUICK3DUTILS_EXPORT linearTosRGB(const QVector4D &linearColorFactor);
 QVector4D Q_QUICK3DUTILS_EXPORT sRGBToLinear(const QColor &color);
 QColor Q_QUICK3DUTILS_EXPORT sRGBToLinearColor(const QColor &color);
 }
@@ -197,34 +301,42 @@ public:
         return *this;
     }
 
-    friend inline bool operator ==(const RotationData &a, const RotationData &b) {
+    friend bool operator ==(const RotationData &a, const RotationData &b) {
         if (a.m_dirty == Dirty::None && b.m_dirty == Dirty::None)
             return fuzzyQuaternionCompare(a.m_quatRot, b.m_quatRot);
 
-        return fuzzyQuaternionCompare(QQuaternion(a), QQuaternion(b));
+        return fuzzyQuaternionCompare(a.toQuaternion(), b.toQuaternion());
     }
 
-    friend inline bool operator !=(const RotationData &a, const RotationData &b) { return !(a == b); }
+    friend bool operator !=(const RotationData &a, const RotationData &b) { return !(a == b); }
 
-    friend inline bool operator ==(const RotationData &a, const QVector3D &eulerRotation)
+    friend bool operator ==(const RotationData &a, const QVector3D &eulerRotation)
     {
         if (a.m_dirty == Dirty::None)
             return qFuzzyCompare(a.m_eulerRot, eulerRotation);
 
-        return qFuzzyCompare(QVector3D(a), eulerRotation);
+        return qFuzzyCompare(a.toEulerAngles(), eulerRotation);
     }
-    friend inline bool operator !=(const RotationData &a, const QVector3D &eulerRotation) { return !(a == eulerRotation); }
 
-    friend inline bool operator ==(const RotationData &a, const QQuaternion &rotation)
+    friend bool operator !=(const RotationData &a, const QVector3D &eulerRotation) { return !(a == eulerRotation); }
+
+    friend bool operator ==(const QVector3D &eulerRotation, const RotationData &a) { return a == eulerRotation; }
+    friend bool operator !=(const QVector3D &eulerRotation, const RotationData &a) { return !(a == eulerRotation); }
+
+    friend bool operator ==(const RotationData &a, const QQuaternion &rotation)
     {
+        const QQuaternion normalizedRotation = rotation.normalized();
         if (a.m_dirty == Dirty::None)
-            return fuzzyQuaternionCompare(a.m_quatRot, rotation);
+            return fuzzyQuaternionCompare(a.m_quatRot, normalizedRotation);
 
-        return fuzzyQuaternionCompare(QQuaternion(a), rotation);
+        return fuzzyQuaternionCompare(a.toQuaternion(), normalizedRotation);
     }
-    friend inline bool operator !=(const RotationData &a, const QQuaternion &rotation) { return !(a == rotation); }
+    friend bool operator !=(const RotationData &a, const QQuaternion &rotation) { return !(a == rotation); }
 
-    [[nodiscard]] inline QVector3D getEulerRotation() const
+    friend bool operator ==(const QQuaternion &rotation, const RotationData &a) { return a == rotation; }
+    friend bool operator !=(const QQuaternion &rotation, const RotationData &a) { return !(a == rotation); }
+
+    [[nodiscard]] inline QVector3D toEulerAngles() const
     {
         if (m_dirty == Dirty::Euler) {
             m_eulerRot = m_quatRot.toEulerAngles();
@@ -234,7 +346,7 @@ public:
         return m_eulerRot;
     }
 
-    [[nodiscard]] inline QQuaternion getQuaternionRotation() const
+    [[nodiscard]] inline QQuaternion toQuaternion() const
     {
         if (m_dirty == Dirty::Quaternion) {
             m_quatRot = QQuaternion::fromEulerAngles(m_eulerRot).normalized();
@@ -244,10 +356,7 @@ public:
         return m_quatRot;
     }
 
-    [[nodiscard]] inline QMatrix3x3 toRotationMatrix() const { return getQuaternionRotation().toRotationMatrix(); }
-
-    [[nodiscard]] inline operator QQuaternion() const { return getQuaternionRotation(); }
-    [[nodiscard]] inline operator QVector3D() const { return getEulerRotation(); }
+    [[nodiscard]] inline QMatrix3x3 toRotationMatrix() const { return toQuaternion().toRotationMatrix(); }
 
 private:
     friend class ::tst_RotationDataClass;
@@ -262,6 +371,10 @@ private:
 
     [[nodiscard]] static constexpr bool fuzzyQuaternionCompare(const QQuaternion &a, const QQuaternion &b)
     {
+        // Do a component for component check, this ensures that we skip the expensive call when we
+        // anyway have a perfect match or an exact opposite match (which is also the same rotation).
+        if (a == b || a == -b)
+            return true;
         return qFuzzyCompare(qAbs(dotProduct(a, b)), 1.0);
     }
 

@@ -66,7 +66,7 @@
 
     To deploy a visionOS application, you will need Xcode with the visionOS SDK
     components installed and, optionally, the visionOS simulator.
-    See \l{visonOS_supported_versions}{supported versions} for more information.
+    See \l{visionOS_supported_versions}{supported versions} for more information.
 
     \note Unlike the iOS/iPad applications, visionOS applications are not deployed using
     \QC, but instead using Xcode.
@@ -74,7 +74,7 @@
     To build one of Qt's examples for visionOS, you can use the following command:
 
     \badcode
-    [QT_VISIONOS_BUILD]/bin/qt-cmake [EXAMPLE_BUILD_DIR] [EXAMPLE_SOURCE_DIR]
+    [QT_VISIONOS_BUILD]/bin/qt-cmake -B [EXAMPLE_BUILD_DIR] -S [EXAMPLE_SOURCE_DIR]
     \endcode
 
     Running this command produces an Xcode project that you can open in Xcode and deploy to the device.

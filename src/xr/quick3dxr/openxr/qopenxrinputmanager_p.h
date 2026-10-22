@@ -1,5 +1,7 @@
 // Copyright (C) 2024 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QQUICK3DXINPUTMANAGER_OPENXR_P_H
 #define QQUICK3DXINPUTMANAGER_OPENXR_P_H
@@ -26,6 +28,7 @@
 
 QT_BEGIN_NAMESPACE
 
+class QQuaternion;
 class QQuick3DXrHandInput;
 class QQuick3DXrInputManager;
 class QQuick3DXrHandModel;
@@ -46,18 +49,18 @@ public:
 
     static QQuick3DXrInputManagerPrivate *get(QQuick3DXrInputManager *inputManager);
 
-    using Hand = QtQuick3DXr::Hand;
+    using Handedness = QtQuick3DXr::Handedness;
     using HandPoseSpace = QtQuick3DXr::HandPoseSpace;
 
     void pollActions();
     void updatePoses(XrTime predictedDisplayTime, XrSpace appSpace);
     void updateHandtracking(XrTime predictedDisplayTime, XrSpace appSpace, bool aimExtensionEnabled);
 
-    XrSpace handSpace(Hand hand, HandPoseSpace poseSpace);
-    bool isHandActive(Hand hand);
-    bool isHandTrackerActive(Hand hand);
+    XrSpace handSpace(Handedness handedness, HandPoseSpace poseSpace);
+    bool isHandActive(Handedness handedness);
+    bool isHandTrackerActive(Handedness handedness);
 
-    void setPosePositionAndRotation(Hand hand, HandPoseSpace poseSpace, const QVector3D &position, const QQuaternion &rotation);
+    void setPosePositionAndRotation(Handedness handedness, HandPoseSpace poseSpace, const QVector3D &position, const QQuaternion &rotation);
 
     QQuick3DXrHandInput *leftHandInput() const;
     QQuick3DXrHandInput *rightHandInput() const;
@@ -66,7 +69,7 @@ public:
     void registerController(QQuick3DXrController *controller);
     void unregisterController(QQuick3DXrController *controller);
 
-    bool isPoseInUse(Hand hand, HandPoseSpace poseSpace);
+    bool isPoseInUse(Handedness handedness, HandPoseSpace poseSpace);
 
     // NOTE: Static for now...
     qsizetype getPokeJointIndex() const { return qsizetype(XR_HAND_JOINT_INDEX_TIP_EXT); }
@@ -83,14 +86,13 @@ public:
     XrHandJointVelocityEXT jointVelocities[2][XR_HAND_JOINT_COUNT_EXT];
 
 private:
-    void setupHandModelInternal(QQuick3DXrHandModel *model, Hand hand);
+    void setupHandModelInternal(QQuick3DXrHandModel *model, Handedness handedness);
 
     void setupHandTracking();
-    bool queryHandMesh(Hand hand);
+    bool queryHandMesh(Handedness handedness);
     void setupActions();
     void destroyActions();
     [[nodiscard]] bool checkXrResult(const XrResult &result);
-    bool resolveXrFunction(const char *name, PFN_xrVoidFunction *function);
     void setPath(XrPath &path, const QByteArray &pathString);
 
     void createAction(XrActionType type,
@@ -102,7 +104,7 @@ private:
     void getBoolInputState(XrActionStateGetInfo &getInfo, const XrAction &action, std::function<void(bool)> setter);
     void getFloatInputState(XrActionStateGetInfo &getInfo, const XrAction &action, std::function<void(float)> setter);
 
-    void setInputValue(Hand hand, int id, const char *shortName, float value);
+    void setInputValue(Handedness handedness, int id, const char *shortName, float value);
 
     QQuick3DXrInputManager *q_ptr = nullptr;
 
@@ -134,11 +136,71 @@ private:
         XrAction hapticAction{XR_NULL_HANDLE};
     };
 
+    enum class ActionPaths {
+        leftGripPose, // OCULUS_TOUCH | VALVE_INDEX | MICROSOFT_MRM | HTC_VIVE
+        leftAimPose, // OCULUS_TOUCH | VALVE_INDEX | MICROSOFT_MRM | HTC_VIVE
+        leftHaptic, // OCULUS_TOUCH | VALVE_INDEX | MICROSOFT_MRM | HTC_VIVE
+        rightGripPose, // OCULUS_TOUCH | VALVE_INDEX | MICROSOFT_MRM | HTC_VIVE
+        rightAimPose, // OCULUS_TOUCH | VALVE_INDEX | MICROSOFT_MRM | HTC_VIVE
+        rightHaptic // OCULUS_TOUCH | VALVE_INDEX | MICROSOFT_MRM | HTC_VIVE
+    };
+    Q_ENUM(ActionPaths)
+
+    enum class InputNames {
+        AClick, // OCULUS_TOUCH (right) | VALVE_INDEX (right + left)
+        BClick, // OCULUS_TOUCH (right) | VALVE_INDEX (right + left)
+        ATouch, // OCULUS_TOUCH (right) | VALVE_INDEX (right + left)
+        BTouch, // OCULUS_TOUCH (right) | VALVE_INDEX (right + left)
+
+        XClick, // OCULUS_TOUCH (left)
+        YClick, // OCULUS_TOUCH (left)
+        XTouch, // OCULUS_TOUCH (left)
+        YTouch, // OCULUS_TOUCH (left)
+
+        MenuClick, // OCULUS_TOUCH (left) | MICROSOFT_MRM (right + left) | HTC_VIVE (right + left)
+        SystemClick, // OCULUS_TOUCH (right) | VALVE_INDEX (right + left) | HTC_VIVE (right + left)
+        SystemTouch, // VALVE_INDEX (right + left)
+
+        SqueezeValue, // right + left: OCULUS_TOUCH | VALVE_INDEX
+        SqueezeForce, // right + left: VALVE_INDEX
+        SqueezeClick, // right + left: MICROSOFT_MRM | HTC_VIVE
+
+        TriggerValue, // right + left: OCULUS_TOUCH | VALVE_INDEX | MICROSOFT_MRM | HTC_VIVE
+        TriggerTouch, // right + left: OCULUS_TOUCH | VALVE_INDEX
+        TriggerClick, // right + left: VALVE_INDEX | HTC_VIVE
+
+        ThumbstickX, // OCULUS_TOUCH (right + left) | VALVE_INDEX (right + left) | MICROSOFT_MRM (left)
+        ThumbstickY, // OCULUS_TOUCH (right + left) | VALVE_INDEX (right + left) | MICROSOFT_MRM (left)
+        ThumbstickClick, // OCULUS_TOUCH (right + left) | VALVE_INDEX (right + left) | MICROSOFT_MRM (left)
+        ThumbstickTouch, // OCULUS_TOUCH (right + left) | VALVE_INDEX (right + left)
+        ThumbrestTouch, // OCULUS_TOUCH (right + left)
+
+        TrackpadX, // right + left:  VALVE_INDEX | MICROSOFT_MRM | HTC_VIVE
+        TrackpadY, // right + left:  VALVE_INDEX | MICROSOFT_MRM | HTC_VIVE
+        TrackpadForce, // right + left:  VALVE_INDEX
+        TrackpadClick, // right + left:  VALVE_INDEX | MICROSOFT_MRM | HTC_VIVE
+        TrackpadTouch // right + left:  MICROSOFT_MRM | HTC_VIVE
+    };
+    Q_ENUM(InputNames)
+
+    struct InputMapping {
+        QQuick3DXrInputAction::Action action;
+        InputNames handComponentPath;
+        SubPathSelector subPathSelector;
+    };
+
+    struct ControllerBindings {
+        QByteArray profileName;
+        QByteArray profilePath;
+        QList<InputMapping> profileMappingDefs;
+        QList<ActionPaths> supportedActionPaths;
+    };
+
     // Input State
     XrActionSet m_actionSet{XR_NULL_HANDLE};
-    XrPath m_handSubactionPath[2];
-    XrSpace m_handGripSpace[2];
-    XrSpace m_handAimSpace[2];
+    XrPath m_handSubactionPath[2] = {XR_NULL_PATH, XR_NULL_PATH};
+    XrSpace m_handGripSpace[2] {XR_NULL_HANDLE, XR_NULL_HANDLE};
+    XrSpace m_handAimSpace[2] {XR_NULL_HANDLE, XR_NULL_HANDLE};
 
     QQuick3DXrHandInput *m_handInputState[2];
     HandActions m_handActions;
@@ -150,6 +212,9 @@ private:
     uint m_aimStateFlags[2] = {};
     bool m_initialized = false;
     bool m_validAimStateFromUpdatePoses[2] = {false, false};
+
+    void loadBindings(QList<ControllerBindings>* controllerBindingsList);
+    void setUpBindings(QList<ControllerBindings>* controllerBindingsList, QMap<InputNames, QXRHandComponentPath>* handComponentPaths);
 
     // Hand Mesh Data
     struct HandMeshData {
@@ -170,7 +235,7 @@ private:
     } m_handGeometryData[2];
 
     QQuick3DGeometry *createHandMeshGeometry(const HandMeshData &handMeshData);
-    void createHandModelData(Hand hand);
+    void createHandModelData(Handedness handedness);
     friend class QOpenXrHandModel;
 };
 

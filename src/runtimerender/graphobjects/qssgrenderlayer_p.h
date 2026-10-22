@@ -1,6 +1,8 @@
 // Copyright (C) 2008-2012 NVIDIA Corporation.
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QSSG_RENDER_LAYER_H
 #define QSSG_RENDER_LAYER_H
@@ -19,12 +21,14 @@
 #include <QtQuick3DRuntimeRender/private/qssgrendernode_p.h>
 #include <QtCore/qvarlengtharray.h>
 #include <QtCore/qlist.h>
+#include <QMutex>
 #include <ssg/qssglightmapper.h>
 
 QT_BEGIN_NAMESPACE
 class QSSGRenderContextInterface;
 struct QSSGRenderPresentation;
 struct QSSGRenderEffect;
+struct QSSGRenderSkyMaterial;
 struct QSSGRenderImage;
 class QSSGLayerRenderData;
 struct QSSGRenderResourceLoader;
@@ -46,6 +50,13 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderLayer : public QSSGRenderNode
         SSAA,
         MSAA,
         ProgressiveAA
+    };
+
+    enum class TAAMode : quint8
+    {
+        Off = 0,
+        Default,
+        MotionVector
     };
 
     enum class AAQuality : quint8
@@ -81,7 +92,8 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderLayer : public QSSGRenderNode
         Unspecified,
         Color,
         SkyBox,
-        SkyBoxCubeMap
+        SkyBoxCubeMap,
+        SkyMaterial
     };
 
     enum class TonemapMode : quint8
@@ -120,17 +132,62 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderLayer : public QSSGRenderNode
         F0
     };
 
+    enum class OITMethod : quint8
+    {
+        None = 0,
+        WeightedBlended,
+        LinkedList
+    };
+
+    enum class RenderOverrides : quint8
+    {
+        None = 0,
+        DisableInternalPasses = 0x1,
+    };
+    using RenderOverridesT = std::underlying_type_t<RenderOverrides>;
+
+    enum class DirtyFlag : quint8
+    {
+        TreeDirty = 0x1,
+        VisibilityDirty = 0x2 // layer's viewport transitioned from hidden to visible
+    };
+    using FlagT = std::underlying_type_t<DirtyFlag>;
+
+    static constexpr DirtyFlag DirtyMask { std::numeric_limits<FlagT>::max() };
+
+    [[nodiscard]] bool isDirty(DirtyFlag dirtyFlag = DirtyMask) const
+    {
+        return ((m_layerDirtyFlags & FlagT(dirtyFlag)) != 0)
+        || ((dirtyFlag == DirtyMask) && QSSGRenderNode::isDirty());
+    }
+    void markDirty(DirtyFlag dirtyFlag);
+    void clearDirty(DirtyFlag dirtyFlag);
+
+    void ref(QSSGRenderRoot *inRootNode)
+    {
+        rootNode = inRootNode;
+        rootNodeRef = &rootNode;
+    }
+
+    QSSGRenderRoot *rootNode = nullptr;
+
+    QSSGRenderLayerHandle lh;
+
     // First effect in a list of effects.
     QSSGRenderEffect *firstEffect;
     QSSGLayerRenderData *renderData = nullptr;
-    enum class RenderExtensionStage { Underlay, Overlay, Count };
+    enum class RenderExtensionStage { TextureProviders, Underlay, Overlay, Count };
     QList<QSSGRenderExtension *> renderExtensions[size_t(RenderExtensionStage::Count)];
 
     QSSGRenderLayer::AAMode antialiasingMode;
     QSSGRenderLayer::AAQuality antialiasingQuality;
+    QVector4D currentAndLastJitter;
 
     QSSGRenderLayer::Background background;
     QVector3D clearColor;
+
+    FlagT m_layerDirtyFlags = FlagT(DirtyFlag::TreeDirty);
+    quint8 viewCount = 1;
 
     // Ambient occlusion
     float aoStrength = 0.0f;
@@ -152,13 +209,17 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderLayer : public QSSGRenderNode
         QVector3D probeOrientationAngles;
     } lightProbeSettings;
 
+    QSSGRenderSkyMaterial *skyMaterial = nullptr;
+
     QSSGRenderImage *skyBoxCubeMap = nullptr;
 
-    bool temporalAAEnabled;
+    TAAMode temporalAAMode { TAAMode::Off };
     float temporalAAStrength;
-    bool ssaaEnabled;
     float ssaaMultiplier;
     bool specularAAEnabled;
+    OITMethod oitMethod;
+    bool oitMethodDirty;
+    int oitNodeCount;
 
     //TODO: move render state somewhere more suitable
     bool temporalAAIsActive;
@@ -166,10 +227,13 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderLayer : public QSSGRenderNode
     uint tempAAPassIndex;
     uint progAAPassIndex;
 
+    RenderOverridesT renderOverrides { RenderOverridesT(RenderOverrides::None) };
+
     // The camera explicitly set on the view by the user. (backend node can be null)
     QVarLengthArray<QSSGRenderCamera *, 2> explicitCameras;
     // The camera used for rendering, multiple ones with multiview.
     QVarLengthArray<QSSGRenderCamera *, 2> renderedCameras;
+    QMutex renderedCamerasMutex;
 
     // Tonemapping
     TonemapMode tonemapMode;
@@ -182,6 +246,7 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderLayer : public QSSGRenderNode
     QRhiShaderResourceBindings *skyBoxSrb = nullptr;
     QVarLengthArray<QRhiShaderResourceBindings *, 4> item2DSrbs;
     bool skyBoxIsRgbe8 = false;
+    bool skyBoxIsSrgb = false;
 
     // Skybox
     float skyboxBlurAmount = 0.0f;
@@ -191,9 +256,6 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderLayer : public QSSGRenderNode
     float gridScale = 1.0f;
     quint32 gridFlags = 0;
     QRhiShaderResourceBindings *gridSrb = nullptr;
-
-    // Lightmapper config
-    QSSGLightmapperOptions lmOptions;
 
     // Scissor
     QRect scissorRect;
@@ -221,11 +283,17 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderLayer : public QSSGRenderNode
 
     bool wireframeMode = false;
     bool drawDirectionalLightShadowBoxes = false;
+    bool drawPointLightShadowBoxes = false;
     bool drawShadowCastingBounds = false;
     bool drawShadowReceivingBounds = false;
     bool drawCascades = false;
     bool drawSceneCascadeIntersection = false;
     bool disableShadowCameraUpdate = false;
+    bool drawCulledObjects = false;
+
+    // Would ideally be in QSSGLayerRenderData but it is created too late
+    // so needs to be set here.
+    QString lightmapSource;
 
     QSSGRenderLayer();
     ~QSSGRenderLayer();
@@ -239,8 +307,28 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderLayer : public QSSGRenderNode
 
     // Special function(s) for importScene
     void setImportScene(QSSGRenderNode &rootNode);
-    void removeImportScene(QSSGRenderNode &rootNode);
+    void removeImportScene(QSSGRenderNode &importedNode);
 
+    [[nodiscard]] bool isMsaaEnabled() const { return antialiasingMode == AAMode::MSAA; }
+    [[nodiscard]] bool isSsaaEnabled() const { return antialiasingMode == AAMode::SSAA; }
+    // NOTE: Progressive AA is not enabled when temporalAA mode is MotionVector.
+    [[nodiscard]] bool isProgressiveAAEnabled() const { return antialiasingMode == AAMode::ProgressiveAA && temporalAAMode != TAAMode::MotionVector; }
+    // NOTE: Temporal AA is not enabled when MSAA is enabled.
+    [[nodiscard]] bool isTemporalAAEnabled() const { return (temporalAAMode != TAAMode::Off) && !isMsaaEnabled(); }
+
+    static constexpr float ssaaMultiplierForQuality(QSSGRenderLayer::AAQuality quality)
+    {
+        switch (quality) {
+        case QSSGRenderLayer::AAQuality::Normal:
+            return 1.2f;
+        case QSSGRenderLayer::AAQuality::High:
+            return 1.5f;
+        case QSSGRenderLayer::AAQuality::VeryHigh:
+            return 2.0f;
+        }
+
+        return 1.5f; // QSSGRenderLayer::AAQuality::High
+    }
 };
 QT_END_NAMESPACE
 

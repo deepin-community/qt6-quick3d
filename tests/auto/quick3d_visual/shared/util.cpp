@@ -4,7 +4,10 @@
 #include "util.h"
 
 #include <QtCore/QDebug>
+#include <QtCore/QElapsedTimer>
 #include <QtCore/QMutexLocker>
+
+#include <QtTest/QSignalSpy>
 
 #include <QtQuick3D/qquick3d.h>
 
@@ -101,6 +104,43 @@ QQuickView *QQuick3DDataTest::createView(const QString &filename, const QSize &w
     return view;
 }
 
+QQuickWindow *QQuick3DDataTest::createWindow(const QString &filename, const QSize &windowSize)
+{
+    QQuickWindow *window = new QQuickWindow;
+    window->setWidth(windowSize.width());
+    window->setHeight(windowSize.height());
+
+    QQmlEngine engine;
+    QQmlComponent component(&engine, testFileUrl(filename));
+    if (component.isError()) {
+        for (const QQmlError &error : component.errors())
+            qWarning() << error.url() << error.line() << error;
+        delete window;
+        return nullptr;
+    }
+
+    QObject *rootObject = component.create();
+    if (component.isError()) {
+        for (const QQmlError &error : component.errors())
+            qWarning() << error.url() << error.line() << error;
+        delete window;
+        return nullptr;
+    }
+
+    QQuickItem *rootItem = qobject_cast<QQuickItem *>(rootObject);
+    if (!rootItem) {
+        qWarning("No root item");
+        delete window;
+        return nullptr;
+    }
+
+    window->contentItem()->setSize(rootItem->size());
+    rootItem->setParentItem(window->contentItem());
+
+    window->show();
+    return window;
+}
+
 static inline void saveImageIfEnabled(const QImage &image)
 {
     if (qEnvironmentVariableIntValue("QT_QUICK3D_TEST_DEBUG")) {
@@ -112,8 +152,34 @@ static inline void saveImageIfEnabled(const QImage &image)
     }
 }
 
+bool QQuick3DDataTest::waitForFrames(QQuickWindow *window, int frames, int timeoutMs)
+{
+    QSignalSpy spy(window, &QQuickWindow::frameSwapped);
+    QElapsedTimer timer;
+    timer.start();
+    while (spy.size() < frames) {
+        const int remaining = timeoutMs - int(timer.elapsed());
+        if (remaining <= 0)
+            return false;
+        window->update();
+        spy.wait(qMax(50, remaining));
+    }
+    return true;
+}
+
 QImage QQuick3DDataTest::grab(QQuickWindow *window)
 {
+    // On some platforms (e.g. OpenGL on Linux) qWaitForWindowExposed fires
+    // before the render thread completes its first cycle. Waiting for
+    // frameSwapped ensures the render thread is fully initialized and all
+    // shaders are compiled before we trigger the grab render.
+    QSignalSpy spy(window, &QQuickWindow::frameSwapped);
+    window->update();
+    if (!spy.wait(5000)) {
+        [](){ QFAIL("Timed out waiting for frameSwapped before grab"); }();
+        return QImage();
+    }
+
     const qreal dpr = window->devicePixelRatio();
     QImage content = window->grabWindow();
     if (content.isNull()) {
@@ -266,7 +332,7 @@ void QQuick3DTestOffscreenRenderer::enqueueReadback(bool *readCompleted, QRhiRea
             readResult->pixelSize.width(), readResult->pixelSize.height(),
             QImage::Format_RGBA8888_Premultiplied);
         if (rhi->isYUpInFramebuffer())
-            *result = wrapperImage.mirrored();
+            *result = wrapperImage.flipped();
         else
             *result = wrapperImage.copy();
         saveImageIfEnabled(*result);

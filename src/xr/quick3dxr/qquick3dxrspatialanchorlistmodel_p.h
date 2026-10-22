@@ -1,5 +1,7 @@
 // Copyright (C) 2024 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QQUICK3DXRSPATIALANCHORLISTMODEL_P_H
 #define QQUICK3DXRSPATIALANCHORLISTMODEL_P_H
@@ -95,9 +97,12 @@ private Q_SLOTS:
     void handleAnchorUpdated(QQuick3DXrSpatialAnchor* anchor);
 
 private:
+    bool matchesAnchorFilter(QQuick3DXrSpatialAnchor *anchor) const;
+    QList<QQuick3DXrSpatialAnchor *> anchorsFiltered() const;
+
     QPointer<QQuick3DXrAnchorManager> m_anchorManager;
     FilterMode m_filterMode = FilterMode::All;
-    QStringList m_uuids;
+    QSet<QString> m_uuids;
     ClassificationFlags m_classFilter;
     QSet<QString> m_classStringFilter;
 };

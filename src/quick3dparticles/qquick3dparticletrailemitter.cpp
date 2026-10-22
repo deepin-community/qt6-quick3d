@@ -1,7 +1,11 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qquick3dparticletrailemitter_p.h"
+
+#include <QtGui/qquaternion.h>
 
 QT_BEGIN_NAMESPACE
 
@@ -74,7 +78,7 @@ bool QQuick3DParticleTrailEmitter::hasBursts() const
 }
 
 // Called to emit set of particles
-void QQuick3DParticleTrailEmitter::emitTrailParticles(const QVector3D &centerPos, int emitAmount, int triggerType)
+void QQuick3DParticleTrailEmitter::emitTrailParticles(const QVector3D &centerPos, int emitAmount, int triggerType, const QVector3D &normal, const QVector3D &velocity)
 {
     if (!system())
         return;
@@ -92,14 +96,14 @@ void QQuick3DParticleTrailEmitter::emitTrailParticles(const QVector3D &centerPos
                 // Distribute evenly between previous and current time, important especially
                 // when time has jumped a lot (like a starttime).
                 float startTime = (m_prevEmitTime / 1000.0f) + addTime * float(i);
-                emitParticle(particle, startTime, QMatrix4x4(), QQuaternion(), centerPos);
+                emitParticle(particle, startTime, QMatrix4x4(), QQuaternion(), centerPos, -1, velocity, normal);
             }
             // Emit bursts, if any
             for (auto burst : std::as_const(m_bursts)) {
                 int burstAmount = std::min(burst.amount, int(particle->maxAmount()));
                 float burstTime = float(burst.time / 1000.0f);
                 for (int i = 0; i < burstAmount; i++)
-                    emitParticle(particle, burstTime, QMatrix4x4(), QQuaternion(), centerPos);
+                    emitParticle(particle, burstTime, QMatrix4x4(), QQuaternion(), centerPos, -1, velocity, normal);
             }
         }
     }

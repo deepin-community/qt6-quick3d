@@ -5,8 +5,8 @@ import QtQuick3D
 import QtQuick
 
 Rectangle {
-    width: 800
-    height: 480
+    width: 550
+    height: 400
     color: Qt.rgba(1, 1, 0.5, 1)
 
     View3D {
@@ -18,8 +18,8 @@ Rectangle {
             depthPrePassEnabled: true
         }
 
-        PerspectiveCamera {
-            position: Qt.vector3d(0, 0, 600)
+        camera: PerspectiveCamera {
+            position: Qt.vector3d(150, -100, 700)
         }
 
         DirectionalLight {

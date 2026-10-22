@@ -1,5 +1,7 @@
 // Copyright (C) 2024 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QQUICK3DXRCONTROLLER_H
 #define QQUICK3DXRCONTROLLER_H
@@ -23,6 +25,7 @@
 
 QT_BEGIN_NAMESPACE
 
+class QQuaternion;
 class QQuick3DXrInputManager;
 
 class Q_QUICK3DXR_EXPORT QQuick3DXrController : public QQuick3DNode
@@ -39,23 +42,29 @@ class Q_QUICK3DXR_EXPORT QQuick3DXrController : public QQuick3DNode
     QML_NAMED_ELEMENT(XrController)
     QML_ADDED_IN_VERSION(6, 8)
 public:
-    enum Controller {
-        ControllerLeft = 0,
-        ControllerRight = 1,
-        ControllerNone = 2,
+
+    enum class Controller {
+        LeftController = uint(QtQuick3DXr::Controller::LeftController),
+        RightController = uint(QtQuick3DXr::Controller::RightController),
+        UnknownController = uint(QtQuick3DXr::Controller::UnknownController),
+        LeftHand = uint(QtQuick3DXr::Controller::LeftHand),
+        RightHand = uint(QtQuick3DXr::Controller::RightHand),
+        ControllerLeft = LeftController,
+        ControllerRight = RightController,
+        ControllerNone = UnknownController,
     };
     Q_ENUM(Controller)
 
     enum class HandPoseSpace {
-        GripPose,
-        AimPose
+        GripPose = uint(QtQuick3DXr::HandPoseSpace::GripPose),
+        AimPose = uint(QtQuick3DXr::HandPoseSpace::AimPose),
     };
     Q_ENUM(HandPoseSpace)
 
     QQuick3DXrController();
 
-    QQuick3DXrController::Controller controller() const;
-    void setController(QQuick3DXrController::Controller newController);
+    Controller controller() const;
+    void setController(Controller newController);
 
     QQuick3DXrHandInput *handInput() const;
 
@@ -85,7 +94,7 @@ Q_SIGNALS:
 
 private:
     QPointer<QQuick3DXrInputManager> m_inputManager;
-    Controller m_controller = ControllerNone;
+    Controller m_controller = Controller::UnknownController;
     QMetaObject::Connection m_isActiveConnection;
     HandPoseSpace m_poseSpace = HandPoseSpace::AimPose;
     QVector3D m_pokePosition;
@@ -94,8 +103,7 @@ private:
 
 namespace QtQuick3DXr
 {
-QtQuick3DXr::Hand handForController(QQuick3DXrController::Controller controller);
-QtQuick3DXr::HandPoseSpace pose_cast(QQuick3DXrController::HandPoseSpace poseSpace);
+QtQuick3DXr::Handedness handednessForController(QtQuick3DXr::Controller controller);
 }
 
 QT_END_NAMESPACE

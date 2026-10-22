@@ -1,5 +1,7 @@
 // Copyright (C) 2024 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QQUICK3DXRHANDTRACKERINPUT_H
 #define QQUICK3DXRHANDTRACKERINPUT_H
@@ -38,10 +40,9 @@ class QQuick3DXrHandModel : public QQuick3DModel
     QML_ADDED_IN_VERSION(6, 8)
 
 public:
-    enum Hand : quint8 {
-        LeftHand = 0,
-        RightHand,
-        Unknown,
+    enum class Hand {
+        LeftHand = uint(QtQuick3DXr::Controller::LeftHand),
+        RightHand = uint(QtQuick3DXr::Controller::RightHand),
     };
     Q_ENUM(Hand)
 

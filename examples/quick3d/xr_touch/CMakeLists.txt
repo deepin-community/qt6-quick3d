@@ -37,6 +37,8 @@ qt_add_qml_module(xr_touch
         ExampleButton.qml
         Monitor.qml
         ScreenContent.qml
+        TouchHand.qml
+        XrGadget.qml
     RESOURCES
         meshes/monitor_mesh.mesh
     NO_RESOURCE_TARGET_PATH

@@ -71,7 +71,7 @@ XrView {
 
         XrController {
             id: rightController
-            controller: XrController.ControllerRight
+            controller: XrController.RightController
 
             poseSpace: XrController.AimPose
 
@@ -79,6 +79,13 @@ XrView {
                 hand: XrInputAction.RightHand
                 actionId: [XrInputAction.Button2Pressed, XrInputAction.MiddleFingerPinch]
                 onTriggered: xrView.preferPassthrough = !xrView.preferPassthrough
+            }
+            XrInputAction {
+                hand: XrInputAction.RightHand
+                actionId: [XrInputAction.Button1Pressed]
+                onTriggered: {
+                    spatialAnchors.model.requestSceneCapture()
+                }
             }
 
             onRotationChanged: {
@@ -88,7 +95,9 @@ XrView {
                     pickRay.length = pickResult.distance
                     movableObject.move(pickResult.scenePosition, pickResult.sceneNormal)
                     movableObject.visible = true
+                    // qmllint disable missing-property
                     const info = pickResult.objectHit?.anchorInfo
+                    // qmllint enable missing-property
                     labelNode.anchorInfo = info ? info : "(unknown)"
                 } else {
                     pickRay.hit = false
@@ -161,7 +170,7 @@ XrView {
                     anchors.fill: parent
                     anchors.margins: 10
                     textFormat: Text.StyledText
-                    text: "Total anchors: " + labelNode.numAnchors + "<br>" + "Selected: " + labelNode.anchorInfo
+                    text: "Total anchors: " + labelNode.numAnchors + "<br>" + "Selected: " + labelNode.anchorInfo + "<br>" + "Press A to Capture/Update anchors"
                 }
             }
         }
@@ -171,6 +180,7 @@ XrView {
     Repeater3D {
         id: spatialAnchors
         model: XrSpatialAnchorListModel {
+
         }
         delegate: Node {
             id: anchorNode

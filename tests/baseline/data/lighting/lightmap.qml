@@ -9,7 +9,7 @@ Rectangle {
     View3D {
         anchors.fill: parent
 
-        PerspectiveCamera {
+        camera: PerspectiveCamera {
             z: 300
             y: 100
         }
@@ -17,6 +17,10 @@ Rectangle {
         environment: SceneEnvironment {
             backgroundMode: SceneEnvironment.Color
             clearColor: "black"
+            lightmapper: Lightmapper {
+                texelsPerUnit: 0.3
+                source: "lightmaps/box.bin"
+            }
         }
 
         PointLight {
@@ -29,11 +33,9 @@ Rectangle {
 
         Box {
             usedInBakedLighting: true
-            lightmapBaseResolution: 256
             bakedLightmap: BakedLightmap {
                 enabled: true
                 key: "box"
-                loadPrefix: "lightmaps"
             }
             scale: Qt.vector3d(100, 100, 100)
         }
