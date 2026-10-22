@@ -1,5 +1,7 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QQUICK3DPARTICLEMODELSHAPE_H
 #define QQUICK3DPARTICLEMODELSHAPE_H
@@ -44,6 +46,7 @@ public Q_SLOTS:
 
     // Returns point inside this shape
     QVector3D getPosition(int particleIndex) override;
+    QVector3D getSurfaceNormal(int particleIndex) override;
 
 Q_SIGNALS:
     void fillChanged();
@@ -61,6 +64,8 @@ private:
     float m_modelTriangleAreasSum = 0;
     QVector<float> m_modelTriangleAreas;
     QVector3D m_modelTriangleCenter;
+    QVector3D m_cachedNormal;
+    int m_cachedIndex = -1;
     bool m_fill = true;
 };
 

@@ -21,6 +21,8 @@ qt_internal_add_3rdparty_library(BundledOpenXR
         src/loader/loader_logger.hpp
         src/loader/loader_logger_recorders.cpp
         src/loader/loader_logger_recorders.hpp
+        src/loader/loader_properties.cpp
+        src/loader/loader_properties.hpp
         src/loader/manifest_file.cpp
         src/loader/manifest_file.hpp
         src/loader/runtime_interface.cpp
@@ -29,6 +31,7 @@ qt_internal_add_3rdparty_library(BundledOpenXR
         src/loader/xr_generated_loader.cpp
         src/xr_generated_dispatch_table_core.c
         src/common/hex_and_handles.h
+        src/common/android_logging.h
         src/common/object_info.cpp
         src/common/object_info.h
         src/common/platform_utils.hpp
@@ -46,10 +49,6 @@ qt_internal_add_3rdparty_library(BundledOpenXR
         XRLOADER_DISABLE_EXCEPTION_HANDLING
     PUBLIC_INCLUDE_DIRECTORIES
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-)
-
-qt_internal_add_3rdparty_header_module(OpenXRPrivate
-    EXTERNAL_HEADERS_DIR include
 )
 
 qt_internal_extend_target(BundledOpenXR CONDITION WIN32

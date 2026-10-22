@@ -1,5 +1,7 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qquick3dparticleemitter_p.h"
 #include "qquick3dparticlemodelparticle_p.h"
@@ -7,6 +9,8 @@
 #include "qquick3dparticleutils_p.h"
 #include "qquick3dparticlespritesequence_p.h"
 #include "qquick3dparticlemodelblendparticle_p.h"
+
+#include <QtGui/qquaternion.h>
 
 QT_BEGIN_NAMESPACE
 
@@ -27,6 +31,14 @@ QT_BEGIN_NAMESPACE
         \li Call any of the \l burst() methods to emit bursts immediately.
     \endlist
 */
+
+template <typename T,
+         typename std::enable_if_t<std::is_signed_v<T>, bool> = true,
+         typename std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
+static constexpr T qSign(T val)
+{
+    return val < T(0) ? T(-1) : T(1);
+}
 
 QQuick3DParticleEmitter::QQuick3DParticleEmitter(QQuick3DNode *parent)
     : QQuick3DNode(parent)
@@ -532,6 +544,66 @@ void QQuick3DParticleEmitter::setDepthBias(float bias)
     emit depthBiasChanged();
 }
 
+/*!
+    \qmlproperty bool ParticleEmitter3D::reversed
+    \since 6.10
+
+    This property reverses the particle time i.e. emitted particles are run from
+    the end time to the start time.
+    \default false
+*/
+bool QQuick3DParticleEmitter::reversed() const
+{
+    return m_reversed;
+}
+
+void QQuick3DParticleEmitter::setReversed(bool reversed)
+{
+    if (m_reversed == reversed)
+        return;
+    m_reversed = reversed;
+    emit reversedChanged();
+}
+
+/*!
+    \qmlproperty EmitMode ParticleEmitter3D::emitMode
+    \since 6.10
+
+    This property defines the emit mode of the emitter with shape.
+
+    \default ParticleEmitter3D.Default
+*/
+
+/*!
+    \qmlproperty enumeration ParticleEmitter3D::EmitMode
+    \since 6.10
+
+    Defines the emit mode of the emitter with shape.
+
+    \value ParticleEmitter3D.Default
+        Default emit behavior.
+    \value ParticleEmitter3D.SurfaceNormal
+        The particles are emitted along the surface normal. Requires a particle shape.
+        If the emitter is a trail emitter, the surface normal is inherited from the followed particle.
+    \value ParticleEmitter3D.SurfaceReflected
+        The particles are emitted along the reflection of the velocity vector and the surface normal.
+        If the emitter is a trail emitter, the surface normal and the velocity are inherited from the followed particle.
+        Requires particle shape.
+*/
+
+QQuick3DParticleEmitter::EmitMode QQuick3DParticleEmitter::emitMode() const
+{
+    return m_emitMode;
+}
+
+void QQuick3DParticleEmitter::setEmitMode(EmitMode mode)
+{
+    if (m_emitMode == mode)
+        return;
+    m_emitMode = mode;
+    emit emitModeChanged();
+}
+
 // Called to reset when system stop/continue
 void QQuick3DParticleEmitter::reset()
 {
@@ -637,7 +709,53 @@ void QQuick3DParticleEmitter::unRegisterEmitBurst(QQuick3DParticleEmitBurst* emi
     m_burstGenerated = false;
 }
 
-void QQuick3DParticleEmitter::emitParticle(QQuick3DParticle *particle, float startTime, const QMatrix4x4 &transform, const QQuaternion &parentRotation, const QVector3D &centerPos, int index)
+static QMatrix4x4 rotationFromNormal(const QVector3D &n)
+{
+    static QMatrix4x4 s_cached;
+    static QVector3D s_cachedN;
+    if (qFuzzyCompare(s_cachedN.x(), n.x()) && qFuzzyCompare(s_cachedN.y(), n.y()) && qFuzzyCompare(s_cachedN.z(), n.z()))
+        return s_cached;
+    QVector3D b;
+    QVector3D t;
+    float values[16];
+
+    if (qAbs(n.y()) < 1.0f - 0.0001f) {
+        t = QVector3D::crossProduct(n, QVector3D(0, qSign(n.y()), 0));
+        b = QVector3D::crossProduct(n, t);
+    } else {
+        b = QVector3D(1, 0, 0);
+        t = QVector3D(0, 0, 1);
+    }
+    values[0] = b.x();
+    values[1] = b.y();
+    values[2] = b.z();
+    values[3] = 0.0;
+    values[4] = t.x();
+    values[5] = t.y();
+    values[6] = t.z();
+    values[7] = 0.0;
+    values[8] = n.x();
+    values[9] = n.y();
+    values[10] = n.z();
+    values[11] = 0.0;
+    values[12] = 0.0;
+    values[13] = 0.0;
+    values[14] = 0.0;
+    values[15] = 1.0;
+    QMatrix4x4 ret = QMatrix4x4(values);
+    s_cached = ret.transposed();
+    s_cachedN = n;
+    return s_cached;
+}
+
+static QVector3D reflect(const QVector3D &I, QVector3D &N)
+{
+    return I - 2.0 * QVector3D::dotProduct(N, I) * N;
+}
+
+void QQuick3DParticleEmitter::emitParticle(QQuick3DParticle *particle, float startTime, const QMatrix4x4 &transform,
+                                           const QQuaternion &parentRotation, const QVector3D &centerPos, int index,
+                                           const QVector3D &velocity, const QVector3D &normal)
 {
     if (!m_system)
         return;
@@ -659,6 +777,7 @@ void QQuick3DParticleEmitter::emitParticle(QQuick3DParticle *particle, float sta
     *d = m_clearData; // Reset the data as it might be reused
     d->index = particleIdIndex;
     d->startTime = startTime;
+    d->surfaceNormal = normal;
 
     // Life time in seconds
     float lifeSpanMs = m_lifeSpanVariation / 1000.0f;
@@ -675,21 +794,38 @@ void QQuick3DParticleEmitter::emitParticle(QQuick3DParticle *particle, float sta
     d->endSize = std::max(0.0f, float(endScale + sEndVar));
 
     // Emiting area/shape
+    bool normalBasedVelocity = false;
     if (mbp && mbp->modelBlendMode() != QQuick3DParticleModelBlendParticle::Construct) {
         // We emit from model position unless in construct mode
         d->startPosition = mbp->particleCenter(particleDataIndex);
     } else {
         // When shape is not set, default to node center point.
         QVector3D pos = centerPos;
-        if (m_shape)
+        if (m_shape) {
             pos += m_shape->getPosition(particleIdIndex);
+            const auto n = m_shape->getSurfaceNormal(particleIdIndex);
+            if (!n.isNull()) {
+                d->surfaceNormal = n;
+                if (m_emitMode != EmitMode::Default)
+                    normalBasedVelocity = true;
+            }
+        } else if (!normal.isNull() && m_emitMode != EmitMode::Default) {
+            normalBasedVelocity = true;
+        }
         d->startPosition = transform.map(pos);
     }
 
     // Velocity
-    if (m_velocity) {
-        // Rotate velocity based on parent node rotation and emitter rotation
+    // Rotate velocity based on parent node rotation and emitter rotation
+    if (m_velocity)
         d->startVelocity = parentRotation * rotation() * m_velocity->sample(*d);
+    if (normalBasedVelocity) {
+        if (m_emitMode == EmitMode::SurfaceNormal)
+            d->startVelocity = rotationFromNormal(d->surfaceNormal).mapVector(d->startVelocity);
+        else if (!velocity.isNull()) // EmitMode::SurfaceReflected
+            d->startVelocity = rotationFromNormal(-reflect(velocity, d->surfaceNormal)).mapVector(d->startVelocity);
+        else
+            d->startVelocity = rotationFromNormal(-reflect(d->startVelocity.normalized(), d->surfaceNormal)).mapVector(d->startVelocity);
     }
 
     // Rotation
@@ -757,6 +893,7 @@ void QQuick3DParticleEmitter::emitParticle(QQuick3DParticle *particle, float sta
             d->animationTime = d->lifetime;
         }
     }
+    d->reversed = m_reversed;
 }
 
 int QQuick3DParticleEmitter::getEmitAmountFromDynamicBursts(int triggerType)

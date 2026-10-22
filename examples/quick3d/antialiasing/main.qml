@@ -66,6 +66,7 @@ ApplicationWindow {
                                                           ? SceneEnvironment.High : SceneEnvironment.VeryHigh
             temporalAAEnabled: temporalModeButton.checked
             temporalAAStrength: temporalStrengthSlider.value
+            temporalAAMode: temporalModeDefault.checked ? SceneEnvironment.TAADefault : SceneEnvironment.TAAMotionVector
         }
    //! [scene environment]
 
@@ -78,8 +79,8 @@ ApplicationWindow {
                 eulerRotation.y: 45
                 eulerRotation.x: 30 + view3D.animationValue * 100
                 scale: Qt.vector3d(2, 2, 2)
-                materials: DefaultMaterial {
-                    diffuseColor: "#4aee45"
+                materials: PrincipledMaterial {
+                    baseColor: "#4aee45"
                 }
             }
 
@@ -90,8 +91,8 @@ ApplicationWindow {
                 eulerRotation.y: 5
                 eulerRotation.x: 5
                 scale: Qt.vector3d(0.5, 0.5, 0.5)
-                materials: DefaultMaterial {
-                    diffuseColor: "#faee45"
+                materials: PrincipledMaterial {
+                    baseColor: "#faee45"
                 }
             }
 
@@ -101,8 +102,8 @@ ApplicationWindow {
                 y: -40
                 z: 160 + view3D.animationValue * 40
                 scale: Qt.vector3d(1.5, 1.5, 1.5)
-                materials: DefaultMaterial {
-                    diffuseColor: Qt.rgba(0.8, 0.8, 0.8, 1.0)
+                materials: PrincipledMaterial {
+                    baseColor: Qt.rgba(0.8, 0.8, 0.8, 1.0)
                 }
             }
         }
@@ -167,6 +168,26 @@ ApplicationWindow {
                 CheckBox {
                     id: temporalModeButton
                     text: qsTr("Enable Temporal AA")
+                }
+
+                GroupBox {
+                    title: qsTr("Temporal AA Mode")
+                    enabled: temporalModeButton.checked
+                    ButtonGroup {
+                        buttons: temporalModeColumn.children
+                    }
+                    ColumnLayout {
+                        id: temporalModeColumn
+                        RadioButton {
+                            id: temporalModeDefault
+                            checked: true
+                            text: qsTr("Default")
+                        }
+                        RadioButton {
+                            id: temporalModeMotionVector
+                            text: qsTr("Motion Vector")
+                        }
+                    }
                 }
 
                 ColumnLayout {

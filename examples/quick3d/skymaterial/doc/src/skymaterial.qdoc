@@ -1,0 +1,136 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GFDL-1.3-no-invariants-only
+
+/*!
+    \example skymaterial
+    \ingroup quick3d-examples
+    \title Qt Quick 3D - Sky Material Example
+    \examplecategory {3D}
+    \brief Demonstrates procedural sky rendering and image-based lighting with SkyMaterial.
+    \image skymaterial-example.webp
+           {Procedural atmospheric sky with PBR spheres reflecting the environment}
+
+    This example shows how to use \l SkyMaterial to render a procedural sky
+    and use the resulting cubemap as the light probe for image-based lighting
+    (IBL) on the scene's PBR materials.
+
+    The \c AdvancedSky helper is a \l SkyMaterial subclass implementing a
+    physically-based atmospheric scattering model following Hillaire's
+    "A Scalable and Production Ready Sky and Atmosphere Rendering Technique"
+    (2020), with configurable aerosols, ozone, eye altitude, and ray-marched
+    volumetric clouds.
+
+    \section1 Setting Up the Scene
+
+    The application uses \l ApplicationWindow with a \l View3D filling the
+    window. A settings panel overlays the left edge and slides in and out
+    when the toggle button is clicked. The relevant QtQuick3D imports are:
+
+    \snippet skymaterial/main.qml import
+
+    \section1 Defining the Sky Material
+
+    \c AdvancedSky is declared inside the View3D so it shares the same
+    \c skyLight \l Node (the sun):
+
+    \snippet skymaterial/main.qml advanced-sky
+
+    \c AdvancedSky is a \l SkyMaterial subclass defined in \c AdvancedSky.qml.
+    Its QML properties are automatically forwarded as uniforms to the fragment
+    shader.
+
+    \section1 Image-Based Lighting
+
+    Assigning the sky material to \l SceneEnvironment::skyMaterial uses the
+    procedurally rendered cubemap both as the visible background and as the
+    source for image-based lighting on the PBR materials in the scene:
+
+    \snippet skymaterial/main.qml environment
+
+    The smoothest sphere in the demo mirrors the procedural sky almost
+    perfectly; the rougher spheres show progressively blurred reflections,
+    produced by SkyMaterial's GGX prefilter chain over the procedural cubemap.
+
+    \section1 Choosing How the Sky Is Drawn
+
+    \l{SkyMaterial::}{skyboxMode} selects what SkyMaterial produces for the
+    visible background, independently of the IBL cube used for reflections:
+
+    \list
+        \li \c SkyMaterial.Cubemap samples the radiance cubemap (the same cube
+            used for image-based lighting), so for a static sky the cube is
+            rendered once and then sampled cheaply every frame. Background
+            sharpness is capped at \l{SkyMaterial::}{radianceMapSize}. This is
+            the lowest per-frame cost when only the camera moves.
+        \li The \c ScreenSpace modes evaluate the sky shader directly on screen
+            every frame — at full, half, or quarter resolution per axis. They
+            decouple the visible background from the IBL cube, giving a crisp
+            sky for dynamic conditions (a moving sun, animated volumetric
+            clouds) at the cost of a per-frame render. Lower scales trade
+            sharpness for speed.
+    \endlist
+
+    Switch the "Skybox mode" combo box in the settings panel to compare the
+    options live: the cubemap modes stay cheap but soften as the sun and clouds
+    move, while the screen-space modes track every change sharply.
+
+    \section1 Managing Frame Budget
+
+    \l{SkyMaterial::}{iblRenderFrames} spreads the IBL prefilter across several
+    frames: the same total \l{SkyMaterial::}{iblSampleCount} is integrated
+    incrementally, one slice per frame, until convergence. The default value of
+    \c 0 runs sample accumulation, normalization, and irradiance all in a single
+    frame. Setting it higher amortizes the prefilter cost, keeping the scene
+    responsive when IBL sample counts are high.
+
+    \section1 Animating the Sun
+
+    A \l FrameAnimation drives the sun back and forth across the horizon when
+    the "Animate sun" toggle is on. Each change in sun position invalidates the
+    IBL accumulator, but with \l{SkyMaterial::}{iblRenderFrames} set
+    appropriately the prefilter cost is spread across frames and no single frame
+    pays the full cost.
+
+    \snippet skymaterial/main.qml sun-animation
+
+    \section1 Settings Panel
+
+    The settings panel slides in and out over the \l View3D, toggled by the
+    button in the top-left corner of the viewport. It is divided into two
+    groups.
+
+    \section2 Sky
+
+    Controls for the sky appearance and clouds.
+
+    \list
+        \li \b{Animate sun} — runs a ping-pong sun sweep across the horizon.
+        \li \b{Cycle speed} — sweep speed for the sun animation.
+        \li \b{Sun elevation} — manual sun position in degrees (0° = dawn,
+            90° = noon, 180° = dusk).
+        \li \b{Enable clouds} — toggles ray-marched volumetric clouds.
+        \li \b{Cloud coverage} — fraction of the sky covered by clouds
+            (0 = clear, 1 = overcast).
+        \li \b{Animate wind} — drifts the cloud noise texture each frame,
+            continuously invalidating the IBL accumulator — a useful stress test
+            for the frame budget controls.
+    \endlist
+
+    \section2 Rendering
+
+    Controls that map directly to \l SkyMaterial base-class properties.
+
+    \list
+        \li \b{Skybox mode} — see \l{SkyMaterial::}{skyboxMode}.
+        \li \b{IBL render frames} — see \l{SkyMaterial::}{iblRenderFrames}.
+        \li \b{Enable IBL} — see \l{SkyMaterial::}{enableIBL}.
+        \li \b{IBL sample count} — see \l{SkyMaterial::}{iblSampleCount}.
+        \li \b{Radiance map size} — see \l{SkyMaterial::}{radianceMapSize}.
+    \endlist
+
+    The camera responds to standard \l WasdController navigation — W/A/S/D plus
+    mouse drag to look around. Tap the viewport to give it keyboard focus.
+
+    \sa {SkyMaterial}
+    \sa {SceneEnvironment}
+*/

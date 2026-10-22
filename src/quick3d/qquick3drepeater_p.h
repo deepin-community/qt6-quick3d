@@ -1,5 +1,7 @@
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QQUICK3DREPEATER_P_H
 #define QQUICK3DREPEATER_P_H
@@ -17,6 +19,8 @@
 
 #include <QtQuick3D/private/qquick3dnode_p.h>
 
+#include <QtQmlModels/private/qqmldelegatemodel_p.h>
+
 #include <QtCore/qvector.h>
 #include <QtCore/qpointer.h>
 
@@ -33,6 +37,9 @@ class Q_QUICK3D_EXPORT QQuick3DRepeater : public QQuick3DNode
     Q_PROPERTY(QVariant model READ model WRITE setModel NOTIFY modelChanged)
     Q_PROPERTY(QQmlComponent *delegate READ delegate WRITE setDelegate NOTIFY delegateChanged)
     Q_PROPERTY(int count READ count NOTIFY countChanged)
+    Q_PROPERTY(QQmlDelegateModel::DelegateModelAccess delegateModelAccess READ delegateModelAccess
+            WRITE setDelegateModelAccess NOTIFY delegateModelAccessChanged REVISION(6, 10) FINAL)
+
     Q_CLASSINFO("DefaultProperty", "delegate")
 
     QML_NAMED_ELEMENT(Repeater3D)
@@ -51,6 +58,9 @@ public:
 
     Q_INVOKABLE QQuick3DObject *objectAt(int index) const;
 
+    QQmlDelegateModel::DelegateModelAccess delegateModelAccess() const;
+    void setDelegateModelAccess(QQmlDelegateModel::DelegateModelAccess delegateModelAccess);
+
 Q_SIGNALS:
     void modelChanged();
     void delegateChanged();
@@ -58,6 +68,8 @@ Q_SIGNALS:
 
     void objectAdded(int index, QQuick3DObject *object);
     void objectRemoved(int index, QQuick3DObject *object);
+
+    Q_REVISION(6, 10) void delegateModelAccessChanged();
 
 private:
     void clear();
@@ -77,14 +89,18 @@ private:
     Q_DISABLE_COPY(QQuick3DRepeater)
 
     void requestItems();
+    void applyDelegateChange();
+    QQmlDelegateModel *createDelegateModel();
+
+    void connectModel(QQmlDelegateModelPointer *model);
+    void disconnectModel(QQmlDelegateModelPointer *model);
 
     QPointer<QQmlInstanceModel> m_model;
-    QVariant m_dataSource;
-    QPointer<QObject> m_dataSourceAsObject;
     int m_itemCount;
     bool m_ownModel : 1;
-    bool m_dataSourceIsObject : 1;
     bool m_delegateValidated : 1;
+    bool m_explicitDelegate: 1;
+    bool m_explicitDelegateModelAccess : 1;
 
     QVector<QPointer<QQuick3DNode> > m_deletables;
 };

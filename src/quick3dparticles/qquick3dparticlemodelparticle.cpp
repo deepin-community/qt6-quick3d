@@ -1,5 +1,7 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qquick3dparticlemodelparticle_p.h"
 
@@ -61,6 +63,12 @@ void QQuick3DParticleModelParticle::handleMaxAmountChanged(int amount)
         color: "#ff0000"
     }
     \endqml
+
+    \note The content instantiated from the delegate keeps its own
+    \l {QtQuick3D::Node::layers}{layers} assignment; the layers value of the
+    \l ParticleSystem3D is not applied to it. To render the particles on a
+    specific content layer, set the layers property on the nodes in the
+    delegate.
 */
 QQmlComponent *QQuick3DParticleModelParticle::delegate() const
 {
@@ -247,7 +255,7 @@ void QQuick3DParticleModelParticle::regenerate()
     delete m_node;
     m_node = nullptr;
 
-    if (!isComponentComplete())
+    if (!isComponentComplete() || !parentItem())
         return;
 
     if (!m_instanceTable) {

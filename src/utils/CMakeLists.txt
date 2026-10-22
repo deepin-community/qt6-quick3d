@@ -12,6 +12,7 @@ qt_internal_add_module(Quick3DUtils
         qqsbcollection.cpp qqsbcollection_p.h
         qssgbounds3.cpp qssgbounds3_p.h
         qssgdataref.cpp qssgdataref_p.h
+        qssgfrustum_p.h
         qssginvasivelinkedlist_p.h
         qssgmeshbvh.cpp qssgmeshbvh_p.h
         qssgplane.cpp qssgplane_p.h
@@ -31,17 +32,16 @@ qt_internal_add_module(Quick3DUtils
         ../3rdparty/meshoptimizer/src/indexcodec.cpp
         ../3rdparty/meshoptimizer/src/indexgenerator.cpp
         ../3rdparty/meshoptimizer/src/meshoptimizer.h
-        ../3rdparty/meshoptimizer/src/overdrawanalyzer.cpp
         ../3rdparty/meshoptimizer/src/overdrawoptimizer.cpp
         ../3rdparty/meshoptimizer/src/simplifier.cpp
         ../3rdparty/meshoptimizer/src/spatialorder.cpp
         ../3rdparty/meshoptimizer/src/stripifier.cpp
-        ../3rdparty/meshoptimizer/src/vcacheanalyzer.cpp
         ../3rdparty/meshoptimizer/src/vcacheoptimizer.cpp
         ../3rdparty/meshoptimizer/src/vertexcodec.cpp
         ../3rdparty/meshoptimizer/src/vertexfilter.cpp
-        ../3rdparty/meshoptimizer/src/vfetchanalyzer.cpp
         ../3rdparty/meshoptimizer/src/vfetchoptimizer.cpp
+        ../3rdparty/meshoptimizer/src/partition.cpp
+        ../3rdparty/meshoptimizer/src/quantization.cpp
     NO_UNITY_BUILD_SOURCES
         ../3rdparty/xatlas/xatlas.cpp ../3rdparty/xatlas/xatlas.h
         ../3rdparty/meshoptimizer/src/allocator.cpp
@@ -49,17 +49,16 @@ qt_internal_add_module(Quick3DUtils
         ../3rdparty/meshoptimizer/src/indexcodec.cpp
         ../3rdparty/meshoptimizer/src/indexgenerator.cpp
         ../3rdparty/meshoptimizer/src/meshoptimizer.h
-        ../3rdparty/meshoptimizer/src/overdrawanalyzer.cpp
         ../3rdparty/meshoptimizer/src/overdrawoptimizer.cpp
         ../3rdparty/meshoptimizer/src/simplifier.cpp
         ../3rdparty/meshoptimizer/src/spatialorder.cpp
         ../3rdparty/meshoptimizer/src/stripifier.cpp
-        ../3rdparty/meshoptimizer/src/vcacheanalyzer.cpp
         ../3rdparty/meshoptimizer/src/vcacheoptimizer.cpp
         ../3rdparty/meshoptimizer/src/vertexcodec.cpp
         ../3rdparty/meshoptimizer/src/vertexfilter.cpp
-        ../3rdparty/meshoptimizer/src/vfetchanalyzer.cpp
         ../3rdparty/meshoptimizer/src/vfetchoptimizer.cpp
+        ../3rdparty/meshoptimizer/src/partition.cpp
+        ../3rdparty/meshoptimizer/src/quantization.cpp
     DEFINES
         QT_BUILD_QUICK3DUTILS_LIB
     INCLUDE_DIRECTORIES

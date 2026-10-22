@@ -1,5 +1,7 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QQUICK3DPARTICLEABSTRACTSHAPE_H
 #define QQUICK3DPARTICLEABSTRACTSHAPE_H
@@ -37,6 +39,7 @@ public:
     explicit QQuick3DParticleAbstractShape(QObject *parent = nullptr);
     // Returns position inside the shape
     virtual QVector3D getPosition(int particleIndex) = 0;
+    Q_REVISION(6, 10) virtual QVector3D getSurfaceNormal(int particleIndex) = 0;
 
 protected:
     // These need access to m_system

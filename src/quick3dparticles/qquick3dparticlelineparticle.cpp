@@ -1,5 +1,7 @@
 // Copyright (C) 2022 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qquick3dparticlelineparticle_p.h"
 #include "qquick3dparticlesystem_p.h"
@@ -102,10 +104,13 @@ float QQuick3DParticleLineParticle::length() const
 /*!
     \qmlproperty real LineParticle3D::lengthVariation
 
-    This property holds the length variation of the line. This parameter is not used if
-    the length parameter has not been set. When the length is set, this parameter can be used to
-    vary the length of each line. The default value is 0.0.
+    This property holds the length variation applied to each line. Variation is applied
+    only if the \l length property is also set. The resulting line length clamps to positive
+    values.
+
+    The default value is 0.0.
 */
+
 float QQuick3DParticleLineParticle::lengthVariation() const
 {
     return m_lengthVariation;
@@ -292,6 +297,7 @@ void QQuick3DParticleLineParticle::handleSystemChanged(QQuick3DParticleSystem *s
         value.particleUpdateNode = new LineParticleUpdateNode(system);
         value.particleUpdateNode->m_particle = this;
     }
+    updateNodeLayers();
 }
 
 QSSGRenderGraphObject *QQuick3DParticleLineParticle::LineParticleUpdateNode::updateSpatialNode(QSSGRenderGraphObject *node)
@@ -340,6 +346,7 @@ int QQuick3DParticleLineParticle::nextCurrentIndex(const QQuick3DParticleEmitter
         perEmitter.emitter = emitter;
         perEmitter.particleUpdateNode->m_particle = this;
         perEmitter.emitterIndex = m_nextEmitterIndex++;
+        updateNodeLayers();
     }
     int index = QQuick3DParticleSpriteParticle::nextCurrentIndex(emitter);
     clearSegment(index);
@@ -574,7 +581,7 @@ void QQuick3DParticleLineParticle::updateLineBuffer(LineParticleUpdateNode *upda
     }
 
     float time = system()->currentTime() * 0.001f;
-    for (const FadeOutLineData &fdata : m_fadeOutData) {
+    for (const FadeOutLineData &fdata : std::as_const(m_fadeOutData)) {
         if (fdata.emitterIndex == perEmitter.emitterIndex) {
             float factor = 1.0f - (time - fdata.beginTime) * fdata.timeFactor;
             genLine(fdata.endPoint, fdata.header, fdata.lineData.data(), bounds, segments,

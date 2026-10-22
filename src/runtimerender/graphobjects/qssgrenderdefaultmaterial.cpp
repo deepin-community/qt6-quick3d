@@ -1,6 +1,8 @@
 // Copyright (C) 2008-2012 NVIDIA Corporation.
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include <QtQuick3DRuntimeRender/private/qssgrenderdefaultmaterial_p.h>
 #include <QtQuick3DRuntimeRender/private/qssgshadermaterialadapter_p.h>
@@ -8,7 +10,7 @@
 QT_BEGIN_NAMESPACE
 
 QSSGRenderDefaultMaterial::QSSGRenderDefaultMaterial(QSSGRenderGraphObject::Type type)
-    : QSSGRenderGraphObject(type)
+    : QSSGRenderGraphObject(type, FlagT(Flags::HasGraphicsResources))
 {
     Q_ASSERT(type == QSSGRenderGraphObject::Type::DefaultMaterial ||
              type == QSSGRenderGraphObject::Type::PrincipledMaterial ||
@@ -33,7 +35,7 @@ void QSSGRenderDefaultMaterial::clearDirty()
 }
 
 QSSGRenderCustomMaterial::QSSGRenderCustomMaterial()
-    : QSSGRenderGraphObject(Type::CustomMaterial)
+    : QSSGRenderGraphObject(Type::CustomMaterial, FlagT(QSSGRenderGraphObject::Flags::HasGraphicsResources))
 {
     adapter = QSSGShaderMaterialAdapter::create(*this);
 }

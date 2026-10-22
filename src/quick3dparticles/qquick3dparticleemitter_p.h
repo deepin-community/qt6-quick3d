@@ -1,5 +1,7 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QQUICK3DPARTICLEEMITTER_H
 #define QQUICK3DPARTICLEEMITTER_H
@@ -25,6 +27,8 @@
 
 QT_BEGIN_NAMESPACE
 
+class QQuaternion;
+
 class Q_QUICK3DPARTICLES_EXPORT QQuick3DParticleEmitter : public QQuick3DNode
 {
     Q_OBJECT
@@ -46,11 +50,17 @@ class Q_QUICK3DPARTICLES_EXPORT QQuick3DParticleEmitter : public QQuick3DNode
     Q_PROPERTY(QVector3D particleRotationVelocity READ particleRotationVelocity WRITE setParticleRotationVelocity NOTIFY particleRotationVelocityChanged)
     Q_PROPERTY(QVector3D particleRotationVelocityVariation READ particleRotationVelocityVariation WRITE setParticleRotationVelocityVariation NOTIFY particleRotationVariationVelocityChanged)
     Q_PROPERTY(float depthBias READ depthBias WRITE setDepthBias NOTIFY depthBiasChanged)
+    Q_PROPERTY(bool reversed READ reversed WRITE setReversed NOTIFY reversedChanged REVISION(6, 10))
 
+    Q_PROPERTY(EmitMode emitMode READ emitMode WRITE setEmitMode NOTIFY emitModeChanged REVISION(6, 10))
     QML_NAMED_ELEMENT(ParticleEmitter3D)
     QML_ADDED_IN_VERSION(6, 2)
 
 public:
+
+    enum EmitMode { Default = 0, SurfaceNormal, SurfaceReflected };
+    Q_ENUM(EmitMode)
+
     QQuick3DParticleEmitter(QQuick3DNode *parent = nullptr);
     ~QQuick3DParticleEmitter() override;
 
@@ -71,7 +81,9 @@ public:
     QVector3D particleRotationVelocity() const;
     QVector3D particleRotationVelocityVariation() const;
     float depthBias() const;
+    Q_REVISION(6, 10) bool reversed() const;
 
+    Q_REVISION(6, 10) EmitMode emitMode() const;
     QQmlListProperty<QQuick3DParticleEmitBurst> emitBursts();
 
     Q_INVOKABLE virtual void burst(int count);
@@ -96,7 +108,9 @@ public Q_SLOTS:
     void setParticleRotationVelocity(const QVector3D &particleRotationVelocity);
     void setParticleRotationVelocityVariation(const QVector3D &particleRotationVelocityVariation);
     void setDepthBias(float bias);
+    Q_REVISION(6, 10) void setReversed(bool reversed);
 
+    Q_REVISION(6, 10) void setEmitMode(EmitMode mode);
 Q_SIGNALS:
     void velocityChanged();
     void systemChanged();
@@ -115,6 +129,8 @@ Q_SIGNALS:
     void particleRotationVariationVelocityChanged();
     void enabledChanged();
     void depthBiasChanged();
+    Q_REVISION(6, 10) void reversedChanged();
+    Q_REVISION(6, 10) void emitModeChanged();
 
 protected:
     friend class QQuick3DParticleSystem;
@@ -125,7 +141,8 @@ protected:
     void registerEmitBurst(QQuick3DParticleEmitBurst *emitBurst);
     void unRegisterEmitBurst(QQuick3DParticleEmitBurst *emitBurst);
     void generateEmitBursts();
-    void emitParticle(QQuick3DParticle *particle, float startTime, const QMatrix4x4 &transform, const QQuaternion &parentRotation, const QVector3D &centerPos, int index = -1);
+    void emitParticle(QQuick3DParticle *particle, float startTime, const QMatrix4x4 &transform, const QQuaternion &parentRotation, const QVector3D &centerPos, int index = -1,
+                      const QVector3D &velocity = QVector3D(), const QVector3D &normal = QVector3D());
     void emitParticles();
     void emitActivationNodeParticles(QQuick3DParticleModelBlendParticle *particle);
     void emitParticlesBurst(const QQuick3DParticleEmitBurstData &burst);
@@ -187,6 +204,8 @@ private:
     // This list contains all emit bursts (both QQuick3DParticleEmitBurst and QQuick3DParticleDynamicBurst)
     QList<QQuick3DParticleEmitBurst *> m_emitBursts;
     QList<BurstEmitData> m_burstEmitData;
+    bool m_reversed = false;
+    EmitMode m_emitMode = EmitMode::Default;
 };
 
 QT_END_NAMESPACE

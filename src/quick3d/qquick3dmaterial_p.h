@@ -1,5 +1,7 @@
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QSSGMATERIAL_H
 #define QSSGMATERIAL_H
@@ -73,6 +75,7 @@ public:
     };
     Q_ENUM(VertexColorMask)
     Q_DECLARE_FLAGS(VertexColorMaskFlags, VertexColorMask)
+    Q_FLAG(VertexColorMaskFlags)
 
     ~QQuick3DMaterial() override;
 

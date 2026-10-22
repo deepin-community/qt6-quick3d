@@ -8,6 +8,7 @@ find_package(OpenMP)
 set(CMAKE_AUTOMOC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick Quick3D)
+qt_standard_project_setup(REQUIRES 6.8)
 
 qt_add_executable(volumeraycaster
     main.cpp
@@ -29,7 +30,7 @@ target_link_libraries(volumeraycaster PUBLIC
     Qt::Quick3D
 )
 
-if(OpenMP_CXX_FOUND)
+if(OpenMP_CXX_FOUND AND NOT ANDROID)
     target_link_libraries(volumeraycaster PUBLIC
         OpenMP::OpenMP_CXX
     )
@@ -51,10 +52,10 @@ qt_add_qml_module(volumeraycaster
         images/colormap-plasma.png
         images/colormap-rainbow.png
         images/colormap-viridis.png
+        images/Menu_Icon.svg
         alpha_blending.frag
         alpha_blending.vert
         SpacingMap.mjs
-    RESOURCE_PREFIX "/qt/qml"
     IMPORTS
         QtQuick3D
 )

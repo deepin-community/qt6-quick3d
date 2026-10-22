@@ -1,5 +1,7 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QQUICK3DPROFILER_P_H
 #define QQUICK3DPROFILER_P_H
@@ -87,20 +89,19 @@ struct Q_QUICK3DUTILS_EXPORT QQuick3DProfilerData
 
 Q_DECLARE_TYPEINFO(QQuick3DProfilerData, Q_RELOCATABLE_TYPE);
 
-class QQuick3DProfilerSceneGraphData : public QQmlProfilerDefinitions {
+class Q_QUICK3DUTILS_EXPORT QQuick3DProfilerSceneGraphData : public QQmlProfilerDefinitions {
 private:
     static const uint s_numSceneGraphTimings = 2;
     static const uint s_numNestedTimings = 5;
     struct Timings {
         uint nesting = 0;
-        qint64 values[s_numNestedTimings][s_numSceneGraphTimings + 1];
+        qint64 values[s_numNestedTimings][s_numSceneGraphTimings + 1] = {};
     };
-    template<uint size>
     struct TimingData
     {
-        Timings timings[size];
+        Timings timings[MaximumQuick3DFrameType] = {};
     };
-    QThreadStorage<TimingData<MaximumQuick3DFrameType>> eventTimings;
+    static QThreadStorage<TimingData> eventTimings;
 public:
     template<int type, bool inc>
     qint64 *timings()

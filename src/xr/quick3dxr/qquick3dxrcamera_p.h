@@ -1,5 +1,7 @@
 // Copyright (C) 2024 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QQUICK3DXRCAMERA_P_H
 #define QQUICK3DXRCAMERA_P_H
@@ -52,6 +54,7 @@ public Q_SLOTS:
     void setDownTangent(float downTangent);
     void setClipNear(float clipNear);
     void setClipFar(float clipFar);
+    void setProjection(const QMatrix4x4 &projection);
 
 Q_SIGNALS:
     void leftTangentChanged(float leftTangent);
@@ -68,7 +71,15 @@ protected:
     QSSGRenderGraphObject *updateSpatialNode(QSSGRenderGraphObject *node) override;
 
 private:
-    void markProjectionDirty();
+    enum DirtyFlag : quint8
+    {
+        ProjectionDirty = 0x1, // Camera projection matrix needs to be recalculated
+        ProjectionChanged = 0x2, // A camera projection matrix has changed (no recalculation needed)
+        ClipChanged = 0x4, // Camera clip planes have changed
+    };
+    using DirtyFlagT = std::underlying_type_t<DirtyFlag>;
+
+    void markDirty(DirtyFlag flag);
     void maybeUpdateProjection();
     float m_leftTangent = -0.017455064928218f;  // tan(-1)
     float m_rightTangent = 0.017455064928218f;  // tan(1)
@@ -76,7 +87,7 @@ private:
     float m_downTangent = -0.017455064928218f;  // tan(-1)
     float m_clipNear = 1.0f;
     float m_clipFar = 10000.0f;
-    bool m_projectionDirty = true;
+    DirtyFlagT m_dirtyFlags = 0;
 };
 
 class Q_QUICK3DXR_EXPORT QQuick3DXrCamera : public QQuick3DNode

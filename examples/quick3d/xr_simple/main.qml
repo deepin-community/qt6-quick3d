@@ -3,7 +3,6 @@
 
 import QtQuick
 import QtQuick.Layouts
-import QtQuick3D.Helpers
 //! [XrView]
 import QtQuick3D
 import QtQuick3D.Xr
@@ -26,13 +25,13 @@ XrView {
         id: theOrigin
 
         XrController {
-            controller: XrController.ControllerLeft
+            controller: XrController.LeftController
             poseSpace: XrController.AimPose
             CubeModel { color: "blue" }
         }
 
         XrController {
-            controller: XrController.ControllerRight
+            controller: XrController.RightController
             poseSpace: XrController.AimPose
             CubeModel { color: "red" }
         }
@@ -45,7 +44,7 @@ XrView {
         property alias color: boxMaterial.baseColor
         materials: PrincipledMaterial {
             id: boxMaterial
-            lighting: DefaultMaterial.NoLighting
+            lighting: PrincipledMaterial.NoLighting
         }
     }
 
@@ -57,8 +56,8 @@ XrView {
 
         Model {
             source: "#Cube"
-            materials: DefaultMaterial {
-                diffuseColor: Qt.rgba(0.4, 0.7, 0.0, 1.0)
+            materials: PrincipledMaterial {
+                baseColor: Qt.rgba(0.4, 0.7, 0.0, 1.0)
             }
 
             y: -10

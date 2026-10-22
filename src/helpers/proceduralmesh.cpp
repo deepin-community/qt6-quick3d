@@ -1,5 +1,7 @@
 // Copyright (C) 2023 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "proceduralmesh_p.h"
 
@@ -436,7 +438,7 @@ void ProceduralMesh::updateGeometry()
     // Subsets
     // Subsets are optional so if none are specified the whole mesh is a single submesh
     if (!m_subsets.isEmpty()) {
-        for (const auto &subset : m_subsets) {
+        for (const auto &subset : std::as_const(m_subsets)) {
             QVector3D subsetMinBounds;
             QVector3D subsetMaxBounds;
             // Range checking is necessary because the user could have specified subset values
@@ -475,6 +477,7 @@ void ProceduralMesh::updateGeometry()
     }
 
     update();
+    emit geometryChanged();
 }
 
 void ProceduralMesh::subsetDestroyed(QObject *subset)

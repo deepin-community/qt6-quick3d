@@ -1,6 +1,8 @@
 // Copyright (C) 2008-2012 NVIDIA Corporation.
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QSSG_RHI_CUSTOM_MATERIAL_SYSTEM_H
 #define QSSG_RHI_CUSTOM_MATERIAL_SYSTEM_H
@@ -34,7 +36,7 @@ class QSSGLayerRenderData;
 struct QSSGRenderableImage;
 struct QSSGRenderLayer;
 struct QSSGRenderLight;
-struct QSSGRenderCamera;
+class QSSGRenderCamera;
 struct QSSGReflectionMapEntry;
 class QRhiTexture;
 
@@ -73,7 +75,8 @@ public:
                                                       const QSSGRenderCustomMaterial &material,
                                                       QSSGSubsetRenderable &renderable,
                                                       const QSSGShaderDefaultMaterialKeyProperties &defaultMaterialShaderKeyProperties,
-                                                      const QSSGShaderFeatures &featureSet);
+                                                      const QSSGShaderFeatures &featureSet,
+                                                      const QSSGUserShaderAugmentation &shaderAugmentation = {});
 
     void updateUniformsForCustomMaterial(QSSGRhiShaderPipeline &shaderPipeline,
                                          QSSGRhiContext *rhiCtx,
@@ -95,10 +98,12 @@ public:
                               QRhiRenderPassDescriptor *renderPassDescriptor,
                               int samples,
                               int viewCount,
+                              bool screenMapPass,
                               QSSGRenderCamera *camera = nullptr,
                               QSSGRenderTextureCubeFace cubeFace = QSSGRenderTextureCubeFaceNone,
                               QMatrix4x4 *modelViewProjection = nullptr,
-                              QSSGReflectionMapEntry *entry = nullptr);
+                              QSSGReflectionMapEntry *entry = nullptr,
+                              bool oit = false);
     void applyRhiShaderPropertyValues(char *ubufData,
                                       const QSSGRenderCustomMaterial &inMaterial,
                                       QSSGRhiShaderPipeline &shaderPipeline);
@@ -106,7 +111,8 @@ public:
                              QSSGSubsetRenderable &renderable,
                              bool *needsSetViewport,
                              QSSGRenderTextureCubeFace cubeFace,
-                             const QSSGRhiGraphicsPipelineState &state);
+                             const QSSGRhiGraphicsPipelineState &state,
+                             qsizetype userPassIndex = -1);
 };
 
 QT_END_NAMESPACE

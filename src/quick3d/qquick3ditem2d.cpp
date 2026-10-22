@@ -1,5 +1,7 @@
 // Copyright (C) 2020 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include <QtQuick3D/qquick3dobject.h>
 #include <QtQuick3D/private/qquick3ditem2d_p.h>
@@ -35,24 +37,6 @@ QQuick3DItem2D::QQuick3DItem2D(QQuickItem *item, QQuick3DNode *parent)
 QQuick3DItem2D::~QQuick3DItem2D()
 {
     delete m_contentItem;
-
-    // This is sketchy. Similarly to the problems QQuick3DTexture has with its
-    // QSGTexture, the same problems arise here with the QSGRenderer. The
-    // associated scenegraph resource must be destroyed on the render thread,
-    // if there is one. If the scenegraph gets invalidated, that's easy due to
-    // signals/slots, but there's no such signal if an object with Item2Ds in
-    // it gets dynamically destroyed.
-    // Here on the gui thread in this dtor there's no way to properly manage
-    // the QSG resource's releasing anymore. Rather, as QSGRenderer is a
-    // QObject, do a deleteLater(), which typically works, but is not a 100%
-    // guarantee that the object will get destroyed on the render thread
-    // eventually, since in theory it could happen that the render thread is
-    // not even running at this point anymore (if the window is closing / the
-    // app is shutting down) - although in practice that won't be an issue
-    // since that case is taken care of the sceneGraphInvalidated signal.
-    // So while unlikely, a leak may still occur under certain circumstances.
-    if (m_renderer)
-        m_renderer->deleteLater();
 }
 
 void QQuick3DItem2D::addChildItem(QQuickItem *item)
@@ -86,15 +70,6 @@ void QQuick3DItem2D::itemDestroyed(QQuickItem *item)
     removeChildItem(item);
 }
 
-void QQuick3DItem2D::invalidated()
-{
-    // clean up the renderer
-    if (m_renderer) {
-        delete m_renderer;
-        m_renderer = nullptr;
-    }
-}
-
 void QQuick3DItem2D::updatePicking()
 {
     m_pickingDirty = true;
@@ -113,57 +88,29 @@ QSSGRenderGraphObject *QQuick3DItem2D::updateSpatialNode(QSSGRenderGraphObject *
 
     if (!node) {
         markAllDirty();
-        node = new QSSGRenderItem2D();
+        auto *backEndNode = new QSSGRenderItem2D();
+        backEndNode->m_frontEndObject = this;
+        node = backEndNode;
     }
 
     QQuick3DNode::updateSpatialNode(node);
 
     auto itemNode = static_cast<QSSGRenderItem2D *>(node);
-    QSGRenderContext *rc = static_cast<QQuickWindowPrivate *>(QObjectPrivate::get(window))->context;
 
-    m_rootNode = sourceItemPrivate->rootNode();
-    if (!m_rootNode) {
-        return nullptr;
-    }
-
-    if (!m_renderer) {
-        m_renderer = rc->createRenderer(QSGRendererInterface::RenderMode3D);
-        connect(window, &QQuickWindow::sceneGraphInvalidated, this, &QQuick3DItem2D::invalidated, Qt::DirectConnection);
-        connect(m_renderer, &QSGAbstractRenderer::sceneGraphChanged, this, &QQuick3DObject::update);
-
-        // item2D rendernode has its own render pass descriptor and it should
-        // be removed before deleting rhi context.
-        // Otherwise, rhi will complain about the unreleased resource.
-        connect(
-                m_renderer,
-                &QObject::destroyed,
-                this,
-                [this]() {
-                    auto itemNode = static_cast<QSSGRenderItem2D *>(QQuick3DObjectPrivate::get(this)->spatialNode);
-                    if (itemNode) {
-                        if (itemNode->m_rp) {
-                            itemNode->m_rp->deleteLater();
-                            itemNode->m_rp = nullptr;
-                        }
-                    }
-                },
-                Qt::DirectConnection);
-    }
-
-    {
-        // Block the sceneGraphChanged() signal. Calling nodeChanged() will emit the sceneGraphChanged()
-        // signal, which is connected to the update() slot to mark the object dirty, which could cause
-        // and constant update even if the 2D content doesn't change.
-        QSignalBlocker blocker(m_renderer);
-        m_renderer->setRootNode(m_rootNode);
-        m_rootNode->markDirty(QSGNode::DirtyForceUpdate); // Force matrix, clip and opacity update.
-        m_renderer->nodeChanged(m_rootNode, QSGNode::DirtyForceUpdate); // Force render list update.
+    itemNode->m_rootNode = sourceItemPrivate->rootNode();
+    if (!itemNode->m_rootNode) {
+        QQuickWindowPrivate::get(window)->updateDirtyNode(m_contentItem);
+        itemNode->m_rootNode = sourceItemPrivate->rootNode();
+        if (!itemNode->m_rootNode) {
+            qWarning() << "Item2D is not initialized. It will not be shown.";
+            return nullptr;
+        }
     }
 
     if (m_pickingDirty) {
         m_pickingDirty = false;
         bool isPickable = false;
-        for (auto item : m_sourceItems) {
+        for (const auto &item : std::as_const(m_sourceItems)) {
             // Enable picking for Item2D if any of its child is visible and enabled.
             if (item->isVisible() && item->isEnabled()) {
                 isPickable = true;
@@ -173,13 +120,13 @@ QSSGRenderGraphObject *QQuick3DItem2D::updateSpatialNode(QSSGRenderGraphObject *
         itemNode->setState(QSSGRenderNode::LocalState::Pickable, isPickable);
     }
 
-    itemNode->m_renderer = m_renderer;
-
     return node;
 }
 
 void QQuick3DItem2D::markAllDirty()
 {
+    m_pickingDirty = true;
+
     QQuick3DNode::markAllDirty();
 }
 
@@ -213,7 +160,7 @@ static void detachWindow(QQuickItem *item, QObject *win)
         itemPriv->nextDirtyItem = nullptr;
     }
 
-    for (auto *child: itemPriv->childItems)
+    for (auto *child : std::as_const(itemPriv->childItems))
         detachWindow(child, win);
 }
 

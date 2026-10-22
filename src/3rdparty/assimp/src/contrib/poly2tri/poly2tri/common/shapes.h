@@ -35,11 +35,11 @@
 
 #include <cmath>
 #include <cstddef>
+#include <ostream>
 #include <stdexcept>
 #include <vector>
 
-
-#if defined(_WIN32)
+#if defined(_WIN32) && defined(_MSC_VER) && !defined(__INTEL_COMPILER)
 #  pragma warning( disable: 4251)
 #endif
 namespace p2t {

@@ -1,5 +1,7 @@
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 
 #ifndef QSSGRENDERINDEXTABLE_P_H
@@ -48,6 +50,10 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderInstanceTable : public QSSGRender
     void setDepthSorting(bool enable) { depthSorting = enable; }
     bool isDepthSortingEnabled() { return depthSorting; }
     QMatrix4x4 getTransform(int index) const;
+    void setShadowBoundsMinimum(const QVector3D &value) { shadowBoundsMinimum = value; }
+    void setShadowBoundsMaximum(const QVector3D &value) { shadowBoundsMaximum = value; }
+    QVector3D getShadowBoundsMinimum() const { return shadowBoundsMinimum; }
+    QVector3D getShadowBoundsMaximum() const { return shadowBoundsMaximum; }
 
 private:
     int instanceCount = 0;
@@ -55,6 +61,8 @@ private:
     int instanceStride = 0;
     bool transparency = false;
     bool depthSorting = false;
+    QVector3D shadowBoundsMinimum = QVector3D(1, 1, 1);
+    QVector3D shadowBoundsMaximum = QVector3D(-1, -1, -1);
     QByteArray table;
 };
 

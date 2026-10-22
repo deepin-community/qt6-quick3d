@@ -1,6 +1,5 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
-#include <QSignalSpy>
 #include <QTest>
 #include <QtQuick/QQuickItem>
 
@@ -12,6 +11,8 @@
 #include <QtQuick3DRuntimeRender/private/qssgrenderray_p.h>
 
 #include "../shared/util.h"
+
+Q_DECLARE_METATYPE(QSSGCullFaceMode)
 
 class CustomGeometry : public QQuick3DGeometry
 {
@@ -130,6 +131,11 @@ private Q_SLOTS:
     void test_picking_QTBUG_111997();
     void test_picking_corner_case();
     void test_triangleIntersect();
+    void test_sphere_geometry();
+    void test_closest_point_picking();
+    void test_triangleIntersect_cullMode_data();
+    void test_triangleIntersect_cullMode();
+    void test_picking_cull_mode();
 
 private:
     QQuickItem *find2DChildIn3DNode(QQuickView *view, const QString &objectName, const QString &itemName);
@@ -352,7 +358,7 @@ void tst_Picking::test_view_picking()
 
     // Enable the 2D item
     item2d->setEnabled(true);
-    QTest::qWait(100);
+    QVERIFY(waitForFrames(view.data(), 1));
     // Then picking on top of model1 should not pick it anymore
     result = view3d->pick(200, 200);
     QCOMPARE(result.hitType(), QQuick3DPickResultEnums::HitType::Item);
@@ -367,7 +373,7 @@ void tst_Picking::test_view_picking()
     QCOMPARE(result.objectHit(), nullptr);
     // Hide the 2D item
     item2d->setVisible(false);
-    QTest::qWait(100);
+    QVERIFY(waitForFrames(view.data(), 1));
     // Then picking on top of model1 should pick it again
     result = view3d->pick(200, 200);
     QCOMPARE(result.hitType(), QQuick3DPickResultEnums::HitType::Model);
@@ -383,7 +389,7 @@ void tst_Picking::test_view_picking()
 
     // Add the 2D item
     item2d->setVisible(true);
-    QTest::qWait(100);
+    QVERIFY(waitForFrames(view.data(), 1));
     resultList = view3d->pickAll(200, 200);
     QCOMPARE(resultList.size(), 3);
     QCOMPARE(resultList[0].hitType(), QQuick3DPickResultEnums::HitType::Item);
@@ -394,7 +400,7 @@ void tst_Picking::test_view_picking()
     QCOMPARE(resultList[2].objectHit(), model2);
     // Hide the 2D item
     item2d->setVisible(false);
-    QTest::qWait(100);
+    QVERIFY(waitForFrames(view.data(), 1));
 
     // Top right corner of model1, center of model2
     resultList = view3d->pickAll(250, 150);
@@ -442,7 +448,7 @@ void tst_Picking::test_ray_picking()
 
     item2d->setEnabled(true);
     item2d->setVisible(true);
-    QTest::qWait(100);
+    QVERIFY(waitForFrames(view.data(), 1));
 
     // Ray based picking one result
 
@@ -511,6 +517,13 @@ void tst_Picking::test_ray_picking()
     QCOMPARE(resultList[1].objectHit(), model1);
     QCOMPARE(resultList[2].hitType(), QQuick3DPickResultEnums::HitType::Model);
     QCOMPARE(resultList[2].objectHit(), model2);
+    QVector3D hitPoint = resultList[2].scenePosition();
+
+    // Test ray picking only model 2
+    result = view3d->rayPick(origin, direction, model2);
+    QCOMPARE(result.hitType(), QQuick3DPickResultEnums::HitType::Model);
+    QCOMPARE(result.objectHit(), model2);
+    QCOMPARE(result.scenePosition(), hitPoint);
 
     // Up the z axis from 0, 0, -101 (towards 0,0,0)
     origin = QVector3D(0.0f, 0.0f, -101.0f);
@@ -886,7 +899,6 @@ void tst_Picking::test_picking_QTBUG_111997()
     const auto viewSize = view->size();
     const float halfWidth = viewSize.width() * 0.5f;
     const float halfHeight = viewSize.height() * 0.5f;
-    QSignalSpy frameSwappedSpy(view.data(), &QQuickWindow::frameSwapped);
 
     // Add custom geometry to the scene
     QScopedPointer<CustomGeometry> geometry(new CustomGeometry(20));
@@ -894,31 +906,48 @@ void tst_Picking::test_picking_QTBUG_111997()
     geometry->setParentItem(model1);
     model1->setGeometry(geometry.data());
 
-    // Wait for the next frame (so that geometry is up-to-date
-    if (!frameSwappedSpy.wait())
-        QFAIL("frameSwapped() signal not emitted");
-
     // Check picking with 20 subdivisions
+    QVERIFY(waitForFrames(view.data(), 2));
     auto result = view3d->pick(halfWidth, halfHeight);
     QVERIFY(result.objectHit() != nullptr);
     QCOMPARE(result.objectHit(), model1);
 
     // check picking with 350 subdivisions
     geometry->setCount(350);
-    if (!frameSwappedSpy.wait())
-        QFAIL("frameSwapped() signal not emitted");
+    QVERIFY(waitForFrames(view.data(), 2));
     result = view3d->pick(halfWidth, halfHeight);
     QVERIFY(result.objectHit() != nullptr);
     QCOMPARE(result.objectHit(), model1);
 
     // check picking with 500 subdivisions
     geometry->setCount(500);
-    if (!frameSwappedSpy.wait())
-        QFAIL("frameSwapped() signal not emitted");
+    QVERIFY(waitForFrames(view.data(), 2));
     result = view3d->pick(halfWidth, halfHeight);
     QVERIFY(result.objectHit() != nullptr);
     QCOMPARE(result.objectHit(), model1);
+}
 
+void tst_Picking::test_sphere_geometry()
+{
+    QScopedPointer<QQuickView> view(createView(QLatin1String("pickable_sphere.qml"), QSize(100, 100)));
+    QVERIFY(view);
+    QVERIFY(QTest::qWaitForWindowExposed(view.data()));
+
+    QQuick3DViewport *view3d = view->findChild<QQuick3DViewport *>(QStringLiteral("view"));
+    QVERIFY(view3d);
+    QQuick3DModel *model1 = view3d->findChild<QQuick3DModel *>(QStringLiteral("model1"));
+    QVERIFY(model1);
+
+    const auto viewSize = view->size();
+    const float halfWidth = viewSize.width() * 0.5f;
+    const float halfHeight = viewSize.height() * 0.5f;
+
+    // Wait for a couple of frames (so that geometry is up-to-date)
+    QVERIFY(waitForFrames(view.data(), 2));
+
+    auto result = view3d->pick(halfWidth, halfHeight);
+    QVERIFY(result.objectHit() != nullptr);
+    QCOMPARE(result.objectHit(), model1);
 }
 
 void tst_Picking::test_picking_corner_case()
@@ -1097,6 +1126,189 @@ void tst_Picking::test_triangleIntersect()
     QCOMPARE(normal, expectedNormal);
     QCOMPARE(u, 0.0f);
     QCOMPARE(v, 1.0f);
+}
+
+void tst_Picking::test_closest_point_picking()
+{
+    QScopedPointer<QQuickView> view(createView(QLatin1String("picking.qml"), QSize(400, 400)));
+    QVERIFY(view);
+    QVERIFY(QTest::qWaitForWindowExposed(view.data()));
+
+    QQuick3DViewport *view3d = view->findChild<QQuick3DViewport *>(QStringLiteral("view"));
+    QVERIFY(view3d);
+    QQuick3DModel *model1 = view3d->findChild<QQuick3DModel *>(QStringLiteral("model1"));
+    QVERIFY(model1);
+    QQuick3DModel *model2 = view3d->findChild<QQuick3DModel *>(QStringLiteral("model2"));
+    QVERIFY(model2);
+    QQuick3DModel *instancedModel = view3d->findChild<QQuick3DModel *>(QStringLiteral("instancedModel"));
+    QVERIFY(instancedModel);
+    QQuickItem *item2d = qmlobject_cast<QQuickItem *>(find2DChildIn3DNode(view.data(), "item2dNode", "item2d"));
+    QVERIFY(item2d);
+
+    item2d->setEnabled(true);
+    item2d->setVisible(true);
+    QVERIFY(waitForFrames(view.data(), 1));
+
+    // model1 is a unit cube at (0,0,0), so it has a surface point at (0, 0, 50)
+
+    QVector3D origin;
+
+    // Model outside radius
+    origin = QVector3D(0.0f, 0.0f, 70.0f);
+    auto result = view3d->closestPointPick(origin, 10);
+    QCOMPARE(result.hitType(), QQuick3DPickResultEnums::HitType::Null);
+
+    result = view3d->closestPointPick(origin, 30);
+    QCOMPARE(result.hitType(), QQuick3DPickResultEnums::HitType::Model);
+    QCOMPARE(result.objectHit(), model1);
+    QCOMPARE(result.distance(), 20.0f);
+    QCOMPARE(result.uvPosition(), QVector2D(0.5f, 0.5f));
+    QCOMPARE(result.scenePosition(), QVector3D(0.0f, 0.0f, 50.0f));
+    QCOMPARE(result.position(), QVector3D(0.0f, 0.0f, 50.0f));
+    QCOMPARE(result.sceneNormal(), QVector3D(0.0f, 0.0f, 1.0f));
+    QCOMPARE(result.normal(), QVector3D(0.0f, 0.0f, 1.0f));
+    QCOMPARE(result.instanceIndex(), 0);
+    QCOMPARE(result.itemHit(), nullptr);
+
+    // Test hit on edge. It's not specified which face it should choose, so ignore
+    // normals and UVs. model1 has an edge that passes through (-50, -50, 0)
+
+    origin = QVector3D(-70.0f, -70.0f, 0.0f); // distance == sqrt(20^2 + 20^2) < 30
+    result = view3d->closestPointPick(origin, 30, model1);
+    QCOMPARE(result.hitType(), QQuick3DPickResultEnums::HitType::Model);
+    QCOMPARE(result.objectHit(), model1);
+    QCOMPARE(result.scenePosition(), QVector3D(-50.0f, -50.0f, 0.0f));
+    QVERIFY(qFuzzyCompare(result.distance(), float(sqrt(800.0f))));
+
+    // model2 is a unit cube at (50, 50, -50), so it has a surface point at (10, 10, 0)
+    // Check to see that we return the specified model, even if model1 is closer
+    origin = QVector3D(10.0f, 10.0f, 70.0f);
+    result = view3d->closestPointPick(origin, 100, model2);
+    QCOMPARE(result.hitType(), QQuick3DPickResultEnums::HitType::Model);
+    QCOMPARE(result.objectHit(), model2);
+    QCOMPARE(result.distance(), 70.0f);
+    QCOMPARE(result.uvPosition(), QVector2D(0.1f, 0.1f));
+    QCOMPARE(result.scenePosition(), QVector3D(10.0f, 10.0f, 0.0f));
+    QCOMPARE(result.position(), QVector3D(-40.0f, -40.0f, 50.0f));
+    QCOMPARE(result.sceneNormal(), QVector3D(0.0f, 0.0f, 1.0f));
+    QCOMPARE(result.normal(), QVector3D(0.0f, 0.0f, 1.0f));
+    QCOMPARE(result.instanceIndex(), 0);
+    QCOMPARE(result.itemHit(), nullptr);
+
+    // Test instanced picking
+    // Instance index 2 describes a unit cube at (200, 0, 0), so it has a surface
+    // point at (150, 0, 0) with a normal of (-1, 0, 0)
+    origin = QVector3D(140.0f, 0.0f, 0.0f);
+    result = view3d->closestPointPick(origin, 20);
+    QCOMPARE(result.hitType(), QQuick3DPickResultEnums::HitType::Model);
+    QCOMPARE(result.objectHit(), instancedModel);
+    QCOMPARE(result.distance(), 10.0f);
+    QCOMPARE(result.uvPosition(), QVector2D(0.5f, 0.5f));
+    QCOMPARE(result.scenePosition(), QVector3D(150.0f, 0.0f, 0.0f));
+    QCOMPARE(result.position(), QVector3D(-50.0f, 0.0f, 0.0f));
+    QCOMPARE(result.sceneNormal(), QVector3D(-1.0f, 0.0f, 0.0f));
+    QCOMPARE(result.normal(), QVector3D(-1.0f, 0.0f, 0.0f));
+    QCOMPARE(result.instanceIndex(), 2);
+    QCOMPARE(result.itemHit(), nullptr);
+}
+
+void tst_Picking::test_triangleIntersect_cullMode_data()
+{
+    QTest::addColumn<QVector3D>("origin");
+    QTest::addColumn<QVector3D>("direction");
+    QTest::addColumn<QSSGCullFaceMode>("cullMode");
+    QTest::addColumn<bool>("expectedIntersects");
+
+    // The triangle below faces +Z
+    const QVector3D frontOrigin(0.0f, -0.5f, 2.0f);
+    const QVector3D frontDirection(0.0f, 0.0f, -1.0f);
+    const QVector3D backOrigin(0.0f, -0.5f, -2.0f);
+    const QVector3D backDirection(0.0f, 0.0f, 1.0f);
+
+    QTest::newRow("front_backFaceCulling") << frontOrigin << frontDirection << QSSGCullFaceMode::Back << true;
+    QTest::newRow("front_frontFaceCulling") << frontOrigin << frontDirection << QSSGCullFaceMode::Front << false;
+    QTest::newRow("front_noCulling") << frontOrigin << frontDirection << QSSGCullFaceMode::Disabled << true;
+    QTest::newRow("front_frontAndBackCulling") << frontOrigin << frontDirection << QSSGCullFaceMode::FrontAndBack << false;
+
+    QTest::newRow("back_backFaceCulling") << backOrigin << backDirection << QSSGCullFaceMode::Back << false;
+    QTest::newRow("back_frontFaceCulling") << backOrigin << backDirection << QSSGCullFaceMode::Front << true;
+    QTest::newRow("back_noCulling") << backOrigin << backDirection << QSSGCullFaceMode::Disabled << true;
+    QTest::newRow("back_frontAndBackCulling") << backOrigin << backDirection << QSSGCullFaceMode::FrontAndBack << false;
+}
+
+void tst_Picking::test_triangleIntersect_cullMode()
+{
+    QFETCH(QVector3D, origin);
+    QFETCH(QVector3D, direction);
+    QFETCH(QSSGCullFaceMode, cullMode);
+    QFETCH(bool, expectedIntersects);
+
+    const QVector3D vert0(0, 0, 0);
+    const QVector3D vert1(-1, -1, 0);
+    const QVector3D vert2(1, -1, 0);
+
+    QVector3D normal;
+    float u = 0.0f;
+    float v = 0.0f;
+
+    const QSSGRenderRay ray(origin, direction);
+    const bool intersects = QSSGRenderRay::triangleIntersect(ray, vert0, vert1, vert2, u, v, normal, cullMode);
+    QCOMPARE(intersects, expectedIntersects);
+
+    if (!intersects)
+        return;
+
+    QVERIFY(u >= 0.0f && u <= 1.0f);
+    QVERIFY(v >= 0.0f && v <= 1.0f);
+    QVERIFY(u + v <= 1.0f);
+    QCOMPARE(normal, QVector3D(0.0f, 0.0f, 1.0f));
+}
+
+void tst_Picking::test_picking_cull_mode()
+{
+    QScopedPointer<QQuickView> view(createView(QLatin1String("cull_mode.qml"), QSize(600, 400)));
+    QVERIFY(view);
+    QVERIFY(QTest::qWaitForWindowExposed(view.data()));
+
+    QQuick3DViewport *view3d = view->findChild<QQuick3DViewport *>(QStringLiteral("view"));
+    QVERIFY(view3d);
+
+    const QImage rendered = grab(view.data());
+    if (rendered.isNull())
+        return; // was QFAIL'ed already
+
+    const qreal dpr = view->devicePixelRatio();
+
+    struct CullModeCase
+    {
+        const char *objectName;
+        QPoint viewportPos;
+        QColor renderedColor; // The clear color when the visible side is culled away
+        bool pickable;
+    };
+
+    // Whatever is culled away when rendering must not be pickable, and whatever is
+    // rendered must be.
+    static const CullModeCase cases[] = {
+        { "backCull", QPoint(100, 100), QColor(Qt::black), false },
+        { "frontCull", QPoint(300, 100), QColor(0, 255, 0), true },
+        { "noCull", QPoint(500, 100), QColor(0, 0, 255), true },
+        { "mirrorBackCull", QPoint(100, 300), QColor(Qt::black), false },
+        { "mirrorFrontCull", QPoint(300, 300), QColor(0, 255, 255), true },
+        { "mirrorNoCull", QPoint(500, 300), QColor(255, 0, 255), true },
+    };
+
+    for (const CullModeCase &c : cases) {
+        QQuick3DModel *model = view3d->findChild<QQuick3DModel *>(QLatin1String(c.objectName));
+        QVERIFY2(model, c.objectName);
+        QVERIFY2(comparePixel(rendered, c.viewportPos, dpr, c.renderedColor, 5), c.objectName);
+
+        const QQuick3DPickResult result = view3d->pick(c.viewportPos.x(), c.viewportPos.y());
+        if (c.pickable)
+            QVERIFY2(result.objectHit() == model, c.objectName);
+        else
+            QVERIFY2(result.objectHit() == nullptr, c.objectName);
+    }
 }
 
 QTEST_MAIN(tst_Picking)

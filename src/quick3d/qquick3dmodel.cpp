@@ -1,5 +1,7 @@
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qquick3dmodel_p.h"
 #include "qquick3dobject_p.h"
@@ -41,6 +43,38 @@ QT_BEGIN_NAMESPACE
         source: "#Sphere"
     }
     \endqml
+
+    The table below describes the built-in meshes in more detail.
+
+    \table
+    \header
+        \li Name
+        \li Description
+        \li No. faces
+    \row
+        \li #Cone
+        \li A cone with a height and diameter of \c{100}. The base is at the
+            origin and the cone is pointing upwards in the y direction.
+        \li \c{78}
+    \row
+        \li #Cube
+        \li A cube centered at the origin with \c{100} long sides along x, y and z.
+        \li \c{12}
+    \row
+        \li #Cylinder
+        \li A cylinder with \c{100} height and diameter centered at the origin
+            expanding along the y direction.
+        \li \c{316}
+    \row
+        \li #Rectangle
+        \li A rectangle with \c{100} width and height centered at the origin
+            lying in the xy plane.
+        \li \c{2}
+    \row
+        \li #Sphere
+        \li A sphere with \c{100} diameter centered at the origin.
+        \li \c{4900}
+    \endtable
 
     \section2 Custom geometry
 
@@ -440,34 +474,7 @@ bool QQuick3DModel::isUsedInBakedLighting() const
 /*!
     \qmlproperty int Model::lightmapBaseResolution
 
-    Defines the approximate size of the lightmap for this model. The default
-    value is 1024, indicating 1024x1024 as the base size. The actual size of
-    the lightmap texture is likely to be different, often bigger, depending on
-    the mesh.
-
-    For simpler, smaller meshes, or when it is known that using a bigger
-    lightmap is unnecessary, the value can be set to something smaller, for
-    example, 512 or 256.
-
-    The minimum value is 128.
-
-    This setting applies both to persistently stored and for intermediate,
-    partial lightmaps. When baking lightmaps, all models that have \l
-    usedInBakedLighting enabled are part of the path-traced scene. Thus all of
-    them need to have lightmap UV unwrapping performed and the rasterization
-    steps necessary to compute direct lighting which then can be taken into
-    account for indirect light bounces in the scene. However, for models that
-    just contribute to, but do not store a lightmap the default value is often
-    sufficient. Fine-tuning is more relevant for models that store and then use
-    the generated lightmaps.
-
-    This property is relevant only when baking lightmaps. It has no effect
-    afterwards, when using the generated lightmaps during rendering.
-
-    Models that have lightmap UV data pre-generated during asset import time
-    (e.g. via the balsam tool) will ignore this property because the lightmap
-    UV unwrapping and the lightmap size hint evaluation have already been done,
-    and will not be performed again during lightmap baking.
+    \deprecated [6.10] This has no effect. Use Model::texelsPerUnit instead.
  */
 int QQuick3DModel::lightmapBaseResolution() const
 {
@@ -716,6 +723,8 @@ void QQuick3DModel::setLightmapBaseResolution(int resolution)
     if (m_lightmapBaseResolution == resolution)
         return;
 
+    qWarning() << "Model::lightmapBaseResolution is deprecated and will have no effect.";
+
     m_lightmapBaseResolution = resolution;
     emit lightmapBaseResolutionChanged();
     markDirty(PropertyDirty);
@@ -762,8 +771,11 @@ QSSGRenderGraphObject *QQuick3DModel::updateSpatialNode(QSSGRenderGraphObject *n
     int dirtyAttribute = 0;
 
     auto modelNode = static_cast<QSSGRenderModel *>(node);
-    if (m_dirtyAttributes & SourceDirty)
-        modelNode->meshPath = QSSGRenderPath(translateMeshSource(m_source, this));
+    if (m_dirtyAttributes & SourceDirty) {
+        const QString path = translateMeshSource(m_source, this);
+        const QString lightmapKey = m_bakedLightmap ? m_bakedLightmap->key() : QString();
+        modelNode->meshPath = QSSGRenderPath(path, lightmapKey);
+    }
     if (m_dirtyAttributes & PickingDirty)
         modelNode->setState(QSSGRenderModel::LocalState::Pickable, m_pickable);
 
@@ -776,7 +788,7 @@ QSSGRenderGraphObject *QQuick3DModel::updateSpatialNode(QSSGRenderGraphObject *n
         if (!m_materials.isEmpty()) {
             if (modelNode->materials.isEmpty()) {
                 // Easy mode, just add each material
-                for (const Material &material : m_materials) {
+                for (const Material &material : std::as_const(m_materials)) {
                     QSSGRenderGraphObject *graphObject = QQuick3DObjectPrivate::get(material.material)->spatialNode;
                     if (graphObject)
                         modelNode->materials.append(graphObject);
@@ -892,19 +904,19 @@ QSSGRenderGraphObject *QQuick3DModel::updateSpatialNode(QSSGRenderGraphObject *n
     if (m_dirtyAttributes & PropertyDirty) {
         modelNode->m_depthBiasSq = QSSGRenderModel::signedSquared(m_depthBias);
         modelNode->usedInBakedLighting = m_usedInBakedLighting;
-        modelNode->lightmapBaseResolution = uint(m_lightmapBaseResolution);
+        modelNode->texelsPerUnit = m_texelsPerUnit;
         if (m_bakedLightmap && m_bakedLightmap->isEnabled()) {
             modelNode->lightmapKey = m_bakedLightmap->key();
-            const QString srcPrefix = m_bakedLightmap->loadPrefix();
-            const QString srcPath = srcPrefix.isEmpty() ? QStringLiteral(".") : srcPrefix;
-            const QQmlContext *context = qmlContext(m_bakedLightmap);
-            const QUrl resolvedUrl = context ? context->resolvedUrl(srcPath) : srcPath;
-            modelNode->lightmapLoadPath = QQmlFile::urlToLocalFileOrQrc(resolvedUrl);
         } else {
             modelNode->lightmapKey.clear();
-            modelNode->lightmapLoadPath.clear();
         }
+        // Need new hash if lightmapKey has changed
+        const QString path = translateMeshSource(m_source, this);
+        modelNode->meshPath = QSSGRenderPath(path, modelNode->lightmapKey);
         modelNode->levelOfDetailBias = m_levelOfDetailBias;
+        modelNode->instancingLodFactor = m_instancingLodFactor;
+        modelNode->motionVectorEnabled = m_motionVectorEnabled;
+        modelNode->motionVectorScale = m_motionVectorScale;
     }
 
     if (m_dirtyAttributes & ReflectionDirty) {
@@ -1043,7 +1055,6 @@ void QQuick3DModel::onMorphTargetDestroyed(QObject *object)
     }
     if (found) {
         markDirty(QQuick3DModel::MorphTargetsDirty);
-        m_numMorphAttribs = 0;
     }
 }
 
@@ -1052,14 +1063,7 @@ void QQuick3DModel::qmlAppendMorphTarget(QQmlListProperty<QQuick3DMorphTarget> *
     if (morphTarget == nullptr)
         return;
     QQuick3DModel *self = static_cast<QQuick3DModel *>(list->object);
-    if (self->m_numMorphAttribs >= 8) {
-        qWarning("The number of morph attributes exceeds 8. This morph target will be ignored.");
-        return;
-    }
     self->m_morphTargets.push_back(morphTarget);
-    self->m_numMorphAttribs += morphTarget->numAttribs();
-    if (self->m_numMorphAttribs > 8)
-        qWarning("The number of morph attributes exceeds 8. This morph target will be supported partially.");
 
     self->markDirty(QQuick3DModel::MorphTargetsDirty);
 
@@ -1106,7 +1110,6 @@ void QQuick3DModel::qmlClearMorphTargets(QQmlListProperty<QQuick3DMorphTarget> *
         disconnect(morph, &QQuick3DMorphTarget::destroyed, self, &QQuick3DModel::onMorphTargetDestroyed);
     }
     self->m_morphTargets.clear();
-    self->m_numMorphAttribs = 0;
     self->markDirty(QQuick3DModel::MorphTargetsDirty);
 }
 
@@ -1126,6 +1129,46 @@ void QQuick3DModel::setInstancingLodMax(float maxDistance)
     m_instancingLodMax = maxDistance;
     emit instancingLodMaxChanged();
     markDirty(LodDirty);
+}
+
+/*!
+    \qmlproperty real Model::instancingLodFactor
+    \since 6.12
+    \default 0.0
+
+    This property allows manual determination of the level of detail (LOD) for
+    specific levels of instanced models.
+
+    In situations where a scene contains multiple LOD levels for large instance
+    tables, it is necessary to manually select the most appropriate detail level.
+    This is required because automatic LOD management cannot correctly calculate
+    the detail for individual instances, as their transformation data only becomes
+    available during the GPU rendering stage.
+
+    To reduce geometry overhead at specific LOD levels, you can manually specify
+    \c instancingLodFactor. The closer the value is to \c 1.0, the less geometry
+    will be rendered for the object. A value of \c 0.0 means the entire geometry
+    will be offloaded/rendered at full detail.
+
+    \note This property is specifically used to override automatic LOD calculation
+    when the proximity of individual instances to the camera is not predetermined.
+
+    \sa levelOfDetailBias
+*/
+
+float QQuick3DModel::instancingLodFactor() const
+{
+    return m_instancingLodFactor;
+}
+
+void QQuick3DModel::setInstancingLodFactor(float newInstancingLodFactor)
+{
+    if (qFuzzyCompare(m_instancingLodFactor, newInstancingLodFactor))
+        return;
+
+    m_instancingLodFactor = newInstancingLodFactor;
+    emit instancingLodFactorChanged();
+    markDirty(QQuick3DModel::PropertyDirty);
 }
 
 /*!
@@ -1163,6 +1206,95 @@ void QQuick3DModel::setLevelOfDetailBias(float newLevelOfDetailBias)
         return;
     m_levelOfDetailBias = newLevelOfDetailBias;
     emit levelOfDetailBiasChanged();
+    markDirty(QQuick3DModel::PropertyDirty);
+}
+
+/*!
+    \qmlproperty real Model::texelsPerUnit
+    \since 6.10
+    \default 0.0
+
+    A value greater than zero means this value will override the
+    \l {Lightmapper::texelsPerUnit} value for this specific model during
+    lightmap baking.
+
+    \sa Lightmapper::texelsPerUnit
+*/
+
+float QQuick3DModel::texelsPerUnit() const
+{
+    return m_texelsPerUnit;
+}
+
+void QQuick3DModel::setTexelsPerUnit(float newTexelsPerUnit)
+{
+    if (qFuzzyCompare(m_texelsPerUnit, newTexelsPerUnit))
+        return;
+    m_texelsPerUnit = newTexelsPerUnit;
+    emit texelsPerUnitChanged();
+    markDirty(PropertyDirty);
+}
+
+/*!
+    \qmlproperty bool Model::motionVectorEnabled
+    \since 6.11
+    \default true
+
+    Specifies whether the model participates in the motion vector pass.
+
+    When this property is set to \c true, the model contributes its
+    motion information to the motion vector buffer. This is used by
+    temporal anti-aliasing (TAA) and other effects that rely on
+    per-pixel motion data.
+
+    When set to \c false, the model is excluded from motion vector
+    generation.
+
+    \sa Model::motionVectorScale
+*/
+
+bool QQuick3DModel::motionVectorEnabled() const
+{
+    return m_motionVectorEnabled;
+}
+
+void QQuick3DModel::setMotionVectorEnabled(bool newMotionVectorEnabled)
+{
+    if (m_motionVectorEnabled == newMotionVectorEnabled)
+        return;
+    m_motionVectorEnabled = newMotionVectorEnabled;
+    emit motionVectorEnabledChanged();
+    markDirty(QQuick3DModel::PropertyDirty);
+}
+
+/*!
+    \qmlproperty real Model::motionVectorScale
+    \since 6.11
+    \default 1.0
+
+    Specifies a scaling factor applied to the model's generated motion
+    vectors.
+
+    A value of \c 1.0 preserves the model's actual motion, while values
+    greater than \c 1.0 exaggerate the motion vectors and values lower
+    than \c 1.0 reduce them. This can be useful for stylized effects or
+    fine-tuning visual behavior in effects that rely on the motion
+    vector buffer.
+
+    \sa Model::motionVectorEnabled
+*/
+
+float QQuick3DModel::motionVectorScale() const
+{
+    return m_motionVectorScale;
+}
+
+void QQuick3DModel::setMotionVectorScale(float newMotionVectorScale)
+{
+    if (qFuzzyCompare(m_motionVectorScale, newMotionVectorScale))
+        return;
+    m_motionVectorScale = newMotionVectorScale;
+    emit motionVectorScaleChanged();
     markDirty(QQuick3DModel::PropertyDirty);
 }
 

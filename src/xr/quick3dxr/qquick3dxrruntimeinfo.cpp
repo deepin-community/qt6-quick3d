@@ -1,5 +1,7 @@
 // Copyright (C) 2024 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qquick3dxrruntimeinfo_p.h"
 #include "qquick3dxrmanager_p.h"
@@ -35,7 +37,7 @@ QQuick3DXrRuntimeInfo::QQuick3DXrRuntimeInfo(QQuick3DXrManager *manager, QObject
 }
 
 /*!
-    \qmlproperty QStringList XrRuntimeInfo::enabledExtensions
+    \qmlproperty list<string> XrRuntimeInfo::enabledExtensions
     \brief A list of enabled XR extensions.
     \readonly
 
@@ -53,7 +55,7 @@ QStringList QQuick3DXrRuntimeInfo::enabledExtensions() const
 }
 
 /*!
-    \qmlproperty QString XrRuntimeInfo::runtimeName
+    \qmlproperty string XrRuntimeInfo::runtimeName
     \brief The name of the XR runtime.
     \readonly
 
@@ -68,7 +70,7 @@ QString QQuick3DXrRuntimeInfo::runtimeName() const
 }
 
 /*!
-    \qmlproperty QString XrRuntimeInfo::runtimeVersion
+    \qmlproperty string XrRuntimeInfo::runtimeVersion
     \brief The version of the XR runtime.
     \readonly
 
@@ -83,7 +85,7 @@ QString QQuick3DXrRuntimeInfo::runtimeVersion() const
 }
 
 /*!
-    \qmlproperty QString XrRuntimeInfo::graphicsApiName
+    \qmlproperty string XrRuntimeInfo::graphicsApiName
     \brief The name of the graphics API used by the XR runtime.
     \readonly
 

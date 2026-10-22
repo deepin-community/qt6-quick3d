@@ -1,5 +1,7 @@
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qquick3dorthographiccamera_p.h"
 
@@ -30,7 +32,7 @@ QT_BEGIN_NAMESPACE
     has its forward vector pointing along the negative Z axis and its up vector along
     the positive Y axis.
 
-    \image orthographiccamera.png
+    \image orthographiccamera.png {Orthographic camera projection diagram}
 
     The OrthographicCamera is a parallel projection \l Camera, in which parallel lines remain
     parallel and an object's perceived scale is unaffected by its distance from the \l Camera.
@@ -167,10 +169,8 @@ QSSGRenderGraphObject *QQuick3DOrthographicCamera::updateSpatialNode(QSSGRenderG
 {
     QSSGRenderCamera *camera = static_cast<QSSGRenderCamera *>(QQuick3DCamera::updateSpatialNode(node));
     if (camera) {
-        const bool changed = ((int(qUpdateIfNeeded(camera->clipNear, m_clipNear))
-                               | int(qUpdateIfNeeded(camera->clipFar, m_clipFar))
-                               | int(qUpdateIfNeeded(camera->horizontalMagnification, m_horizontalMagnification))
-                               | int(qUpdateIfNeeded(camera->verticalMagnification, m_verticalMagnification))) != 0);
+        const bool changed = ((int(qUpdateIfNeeded(camera->clipPlanes, { m_clipNear, m_clipFar }))
+                               | int(qUpdateIfNeeded(camera->magnification, { m_horizontalMagnification, m_verticalMagnification }))) != 0);
         if (changed)
             camera->markDirty(QSSGRenderCamera::DirtyFlag::CameraDirty);
     }

@@ -8,11 +8,13 @@ import QtQuick.Timeline
 
 Item {
     id: mainWindow
-    anchors.fill: parent
+    width: 400
+    height: 400
+    visible: true
 
     View3D {
         anchors.fill: parent
-        camera: camera
+        camera: cam
 
         environment: SceneEnvironment {
             clearColor: "#404040"
@@ -24,7 +26,7 @@ Item {
             property real rot: 0.0
             eulerRotation: Qt.vector3d(-45, 0, 0)
             PerspectiveCamera {
-                id: camera
+                id: cam
                 position: Qt.vector3d(0, 0, 1250)
                 clipFar: 2000
             }

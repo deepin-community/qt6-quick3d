@@ -1,5 +1,7 @@
 // Copyright (C) 2023 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QSSGRHICONTEXT_P_H
 #define QSSGRHICONTEXT_P_H
@@ -19,6 +21,7 @@
 
 #include <QtQuick3DRuntimeRender/qtquick3druntimerenderexports.h>
 #include <QtQuick3DUtils/private/qssgrenderbasetypes_p.h>
+#include <QtQuick3DUtils/private/qssgutils_p.h>
 #include <ssg/qssgrhicontext.h>
 
 QT_BEGIN_NAMESPACE
@@ -28,6 +31,8 @@ struct QSSGRenderInstanceTable;
 struct QSSGRenderModel;
 struct QSSGRenderMesh;
 class QSSGRenderGraphObject;
+class QSSGBufferManager;
+class QSSGUserRenderPassManager;
 
 struct QSSGRhiInputAssemblerStatePrivate
 {
@@ -115,6 +120,22 @@ inline bool operator==(const QSSGRhiGraphicsPipelineState &a, const QSSGRhiGraph
 {
     const auto &ia_a = QSSGRhiInputAssemblerStatePrivate::get(a);
     const auto &ia_b = QSSGRhiInputAssemblerStatePrivate::get(b);
+    const auto compareTargetBlend = [](const std::array<QRhiGraphicsPipeline::TargetBlend, 8> &a,
+                                       const std::array<QRhiGraphicsPipeline::TargetBlend, 8> &b,
+                                       const int count) -> bool {
+        for (int i = 0; i < count; i++) {
+            if (a[i].colorWrite != b[i].colorWrite
+                || a[i].srcColor != b[i].srcColor
+                || a[i].dstColor != b[i].dstColor
+                || a[i].opColor != b[i].opColor
+                || a[i].srcAlpha != b[i].srcAlpha
+                || a[i].dstAlpha != b[i].dstAlpha
+                || a[i].opAlpha != b[i].opAlpha) {
+                return false;
+            }
+        }
+        return true;
+    };
     return QSSGRhiGraphicsPipelineStatePrivate::getShaderPipeline(a) == QSSGRhiGraphicsPipelineStatePrivate::getShaderPipeline(b)
             && a.samples == b.samples
             && a.flags == b.flags
@@ -129,14 +150,8 @@ inline bool operator==(const QSSGRhiGraphicsPipelineState &a, const QSSGRhiGraph
             && a.scissor == b.scissor
             && ia_a.topology == ia_b.topology
             && ia_a.inputLayout == ia_b.inputLayout
-            && a.targetBlend.colorWrite == b.targetBlend.colorWrite
-            && a.targetBlend.srcColor == b.targetBlend.srcColor
-            && a.targetBlend.dstColor == b.targetBlend.dstColor
-            && a.targetBlend.opColor == b.targetBlend.opColor
-            && a.targetBlend.srcAlpha == b.targetBlend.srcAlpha
-            && a.targetBlend.dstAlpha == b.targetBlend.dstAlpha
-            && a.targetBlend.opAlpha == b.targetBlend.opAlpha
             && a.colorAttachmentCount == b.colorAttachmentCount
+            && compareTargetBlend(a.targetBlend, b.targetBlend, a.colorAttachmentCount)
             && a.lineWidth == b.lineWidth
             && a.polygonMode == b.polygonMode
             && a.viewCount == b.viewCount;
@@ -153,7 +168,7 @@ inline size_t qHash(const QSSGRhiGraphicsPipelineState &s, size_t seed) Q_DECL_N
     return qHash(QSSGRhiGraphicsPipelineStatePrivate::getShaderPipeline(s), seed)
             ^ qHash(s.samples)
             ^ qHash(s.viewCount)
-            ^ qHash(s.targetBlend.dstColor)
+            ^ qHash(s.targetBlend[0].dstColor)
             ^ qHash(s.depthFunc)
             ^ qHash(s.cullMode)
             ^ qHash(s.colorAttachmentCount)
@@ -265,74 +280,84 @@ enum class QSSGRhiSamplerBindingHints
     DepthTextureArray,
     ScreenTextureArray,
     AoTextureArray,
+    NormalTexture,
+    MotionVectorTexture,
 
     BindingMapSize
 };
 
 // these are our current shader limits
-#define QSSG_MAX_NUM_LIGHTS 15
-#define QSSG_REDUCED_MAX_NUM_LIGHTS 5
-#define QSSG_MAX_NUM_SHADOW_MAPS 8
+#define QSSG_MAX_NUM_LIGHTS 16
+#define QSSG_MAX_NUM_DIRECTIONAL_LIGHTS 4
+#define QSSG_REDUCED_MAX_NUM_LIGHTS 4
+#define QSSG_REDUCED_MAX_NUM_DIRECTIONAL_LIGHTS 1
 
-// note this struct must exactly match the memory layout of the uniform block in
-// funcSampleLightVars.glsllib
-struct QSSGShaderLightData
-{
-    float position[4];
-    float direction[4]; // Specifies the light direction in world coordinates.
-    float diffuse[4];
-    float specular[4];
-    float coneAngle; // Specifies the outer cone angle of the spot light.
-    float innerConeAngle; // Specifies the inner cone angle of the spot light.
-    float constantAttenuation; // Specifies the constant light attenuation factor.
-    float linearAttenuation; // Specifies the linear light attenuation factor.
-    float quadraticAttenuation; // Specifies the quadratic light attenuation factor.
-    float padding[3]; // the next light array element must start at a vec4-aligned offset
+struct QSSGShaderLightData {
+    float position[3];
+    float coneAngle;
+
+    float direction[3];
+    float innerConeAngle;
+
+    float diffuseColor[3];
+    float constantAttenuation;
+
+    float specularColor[3];
+    float linearAttenuation;
+
+    quint32 lightmapState;
+    quint32 shadowPcfSamples;
+    float quadraticAttenuation;
+    float shadowTextureSize;
+
+    float shadowAtlasUV0[2];
+    float shadowAtlasUV1[2];
+
+    float shadowAtlasLayer0;
+    float shadowAtlasLayer1;
+    float shadowPcfFactor;
+    float enableShadows;
+
+    float shadowBias;
+    float shadowFactor;
+    float shadowClipNear;
+    float shadowMapFar;
+
+    float shadowMatrix[16];
 };
 
-struct QSSGShaderLightsUniformData
-{
-    qint32 count = -1;
-    float padding[3]; // first element must start at a vec4-aligned offset
-    QSSGShaderLightData lightData[QSSG_MAX_NUM_LIGHTS];
+struct QSSGShaderDirectionalLightData {
+    float direction[3];
+    float shadowBias;
 
-};
+    float diffuseColor[3];
+    float shadowFactor;
 
-// note this struct must exactly match the memory layout of the uniform block in
-// funcSampleLightVars.glsllib
-struct QSSGShaderShadowData {
+    float specularColor[3];
+    float enableShadows;
+
     float matrices[4][16];
     float dimensionsInverted[4][4];
     float csmSplits[4];
     float csmActive[4];
+    float atlasLocations[4][4]; // (u, v, size, layer)
 
-    float bias;
-    float factor;
-    float isYUp;
-    float clipNear;
+    quint32 lightmapState;
+    quint32 shadowPcfSamples;
+    quint32 csmNumSplits;
+    float shadowPcfFactor;
 
     float shadowMapFar;
-    qint32 layerIndex;
-    qint32 csmNumSplits;
     float csmBlendRatio;
-
-    float pcfFactor;
-    float padding[3];
+    float padding[2];
 };
 
-struct QSSGShaderShadowsUniformData
-{
-    qint32 count = -1;
-    float padding[3]; // first element must start at a vec4-aligned offset
-    QSSGShaderShadowData shadowData[QSSG_MAX_NUM_SHADOW_MAPS];
+struct QSSGShaderLightsUniformData {
+    QSSGShaderLightData lightData[QSSG_MAX_NUM_LIGHTS];
 };
 
-// Default materials work with a regular combined image sampler for each shadowmap.
-struct QSSGRhiShadowMapProperties
-{
-    QRhiTexture *shadowMapTexture = nullptr;
-    QByteArray shadowMapTextureUniformName;
-    int cachedBinding = -1; // -1 == invalid
+struct QSSGShaderDirectionalLightsUniformData {
+    QSSGShaderDirectionalLightData directionalLightData[QSSG_MAX_NUM_DIRECTIONAL_LIGHTS];
 };
 
 class Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRhiShaderPipeline
@@ -373,15 +398,7 @@ public:
 
     int ub0Size() const { return m_ub0Size; }
     int ub0LightDataOffset() const { return m_ub0NextUBufOffset; }
-    int ub0LightDataSize() const
-    {
-        return int(4 * sizeof(qint32) + m_lightsUniformData.count * sizeof(QSSGShaderLightData));
-    }
-    int ub0ShadowDataOffset() const;
-    int ub0ShadowDataSize() const
-    {
-        return int(4 * sizeof(qint32) + m_shadowsUniformData.count * sizeof(QSSGShaderShadowData));
-    }
+    int ub0DirectionalLightDataOffset() const;
 
     const QHash<QSSGRhiInputAssemblerState::InputSemantic, QShaderDescription::InOutVariable> &vertexInputs() const { return m_vertexInputs; }
 
@@ -432,6 +449,11 @@ public:
         int fogDepthPropertiesIdx = -1;
         int fogHeightPropertiesIdx = -1;
         int fogTransmitPropertiesIdx = -1;
+        int lightAndShadowCountsIdx = -1;
+        int abufImageWidth = -1;
+        int listNodeCount = -1;
+        int viewSize = -1;
+        int samples = -1;
 
         struct ImageIndices
         {
@@ -458,15 +480,16 @@ public:
     void setUniform(char *ubufData, const char *name, const void *data, size_t size, int *storeIndex = nullptr, UniformFlags flags = {});
     void setUniformArray(char *ubufData, const char *name, const void *data, size_t itemCount, QSSGRenderShaderValue::Type type, int *storeIndex = nullptr);
     int bindingForTexture(const char *name, int hint = -1);
+    int bindingForImage(const char *name);
+
+    void setShaderResources(char *ubufData,
+                            QSSGBufferManager &theBufferManager,
+                            const QByteArray &inPropertyName,
+                            const QVariant &propertyValue,
+                            QSSGRenderShaderValue::Type inPropertyType);
 
     void setLightsEnabled(bool enable) { m_lightsEnabled = enable; }
     bool isLightingEnabled() const { return m_lightsEnabled; }
-
-    void resetShadowMaps() { m_shadowMaps.clear(); }
-    QSSGRhiShadowMapProperties &addShadowMap() { m_shadowMaps.append(QSSGRhiShadowMapProperties()); return m_shadowMaps.last(); }
-    int shadowMapCount() const { return m_shadowMaps.size(); }
-    const QSSGRhiShadowMapProperties &shadowMapAt(int index) const { return m_shadowMaps[index]; }
-    QSSGRhiShadowMapProperties &shadowMapAt(int index) { return m_shadowMaps[index]; }
 
     void ensureCombinedUniformBuffer(QRhiBuffer **ubuf);
     void ensureUniformBuffer(QRhiBuffer **ubuf);
@@ -489,11 +512,30 @@ public:
     void setDepthTexture(QRhiTexture *texture) { m_depthTexture = texture; }
     QRhiTexture *depthTexture() const { return m_depthTexture; }
 
+    void setNormalTexture(QRhiTexture *texture) { m_normalTexture = texture; }
+    QRhiTexture *normalTexture() const { return m_normalTexture; }
+
     void setSsaoTexture(QRhiTexture *texture) { m_ssaoTexture = texture; }
     QRhiTexture *ssaoTexture() const { return m_ssaoTexture; }
 
     void setLightmapTexture(QRhiTexture *texture) { m_lightmapTexture = texture; }
     QRhiTexture *lightmapTexture() const { return m_lightmapTexture; }
+
+    void setMotionVectorTexture(QRhiTexture *texture) { m_motionVectorTexture = texture; }
+    QRhiTexture *MotionVectorTexture() const { return m_motionVectorTexture; }
+    void setShadowMapAtlasTexture(QRhiTexture *texture) { m_shadowMapAtlasTexture = texture; }
+    QRhiTexture *shadowMapAtlasTexture() const { return m_shadowMapAtlasTexture; }
+
+    void setShadowMapBlueNoiseTexture(QRhiTexture *texture) { m_shadowMapBlueNoiseTexture = texture; }
+    QRhiTexture *shadowMapBlueNoiseTexture() const { return m_shadowMapBlueNoiseTexture; }
+
+    void setOITImages(QRhiTexture *accumulator, QRhiTexture *auxiliary, QRhiTexture *counter)
+    {
+        m_oitImages[0] = accumulator;
+        m_oitImages[1] = auxiliary;
+        m_oitImages[2] = counter;
+    }
+    QRhiTexture **oitImages() { return m_oitImages; }
 
     void resetExtraTextures() { m_extraTextures.clear(); }
     void addExtraTexture(const QSSGRhiTexture &t) { m_extraTextures.append(t); }
@@ -502,7 +544,7 @@ public:
     QSSGRhiTexture &extraTextureAt(int index) { return m_extraTextures[index]; }
 
     QSSGShaderLightsUniformData &lightsUniformData() { return m_lightsUniformData; }
-    QSSGShaderShadowsUniformData &shadowsUniformData() { return m_shadowsUniformData; }
+    QSSGShaderDirectionalLightsUniformData &directionalLightsUniformData() { return m_directionalLightsUniformData; }
     InstanceLocations instanceBufferLocations() const { return instanceLocations; }
 
     int offsetOfUniform(const QByteArray &name);
@@ -515,6 +557,7 @@ private:
     QHash<QByteArray, QShaderDescription::BlockVariable> m_ub0;
     QHash<QSSGRhiInputAssemblerState::InputSemantic, QShaderDescription::InOutVariable> m_vertexInputs;
     QHash<QByteArray, QShaderDescription::InOutVariable> m_combinedImageSamplers;
+    QHash<QByteArray, QShaderDescription::InOutVariable> m_storageImages;
     int m_materialImageSamplerBindings[size_t(QSSGRhiSamplerBindingHints::BindingMapSize)];
 
     QVarLengthArray<QSSGRhiShaderUniform, 32> m_uniforms; // members of the main (binding 0) uniform buffer
@@ -524,15 +567,19 @@ private:
     // transient (per-object) data; pointers are all non-owning
     bool m_lightsEnabled = false;
     QSSGShaderLightsUniformData m_lightsUniformData;
-    QSSGShaderShadowsUniformData m_shadowsUniformData;
-    QVarLengthArray<QSSGRhiShadowMapProperties, QSSG_MAX_NUM_SHADOW_MAPS> m_shadowMaps;
+    QSSGShaderDirectionalLightsUniformData m_directionalLightsUniformData;
+    QRhiTexture *m_shadowMapAtlasTexture = nullptr;
+    QRhiTexture *m_shadowMapBlueNoiseTexture = nullptr;
     QRhiTexture *m_lightProbeTexture = nullptr;
     QSSGRenderTextureCoordOp m_lightProbeHorzTile = QSSGRenderTextureCoordOp::ClampToEdge;
     QSSGRenderTextureCoordOp m_lightProbeVertTile = QSSGRenderTextureCoordOp::ClampToEdge;
     QRhiTexture *m_screenTexture = nullptr;
     QRhiTexture *m_depthTexture = nullptr;
+    QRhiTexture *m_normalTexture = nullptr;
     QRhiTexture *m_ssaoTexture = nullptr;
     QRhiTexture *m_lightmapTexture = nullptr;
+    QRhiTexture *m_oitImages[3] = {nullptr};
+    QRhiTexture *m_motionVectorTexture = nullptr;
     QVarLengthArray<QSSGRhiTexture, 8> m_extraTextures;
 };
 
@@ -573,8 +620,12 @@ public:
         return *this;
     }
 
-    void addUniformBuffer(int binding, QRhiShaderResourceBinding::StageFlags stage, QRhiBuffer *buf, int offset = 0 , int size = 0);
+    void addUniformBuffer(int binding, QRhiShaderResourceBinding::StageFlags stage, QRhiBuffer *buf, int offset = 0 , int size = 0, bool hasDynamicOffset = false);
     void addTexture(int binding, QRhiShaderResourceBinding::StageFlags stage, QRhiTexture *tex, QRhiSampler *sampler);
+    void addImageLoad(int binding, QRhiShaderResourceBinding::StageFlags stage, QRhiTexture *tex, int level);
+    void addImageStore(int binding, QRhiShaderResourceBinding::StageFlags stage, QRhiTexture *tex, int level);
+    void addImageLoadStore(int binding, QRhiShaderResourceBinding::StageFlags stage, QRhiTexture *tex, int level);
+    void addStorageBuffer(int binding, QRhiShaderResourceBinding::StageFlags stage, QRhiBuffer *buf, int offset = 0 , int size = 0, bool hasDynamicOffset = false);
 };
 
 inline bool operator==(const QSSGRhiShaderResourceBindingList &a, const QSSGRhiShaderResourceBindingList &b) Q_DECL_NOTHROW
@@ -618,6 +669,97 @@ struct QSSGRhiDrawCallData
         pipeline = nullptr;
     }
 };
+
+class Q_QUICK3DRUNTIMERENDER_EXPORT QSSGManagedRhiTexture
+{
+    enum class Private { Initialize };
+    Q_DISABLE_COPY(QSSGManagedRhiTexture)
+public:
+    using Ptr = std::unique_ptr<QSSGManagedRhiTexture>;
+
+    const std::unique_ptr<QRhiTexture> &texture() const { return m_texture; }
+
+    [[nodiscard]] bool isValid() const { return m_texture != nullptr; }
+
+    QSSGManagedRhiTexture() = default;
+    QSSGManagedRhiTexture(const std::shared_ptr<QSSGUserRenderPassManager> &manager, QRhiTexture *texture, Private);
+    QSSGManagedRhiTexture(const std::shared_ptr<QSSGUserRenderPassManager> &manager, std::unique_ptr<QRhiTexture> texture);
+    ~QSSGManagedRhiTexture();
+
+    [[nodiscard]] static Ptr make_copy(const Ptr &other)
+    {
+        return std::make_unique<QSSGManagedRhiTexture>(other->m_manager, other->m_texture.get(), Private::Initialize);
+    }
+
+private:
+    friend class QSSGRhiRenderableTextureV2;
+    friend class QSSGUserRenderPassManager;
+
+    void invalidate();
+
+    std::shared_ptr<QSSGUserRenderPassManager> m_manager;
+    std::unique_ptr<QRhiTexture> m_texture;
+};
+
+using QSSGManagedRhiTexturePtr = QSSGManagedRhiTexture::Ptr;
+
+class QSSGRhiRenderableTextureV2
+{
+    enum class Private { Initialize };
+public:
+    QSSGRhiRenderableTextureV2(const std::shared_ptr<QSSGUserRenderPassManager> &manager, Private)
+        : m_manager(manager)
+    {
+    }
+    ~QSSGRhiRenderableTextureV2();
+
+    void setDescription(QRhi *rhi, QRhiTextureRenderTargetDescription rtDesc, QRhiTextureRenderTarget::Flags = {});
+
+    void setName(const QByteArray &name) { rtName = name; }
+    const QByteArray &getName() const { return rtName; }
+
+    const QSSGManagedRhiTexturePtr &getDepthTexture() const { return depthTexture; }
+    const std::unique_ptr<QRhiRenderBuffer> &getDepthStencil() const { return depthStencil; }
+    const std::unique_ptr<QRhiRenderPassDescriptor> &getRenderPassDescriptor() const { return rpDesc; }
+    const std::unique_ptr<QRhiTextureRenderTarget> &getRenderTarget() const { return rt; }
+
+    size_t colorAttachmentCount() const { return textures.size(); }
+    const QSSGManagedRhiTexturePtr &getColorTexture(int index) const { return textures[index]; }
+
+    bool isValid() const { return (textures.size() > 0) && rt && rpDesc; }
+
+    void finialize(QRhi *rhi);
+
+    void resetRenderTarget();
+    void reset();
+
+private:
+    friend class QSSGUserRenderPassManager;
+
+    enum Dirty : quint32
+    {
+        ColorTextureDirty = 0x1,
+        DepthStencilDirty = 0x2,
+        DepthTextureDirty = 0x4,
+    };
+
+    void invalidate();
+
+    using DirtyT = std::underlying_type_t<Dirty>;
+
+    std::shared_ptr<QSSGUserRenderPassManager> m_manager;
+
+    QVarLengthArray<QSSGManagedRhiTexturePtr, 4> textures {};
+    std::unique_ptr<QRhiRenderBuffer> depthStencil;
+    QSSGManagedRhiTexturePtr depthTexture; // either depthStencil or depthTexture are valid, never both
+
+    std::unique_ptr<QRhiRenderPassDescriptor> rpDesc;
+    std::unique_ptr<QRhiTextureRenderTarget> rt;
+    QByteArray rtName;
+    DirtyT dirty = 0;
+};
+
+using QSSGRhiRenderableTextureV2Ptr = std::shared_ptr<QSSGRhiRenderableTextureV2>;
 
 struct QSSGRhiRenderableTexture
 {

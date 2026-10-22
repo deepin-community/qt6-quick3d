@@ -1,6 +1,8 @@
 // Copyright (C) 2008-2012 NVIDIA Corporation.
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QSSG_RENDER_CONTEXT_CORE_H
 #define QSSG_RENDER_CONTEXT_CORE_H
@@ -44,7 +46,14 @@ public:
     // rendercontext per QQuickWindow (and so scenegraph render thread).
     explicit QSSGRenderContextInterface(QRhi *rhi);
 
-    // This overload must only be used in special cases, e.g. by the genshaders tool.
+    // One of these overloads must only be used in special cases, e.g. by the genshaders tool.
+    QSSGRenderContextInterface(std::unique_ptr<QSSGBufferManager> bufferManager,
+                               std::unique_ptr<QSSGRenderer> renderer,
+                               std::shared_ptr<QSSGShaderLibraryManager> shaderLibraryManager,
+                               std::unique_ptr<QSSGShaderCache> shaderCache,
+                               std::unique_ptr<QSSGCustomMaterialSystem> customMaterialSystem,
+                               std::unique_ptr<QSSGProgramGenerator> shaderProgramGenerator,
+                               std::unique_ptr<QSSGRhiContext> ctx);
     QSSGRenderContextInterface(std::unique_ptr<QSSGBufferManager> bufferManager,
                                std::unique_ptr<QSSGRenderer> renderer,
                                std::shared_ptr<QSSGShaderLibraryManager> shaderLibraryManager,
@@ -52,7 +61,7 @@ public:
                                std::unique_ptr<QSSGCustomMaterialSystem> customMaterialSystem,
                                std::unique_ptr<QSSGProgramGenerator> shaderProgramGenerator,
                                std::unique_ptr<QSSGRhiContext> ctx,
-                               std::unique_ptr<QSSGDebugDrawSystem> debugDrawSystem = nullptr);
+                               std::unique_ptr<QSSGDebugDrawSystem> debugDrawSystem);
 
     ~QSSGRenderContextInterface();
 

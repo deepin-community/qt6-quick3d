@@ -1,5 +1,7 @@
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qquick3dperspectivecamera_p.h"
 
@@ -30,7 +32,7 @@ QT_BEGIN_NAMESPACE
     has its forward vector pointing along the negative Z axis and its up vector along
     the positive Y axis.
 
-    \image perspectivecamera.png
+    \image perspectivecamera.png {Perspective camera projection diagram}
 
     PerspectiveCamera is the standard \l Camera type. It gives a realistic projection of the
     scene, where distant objects are perceived as smaller. The frustum is defined by
@@ -60,7 +62,7 @@ QQuick3DPerspectiveCamera::QQuick3DPerspectiveCamera(QQuick3DNodePrivate &dd, QQ
     \internal
 */
 QQuick3DPerspectiveCamera::QQuick3DPerspectiveCamera(QQuick3DNode *parent)
-    : QQuick3DPerspectiveCamera(*(new QQuick3DNodePrivate(QQuick3DNodePrivate::Type::PerspectiveCamera)), parent)
+    : QQuick3DPerspectiveCamera(*(new QQuick3DNodePrivate(QQuick3DNodePrivate::Type::PerspectiveCamera, QQuick3DContentLayer::LayerAll)), parent)
 {}
 
 /*!
@@ -178,10 +180,18 @@ QSSGRenderGraphObject *QQuick3DPerspectiveCamera::updateSpatialNode(QSSGRenderGr
 {
     QSSGRenderCamera *camera = static_cast<QSSGRenderCamera *>(QQuick3DCamera::updateSpatialNode(node));
     if (camera) {
-        const bool changed = ((int(qUpdateIfNeeded(camera->clipNear, m_clipNear))
-                               | int(qUpdateIfNeeded(camera->clipFar, m_clipFar))
-                               | int(qUpdateIfNeeded(camera->fov, qDegreesToRadians(m_fieldOfView)))
-                               | int(qUpdateIfNeeded(camera->fovHorizontal, m_fieldOfViewOrientation == QQuick3DPerspectiveCamera::FieldOfViewOrientation::Horizontal))) != 0);
+        QSSGRenderCamera::FieldOfView fov;
+        switch (m_fieldOfViewOrientation) {
+        case QQuick3DPerspectiveCamera::Vertical:
+            fov = QSSGRenderCamera::FieldOfView::fromDegrees(m_fieldOfView);
+            break;
+        case QQuick3DPerspectiveCamera::Horizontal:
+            fov = QSSGRenderCamera::FieldOfView::fromDegrees<QSSGRenderCamera::FieldOfView::Orientation::Horizontal>(m_fieldOfView);
+            break;
+        }
+
+        const bool changed = ((int(qUpdateIfNeeded(camera->clipPlanes, {m_clipNear, m_clipFar}))
+                               | int(qUpdateIfNeeded(camera->fov, fov))) != 0);
         if (changed)
             camera->markDirty(QSSGRenderCamera::DirtyFlag::CameraDirty);
     }

@@ -1,0 +1,8 @@
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/lightmapviewer/ArcballController.qml
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/lightmapviewer/ImageViewer.qml
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/lightmapviewer/LightmapViewer.qml
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/lightmapviewer/MeshViewer.qml
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/lightmapviewer/OriginGizmo.qml
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/lightmapviewer/SceneMetadataView.qml
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/lightmapviewer/lightmapviewer.qmltypes
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/lightmapviewer/qmldir

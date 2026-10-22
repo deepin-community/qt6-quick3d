@@ -1,7 +1,11 @@
 // Copyright (C) 2022 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qssgrenderbasetypes_p.h"
+
+using namespace Qt::StringLiterals;
 
 QT_BEGIN_NAMESPACE
 
@@ -683,6 +687,28 @@ const char *QSSGBaseTypeHelpers::toString(QSSGRenderTextureFilterOp value)
     }
 
     Q_UNREACHABLE_RETURN(nullptr);
+}
+
+QByteArray QSSGBaseTypeHelpers::toString(QSSGRenderSamplerType value)
+{
+    switch (value) {
+    case QSSGRenderSamplerType::Unknown:
+        return "unknown"_ba;
+    case QSSGRenderSamplerType::Sampler2D:
+        return "sampler2D"_ba;
+    case QSSGRenderSamplerType::Sampler2DArray:
+        return "sampler2DArray"_ba;
+    case QSSGRenderSamplerType::Sampler3D:
+        return "sampler3D"_ba;
+    case QSSGRenderSamplerType::SamplerCube:
+        return "samplerCube"_ba;
+    case QSSGRenderSamplerType::SamplerCubeArray:
+        return "samplerCubeArray"_ba;
+    case QSSGRenderSamplerType::SamplerBuffer:
+        return "samplerBuffer"_ba;
+    }
+
+    Q_UNREACHABLE_RETURN(QByteArray());
 }
 
 const char *QSSGBaseTypeHelpers::displayName(QSSGRenderTextureCubeFace face)

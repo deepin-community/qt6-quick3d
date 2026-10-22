@@ -1,5 +1,7 @@
 // Copyright (C) 2024 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qquick3dxrhandinput_p.h"
 #include "qquick3dxrinputmanager_p.h"
@@ -19,14 +21,32 @@ QT_BEGIN_NAMESPACE
     \inqmlmodule QtQuick3D.Xr
     \brief Represents a 3D model for a hand.
 
-    Contains an animated 3D model that tracks the user's hands
+    Contains an animated 3D model that tracks the user's hands.
 
     XrHandModel is only visible when hand tracking is active.
 
-    \note XrHandModel depends on hand tracking data from the underlying
-    system and is therefore not available on all platforms. In particular,
-    the Apple Vision Pro will overlay video of the user's hands directly,
+    \note XrHandModel depends on hand-tracking data from the underlying
+    system and is, therefore, not available on all platforms.
+
+    \section1 Platform Notes
+
+    \section2 Apple Vision Pro
+
+    The Apple Vision Pro will overlay video of the user's hands directly,
     and the XrHandModel will not have any content.
+
+    \section2 Meta devices
+
+    This required the following feature and permission lines to be added
+    in the AndroidManifest.qml file of your project.
+
+    \badcode
+        <uses-permission android:name="com.oculus.permission.HAND_TRACKING" />
+        <uses-feature android:name="oculus.software.handtracking" android:required="false" />
+    \endcode
+
+    Use \c true instead of \c false in the \c uses-feature tag if your app's interaction
+    is implemented only for hands.
 */
 
 QQuick3DXrHandModel::QQuick3DXrHandModel(QQuick3DNode *parent)
@@ -62,9 +82,9 @@ void QQuick3DXrHandModel::setupModel()
         return;
     }
     QQuick3DXrInputManager *inputMan = QQuick3DXrInputManager::instance();
-    if (m_hand == RightHand)
+    if (m_hand == Hand::RightHand)
         m_handTracker = inputMan->rightHandInput();
-    else if (m_hand == LeftHand)
+    else if (m_hand == Hand::LeftHand)
         m_handTracker = inputMan->leftHandInput();
     if (!m_handTracker)
         return;
@@ -100,7 +120,6 @@ void QQuick3DXrHandModel::componentComplete()
     \warning This property must be set when the XrHandModel is constructed.
     Changing hands later is not currently supported.
 */
-
 QQuick3DXrHandModel::Hand QQuick3DXrHandModel::hand() const
 {
     return m_hand;

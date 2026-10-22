@@ -1,5 +1,7 @@
 // Copyright (C) 2022 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qquick3ddebugsettings_p.h"
 
@@ -7,7 +9,7 @@ QT_BEGIN_NAMESPACE
 
 /*!
     \qmltype DebugSettings
-    \inherits Object
+    \inherits QtObject
     \inqmlmodule QtQuick3D
     \brief Used to configure debug settings.
 
@@ -71,30 +73,37 @@ QT_BEGIN_NAMESPACE
     \l{SceneEnvironment::lightProbe} and also has a directional light.
 
     \image debugsettings_default.jpg
+           {Scene with default debug settings}
 
     Setting \c{DebugSettings.BaseColor}:
 
     \image debugsettings_basecolor.jpg
+           {Scene showing base colors without lighting}
 
     Setting \c{DebugSettings.Roughness}:
 
     \image debugsettings_roughness.jpg
+           {Scene showing roughness values}
 
     Setting \c{DebugSettings.Metalness}:
 
     \image debugsettings_metalness.jpg
+           {Scene highlighting metalness values}
 
     Setting \c{DebugSettings.Diffuse}:
 
     \image debugsettings_diffuse.jpg
+           {Scene showing diffuse lighting only}
 
     Setting \c{DebugSettings.Specular}:
 
     \image debugsettings_specular.jpg
+           {Scene showing specular lighting only}
 
     Setting \c{DebugSettings.Normals}:
 
     \image debugsettings_normals.jpg
+           {Scene showing normal vectors as colors}
 */
 
 
@@ -134,6 +143,7 @@ void QQuick3DDebugSettings::update()
     The default value is \c false.
 
     \image debugsettings_wireframe.jpg
+           {Scene showing wireframe rendering}
 */
 
 
@@ -151,6 +161,15 @@ void QQuick3DDebugSettings::setWireframeEnabled(bool newWireframeEnabled)
     update();
 }
 
+/*!
+    \qmlproperty bool QtQuick3D::DebugSettings::drawDirectionalLightShadowBoxes
+    \since 6.8
+
+    When this property is enabled a bounding box is drawn for every directional light's shadowmap.
+
+    The default value is \c false.
+*/
+
 bool QQuick3DDebugSettings::drawDirectionalLightShadowBoxes() const
 {
     return m_drawDirectionalLightShadowBoxes;
@@ -164,6 +183,15 @@ void QQuick3DDebugSettings::setDrawDirectionalLightShadowBoxes(bool newDrawDirec
     emit drawDirectionalLightShadowBoxesChanged();
     update();
 }
+
+/*!
+    \qmlproperty bool QtQuick3D::DebugSettings::drawShadowCastingBounds
+    \since 6.8
+
+    When this property is enabled a bounding box is drawn for the shadow casting objects.
+
+    The default value is \c false.
+*/
 
 bool QQuick3DDebugSettings::drawShadowCastingBounds() const
 {
@@ -179,6 +207,38 @@ void QQuick3DDebugSettings::setDrawShadowCastingBounds(bool newDrawShadowCasting
     update();
 }
 
+/*!
+    \qmlproperty bool QtQuick3D::DebugSettings::drawPointLightShadowBoxes
+    \since 6.9
+
+    When this property is enabled a bounding box is drawn for every point light's shadowmap.
+
+    The default value is \c false.
+*/
+
+bool QQuick3DDebugSettings::drawPointLightShadowBoxes() const
+{
+    return m_drawPointLightShadowBoxes;
+}
+
+void QQuick3DDebugSettings::setDrawPointLightShadowBoxes(bool newDrawPointLightShadowBoxes)
+{
+    if (m_drawPointLightShadowBoxes == newDrawPointLightShadowBoxes)
+        return;
+    m_drawPointLightShadowBoxes = newDrawPointLightShadowBoxes;
+    emit drawPointLightShadowBoxesChanged();
+    update();
+}
+
+/*!
+    \qmlproperty bool QtQuick3D::DebugSettings::drawShadowReceivingBounds
+    \since 6.8
+
+    When this property is enabled a bounding box is drawn for the shadow receiving objects.
+
+    The default value is \c false.
+*/
+
 bool QQuick3DDebugSettings::drawShadowReceivingBounds() const
 {
     return m_drawShadowReceivingBounds;
@@ -192,6 +252,16 @@ void QQuick3DDebugSettings::setDrawShadowReceivingBounds(bool newDrawShadowRecei
     emit drawShadowReceivingBoundsChanged();
     update();
 }
+
+/*!
+    \qmlproperty bool QtQuick3D::DebugSettings::drawCascades
+    \since 6.8
+
+    When this property is enabled a frustum is drawn with splits indicating where the
+    shadowmap cascades begin and end.
+
+    The default value is \c false.
+*/
 
 bool QQuick3DDebugSettings::drawCascades() const
 {
@@ -207,6 +277,16 @@ void QQuick3DDebugSettings::setDrawCascades(bool newDrawCascades)
     update();
 }
 
+/*!
+    \qmlproperty bool QtQuick3D::DebugSettings::drawSceneCascadeIntersection
+    \since 6.8
+
+    When this property is enabled the intersection of the shadowmap cascades
+    and the casting and receiving objects of the scene is drawn.
+
+    The default value is \c false.
+*/
+
 bool QQuick3DDebugSettings::drawSceneCascadeIntersection() const
 {
     return m_drawSceneCascadeIntersection;
@@ -221,6 +301,18 @@ void QQuick3DDebugSettings::setDrawSceneCascadeIntersection(bool newDrawSceneCas
     update();
 }
 
+/*!
+    \qmlproperty bool QtQuick3D::DebugSettings::disableShadowCameraUpdate
+    \since 6.8
+
+    When this property is enabled the camera update is disabled for the shadowmap.
+    This means that the view frustum will be locked in space just for the shadowmap
+    calculations. This is just a debug tool to be able to view the camera frustum
+    and shadow map from different angles.
+
+    The default value is \c false.
+*/
+
 bool QQuick3DDebugSettings::disableShadowCameraUpdate() const
 {
     return m_disableShadowCameraUpdate;
@@ -232,6 +324,28 @@ void QQuick3DDebugSettings::setDisableShadowCameraUpdate(bool newDisableShadowCa
         return;
     m_disableShadowCameraUpdate = newDisableShadowCameraUpdate;
     emit disableShadowCameraUpdateChanged();
+    update();
+}
+/*!
+    \internal
+    \qmlproperty bool QtQuick3D::DebugSettings::drawCulledObjects
+    \since 6.11
+
+    Draws a different-colored bounding box based on whether the model is culled.
+
+    The default value is \c false.
+*/
+bool QQuick3DDebugSettings::drawCulledObjects() const
+{
+    return m_drawCulledObjects;
+}
+
+void QQuick3DDebugSettings::setDrawCulledObjects(bool newDrawCulledObjects)
+{
+    if (m_drawCulledObjects == newDrawCulledObjects)
+        return;
+    m_drawCulledObjects = newDrawCulledObjects;
+    emit drawCulledObjectsChanged();
     update();
 }
 

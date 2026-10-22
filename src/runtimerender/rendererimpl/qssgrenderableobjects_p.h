@@ -1,6 +1,8 @@
 // Copyright (C) 2008-2012 NVIDIA Corporation.
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QSSG_RENDER_IMPL_RENDERABLE_OBJECTS_H
 #define QSSG_RENDER_IMPL_RENDERABLE_OBJECTS_H
@@ -32,6 +34,10 @@
 
 QT_BEGIN_NAMESPACE
 
+class QSSGRenderer;
+class QSSGRenderableObject;
+struct QSSGRenderItem2D;
+
 enum class QSSGRenderableObjectFlag : quint32
 {
     HasTransparency = 1 << 0,
@@ -57,7 +63,9 @@ enum class QSSGRenderableObjectFlag : quint32
     UsedInBakedLighting = 1 << 17,
     RendersWithLightmap = 1 << 18,
     HasAttributeTexCoordLightmap = 1 << 19,
-    CastsReflections = 1 << 20
+    CastsReflections = 1 << 20,
+    RequiresNormalTexture = 1 << 21,
+    IsMotionVectorParticipant = 1 << 22
 };
 
 struct QSSGRenderableObjectFlags : public QFlags<QSSGRenderableObjectFlag>
@@ -143,6 +151,16 @@ struct QSSGRenderableObjectFlags : public QFlags<QSSGRenderableObjectFlag>
     bool requiresScreenTexture() const {
         return this->operator&(QSSGRenderableObjectFlag::RequiresScreenTexture);
     }
+
+    void setRequiresNormalTexture(bool v)
+    {
+        setFlag(QSSGRenderableObjectFlag::RequiresNormalTexture, v);
+    }
+    bool requiresNormalTexture() const {
+        return this->operator&(QSSGRenderableObjectFlag::RequiresNormalTexture);
+    }
+    void setMotionVectorParticipant(bool v) { setFlag(QSSGRenderableObjectFlag::IsMotionVectorParticipant, v); }
+    bool isMotionVectorParticipant() const { return this->operator&(QSSGRenderableObjectFlag::IsMotionVectorParticipant); }
 };
 
 struct QSSGShaderLight
@@ -178,8 +196,6 @@ struct QSSGShaderReflectionProbe
 typedef QVarLengthArray<QSSGShaderLight, 16> QSSGShaderLightList;
 using QSSGShaderLightListView = QSSGDataView<QSSGShaderLight>;
 
-struct QSSGRenderableObject;
-
 struct QSSGRenderableNodeEntry
 {
     enum Overridden : quint16
@@ -188,42 +204,49 @@ struct QSSGRenderableNodeEntry
         Disabled = 0x1,
         GlobalTransform = 0x2,
         Materials = 0x4,
-        GlobalOpacity = 0x5
+        GlobalOpacity = 0x8,
     };
 
     QSSGRenderNode *node = nullptr;
-    // TODO: We should have an index here for look-up and store the data in a table,
-    // er already have the index from when we collect the nodes. We might cull some items at a later
-    // stage but that should be fine. The sort data can be just a float and the index to this...
-    mutable QMatrix4x4 globalTransform;
-    mutable QSSGRenderMesh *mesh = nullptr;
-    mutable QVector<QSSGRenderGraphObject *> materials;
     mutable QSSGShaderLightListView lights;
-    mutable float globalOpacity { 1.0f };
     mutable quint16 overridden { Original };
+
+    // FIXME: This is just for the extension API and
+    // should be removed in the future.
+    struct ExtensionOverrides
+    {
+        QMatrix4x4 globalTransform;
+        QVector<QSSGRenderGraphObject *> materials;
+        float globalOpacity { 1.0f };
+    } mutable extOverrides;
 
     bool isNull() const { return (node == nullptr); }
     QSSGRenderableNodeEntry() = default;
     QSSGRenderableNodeEntry(QSSGRenderNode &inNode) : node(&inNode) {}
+    QSSGRenderableNodeEntry(QSSGRenderNode *inNode) : node(inNode) {}
 };
 
 // Used for sorting
 struct QSSGRenderableObjectHandle
 {
     QSSGRenderableObjectHandle() = default;
-    QSSGRenderableObjectHandle(QSSGRenderableObject *o, float camDistSq)
+    QSSGRenderableObjectHandle(QSSGRenderableObject *o, float camDistSq, QSSGRenderNodeTag tag)
         : obj(o)
         , cameraDistanceSq(camDistSq)
+        , tag(tag)
     {}
     QSSGRenderableObject *obj = nullptr;
     float cameraDistanceSq = 0.0f;
+    QSSGRenderNodeTag tag;
 };
 Q_DECLARE_TYPEINFO(QSSGRenderableObjectHandle, Q_PRIMITIVE_TYPE);
 
 using QSSGRenderableObjectList = QVector<QSSGRenderableObjectHandle>;
 
-struct QSSGRenderableObject
+class QSSGRenderableObject
 {
+    Q_DISABLE_COPY_MOVE(QSSGRenderableObject)
+public:
     enum class Type : quint8
     {
         DefaultMaterialMeshSubset,
@@ -232,9 +255,11 @@ struct QSSGRenderableObject
     };
 
     // Variables used for picking
-    const QMatrix4x4 &globalTransform;
     const QSSGBounds3 &bounds;
     QSSGBounds3 globalBounds;
+
+    // Used for shadow map bounds when model has instancing
+    QSSGBounds3 globalBoundsInstancing;
 
     QSSGRenderableObjectFlags renderableFlags;
     // For rough sorting for transparency and for depth
@@ -245,18 +270,17 @@ struct QSSGRenderableObject
     const Type type;
     float instancingLodMin = -1;
     float instancingLodMax = -1;
+    bool isInstanced = false;
 
     QSSGRenderableObject(Type ty,
                          QSSGRenderableObjectFlags inFlags,
                          const QVector3D &inWorldCenterPt,
-                         const QMatrix4x4 &inGlobalTransform,
                          const QSSGBounds3 &inBounds,
                          float inDepthBias,
                          float inMinThreshold = -1,
                          float inMaxThreshold = -1)
 
-        : globalTransform(inGlobalTransform)
-        , bounds(inBounds)
+        : bounds(inBounds)
         , globalBounds(inBounds)
         , renderableFlags(inFlags)
         , worldCenterPoint(inWorldCenterPt)
@@ -282,37 +306,24 @@ using QSSGRenderCameraList = QVarLengthArray<QSSGRenderCamera *, 2>;
 using QSSGRenderCameraDataList = QVarLengthArray<QSSGRenderCameraData, 2>;
 using QSSGRenderMvpArray = std::array<QMatrix4x4, 2>; // cannot be dynamic due to QSSGModelContext, must stick with 2 for now
 
-struct QSSGSubsetRenderable;
+class QSSGSubsetRenderable;
 
 // Different subsets from the same model will get the same
 // model context so we can generate the MVP and normal matrix once
 // and only once per subset.
-struct QSSGModelContext
+class Q_AUTOTEST_EXPORT QSSGModelContext
 {
-    const QSSGRenderModel &model;
-    QSSGRenderMvpArray modelViewProjections;
-    QMatrix3x3 normalMatrix;
-
+    Q_DISABLE_COPY_MOVE(QSSGModelContext)
+public:
     QSSGModelContext(const QSSGRenderModel &inModel,
                      const QMatrix4x4 &globalTransform,
-                     const QSSGRenderCameraDataList &allCameraData)
-        : model(inModel)
-    {
-        Q_ASSERT_X(allCameraData.size() <= qsizetype(modelViewProjections.size()), __FUNCTION__, "QSSGModelContext has no space for all MVPs");
-        int mvpCount = 0;
-        // For skinning, node's global transformation will be ignored and
-        // an identity matrix will be used for the normalMatrix
-        if (model.usesBoneTexture()) {
-            for (const QSSGRenderCameraData &cameraData : allCameraData) {
-                modelViewProjections[mvpCount++] = cameraData.viewProjection;
-                normalMatrix = QMatrix3x3();
-            }
-        } else {
-            for (const QSSGRenderCameraData &cameraData : allCameraData)
-                QSSGRenderNode::calculateMVPAndNormalMatrix(globalTransform, cameraData.viewProjection, modelViewProjections[mvpCount++], normalMatrix);
-        }
-    }
+                     const QMatrix3x3 &inNormalMatrix,
+                     const QSSGRenderMvpArray &inModelViewProjections);
 
+    const QSSGRenderModel &model;
+    const QMatrix4x4 globalTransform;
+    const QMatrix3x3 normalMatrix;
+    QSSGRenderMvpArray modelViewProjections;
     QSSGDataRef<QSSGSubsetRenderable> subsets;
 };
 
@@ -322,8 +333,10 @@ class QSSGRenderer;
 class QSSGLayerRenderData;
 struct QSSGShadowMapEntry;
 
-struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGSubsetRenderable : public QSSGRenderableObject
+class Q_AUTOTEST_EXPORT QSSGSubsetRenderable : public QSSGRenderableObject
 {
+    Q_DISABLE_COPY_MOVE(QSSGSubsetRenderable)
+public:
     int reflectionProbeIndex = -1;
     float distanceFromReflectionProbe;
     quint32 subsetLevelOfDetail = 0;
@@ -337,6 +350,11 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGSubsetRenderable : public QSSGRenderabl
     QSSGRenderableImage *firstImage;
     QSSGShaderDefaultMaterialKey shaderDescription;
     const QSSGShaderLightListView &lights;
+
+    struct RhiPassData {
+        QRhiGraphicsPipeline *pipeline = nullptr;
+        QRhiShaderResourceBindings *srb = nullptr;
+    };
 
     struct {
         // Transient (due to the subsetRenderable being allocated using a
@@ -358,6 +376,15 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGSubsetRenderable : public QSSGRenderabl
             QRhiGraphicsPipeline *pipeline = nullptr;
             QRhiShaderResourceBindings *srb[6] = {};
         } reflectionPass;
+        struct {
+            QRhiGraphicsPipeline *pipeline = nullptr;
+            QRhiShaderResourceBindings *srb = nullptr;
+        } normalPass;
+        struct {
+            QRhiGraphicsPipeline *pipeline = nullptr;
+            QRhiShaderResourceBindings *srb = nullptr;
+        } motionVectorPass;
+        RhiPassData userPassData[QSSGUserRenderPassManager::maxUserPassSlots()] {};
     } rhiRenderData;
 
     QSSGSubsetRenderable(Type type,
@@ -371,7 +398,8 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGSubsetRenderable : public QSSGRenderabl
                          const QSSGRenderGraphObject &mat,
                          QSSGRenderableImage *inFirstImage,
                          QSSGShaderDefaultMaterialKey inShaderKey,
-                         const QSSGShaderLightListView &inLights);
+                         const QSSGShaderLightListView &inLights,
+                         bool anyLightHasShadows);
 
     [[nodiscard]] const QSSGRenderGraphObject &getMaterial() const { return material; }
 };
@@ -381,14 +409,18 @@ Q_STATIC_ASSERT(std::is_trivially_destructible<QSSGSubsetRenderable>::value);
 /**
  * A renderable that corresponds to a particles.
  */
-struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGParticlesRenderable : public QSSGRenderableObject
+class Q_QUICK3DRUNTIMERENDER_EXPORT QSSGParticlesRenderable : public QSSGRenderableObject
 {
+    Q_DISABLE_COPY_MOVE(QSSGParticlesRenderable)
+public:
     QSSGRenderer *renderer = nullptr;
     const QSSGRenderParticles &particles;
     QSSGRenderableImage *firstImage;
     QSSGRenderableImage *colorTable;
     const QSSGShaderLightListView &lights;
+    QMatrix4x4 globalTransform;
     float opacity;
+    QSSGShaderParticleMaterialKey shaderDescription;
 
     struct {
         // Transient (due to the subsetRenderable being allocated using a
@@ -415,14 +447,25 @@ struct Q_QUICK3DRUNTIMERENDER_EXPORT QSSGParticlesRenderable : public QSSGRender
     QSSGParticlesRenderable(QSSGRenderableObjectFlags inFlags,
                             const QVector3D &inWorldCenterPt,
                             QSSGRenderer *rendr,
+                            const QMatrix4x4 &inGlobalTransform,
                             const QSSGRenderParticles &inParticles,
                             QSSGRenderableImage *inFirstImage,
                             QSSGRenderableImage *inColorTable,
                             const QSSGShaderLightListView &inLights,
-                            float inOpacity);
+                            float inOpacity,
+                            QSSGShaderParticleMaterialKey inShaderKey);
 };
 
 Q_STATIC_ASSERT(std::is_trivially_destructible<QSSGParticlesRenderable>::value);
+
+
+using QSSGModelsView = QSSGDataView<QSSGRenderModel *>;
+using QSSGParticlesView = QSSGDataView<QSSGRenderParticles *>;
+using QSSGItem2DsView = QSSGDataView<QSSGRenderItem2D *>;
+using QSSGCamerasView = QSSGDataView<QSSGRenderCamera *>;
+using QSSGLightsView = QSSGDataView<QSSGRenderLight *>;
+using QSSGReflectionProbesView = QSSGDataView<QSSGRenderReflectionProbe *>;
+using QSSGNonCategorizedView = QSSGDataView<QSSGRenderNode *>;
 
 QT_END_NAMESPACE
 

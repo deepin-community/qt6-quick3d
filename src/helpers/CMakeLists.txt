@@ -24,7 +24,18 @@ qt_internal_add_qml_module(Quick3DHelpers
         infinitegrid_p.h infinitegrid.cpp
         proceduralskytexturedata.cpp proceduralskytexturedata_p.h
         qquick3dtexturedatafrontend_p.h qquick3dtexturedatafrontend.cpp
+        qquick3drenderoutputprovider_p.h qquick3drenderoutputprovider.cpp
+        qquick3dsimplequadrenderpass_p.h qquick3dsimplequadrenderpass.cpp
+        qquick3dquadtextureprovider_p.h qquick3dquadtextureprovider.cpp
         proceduralmesh_p.h proceduralmesh.cpp
+        extrudedtextgeometry_p.h extrudedtextgeometry.cpp
+        torusgeometry_p.h torusgeometry.cpp
+        conegeometry_p.h conegeometry.cpp
+        cylindergeometry_p.h cylindergeometry.cpp
+        spheregeometry_p.h spheregeometry.cpp
+        planegeometry_p.h planegeometry.cpp
+        cuboidgeometry_p.h cuboidgeometry.cpp
+        capsulegeometry_p.h capsulegeometry.cpp
         qtquick3dhelpersglobal_p.h
     QML_FILES
         AxisHelper.qml
@@ -39,11 +50,19 @@ qt_internal_add_qml_module(Quick3DHelpers
         QT_BUILD_QUICK3DHELPERS_LIB
     LIBRARIES
         Qt::Quick3D
+        Qt::Quick3DPrivate
+        Qt::GuiPrivate
     PUBLIC_LIBRARIES
         Qt::Qml
         Qt::Quick
+    PRIVATE_MODULE_INTERFACE
         Qt::Quick3DPrivate
         Qt::GuiPrivate
+)
+
+qt_internal_extend_target(Quick3DHelpers CONDITION QT_FEATURE_concurrent
+    LIBRARIES
+        Qt::Concurrent
 )
 
 if(QT_FEATURE_quick_designer AND QT_BUILD_SHARED_LIBS) # special case handle unconverted static

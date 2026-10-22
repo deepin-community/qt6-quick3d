@@ -377,6 +377,10 @@ Pane {
                                 text: "Bake lightmap"
                                 onClicked: root.source.bakeLightmap()
                             }
+                            Button {
+                                text: "Denoise lightmap"
+                                onClicked: root.source.denoiseLightmap()
+                            }
                         }
                         RowLayout {
                             Label {
@@ -482,6 +486,11 @@ Pane {
                             onCheckedChanged: root.source.environment.debugSettings.drawDirectionalLightShadowBoxes = checked
                         }
                         CheckBox {
+                            text: "Draw point light shadow bounding boxes"
+                            checked: root.source.environment.debugSettings.drawPointLightShadowBoxes
+                            onCheckedChanged: root.source.environment.debugSettings.drawPointLightShadowBoxes = checked
+                        }
+                        CheckBox {
                             text: "Draw shadow casting bounding box"
                             checked: root.source.environment.debugSettings.drawShadowCastingBounds
                             onCheckedChanged: root.source.environment.debugSettings.drawShadowCastingBounds = checked
@@ -505,6 +514,11 @@ Pane {
                             text: "Disable Shadow Camera Update"
                             checked: root.source.environment.debugSettings.disableShadowCameraUpdate
                             onCheckedChanged: root.source.environment.debugSettings.disableShadowCameraUpdate = checked
+                        }
+                        CheckBox {
+                            text: "Draw Culled Objects"
+                            checked: root.source.environment.debugSettings.drawCulledObjects
+                            onCheckedChanged: root.source.environment.debugSettings.drawCulledObjects = checked
                         }
                     }
                 }

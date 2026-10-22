@@ -1,5 +1,13 @@
+#!/usr/bin/dh-exec
+[alpha amd64 arm64 armel armhf i386 m68k mips64el ppc64 ppc64el riscv64 s390x sparc64] usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/xr_anchors/bin/xr_anchors
+[alpha amd64 arm64 armel armhf i386 m68k mips64el ppc64 ppc64el riscv64 s390x sparc64] usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/xr_freeformteleportation/bin/xr_freeformteleportation
+[alpha amd64 arm64 armel armhf i386 m68k mips64el ppc64 ppc64el riscv64 s390x sparc64] usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/xr_input/bin/xr_input
+[alpha amd64 arm64 armel armhf i386 m68k mips64el ppc64 ppc64el riscv64 s390x sparc64] usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/xr_interaction/bin/xr_interaction
+[alpha amd64 arm64 armel armhf i386 m68k mips64el ppc64 ppc64el riscv64 s390x sparc64] usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/xr_simple/bin/xr_simple
+[alpha amd64 arm64 armel armhf i386 m68k mips64el ppc64 ppc64el riscv64 s390x sparc64] usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/xr_touch/bin/xr_touch
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/antialiasing/bin/antialiasing
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/bakedlightmap/bin/bakedlightmap
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/cascadedshadowmaps/bin/cascadedshadowmaps
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/customeffect/bin/customeffect
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/customgeometry/bin/customgeometry
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/custominstancing/bin/custominstancing
@@ -7,15 +15,17 @@ usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/custommaterial/bin/custommate
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/custommorphing/bin/custommorphing
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/customshaders/bin/customshaders
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/dynamiccreation/bin/dynamiccreation
-usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/extensions/stenciloutline/bin/stenciloutline
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/extensions/stenciloutline3d/bin/stenciloutline3d
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/hellocube/bin/hellocube
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/helloqtquick3d/bin/helloqtquick3d
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/instancing/bin/instancing
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/intro/bin/intro
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/layers/bin/layers
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/lights/bin/lights
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/lodhelper/bin/lodhelper
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/morphing/bin/morphing
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/offlineshaders/bin/offlineshaders
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/orderindependenttransparency/bin/oit3d
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/particles3d/bin/particles3d
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/picking/bin/picking
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/principledmaterial/bin/principledmaterial
@@ -29,6 +39,6 @@ usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/screenspacereflections/bin/sc
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/simplefog/bin/simplefog
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/skinning/bin/skinning
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/submeshes/bin/submeshes
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/userpasses/bin/userpasses
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/view3d/bin/view3d
-usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/virtualassistant/bin/QtVirtualAssistant
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3d/volumeraycaster/bin/volumeraycaster

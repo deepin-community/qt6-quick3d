@@ -9,7 +9,20 @@ set_property(CACHE INPUT_openxr PROPERTY STRINGS undefined no qt system)
 
 #### Libraries
 
-qt_find_package(WrapSystemOpenXR 1.0.29 PROVIDED_TARGETS WrapSystemOpenXR::WrapSystemOpenXR MODULE_NAME quick3dxr QMAKE_LIB quick3dxr_openxr)
+if(MACOS)
+    set(openxr_version 1.1.40)
+else()
+    set(openxr_version 1.0.29)
+endif()
+
+qt_find_package(WrapSystemOpenXR ${openxr_version}
+    PROVIDED_TARGETS WrapSystemOpenXR::WrapSystemOpenXR
+    MODULE_NAME quick3dxr
+    QMAKE_LIB quick3dxr_openxr
+    VCPKG_PORT openxr-loader
+    VCPKG_PLATFORM "windows | linux | osx | android"
+    VCPKG_ADD_TO_FEATURE quick3dxr-openxr
+)
 
 #### Tests
 

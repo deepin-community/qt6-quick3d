@@ -35,10 +35,10 @@ qt_add_qml_module(${PROJECT_NAME}
     QML_FILES
         main.qml
         Building.qml
-        ValueFader.qml
-        BeamModel.qml
-        TargetIndicator.qml
         FreeformTeleporter.qml
+        TeleportBeam.qml
+        TeleportTargetIndicator.qml
+        ValueFader.qml
     RESOURCES
         maps/Tape001_1K_NormalGL.jpg
         maps/Tape001_1K_Color.jpg
@@ -48,13 +48,20 @@ qt_add_qml_module(${PROJECT_NAME}
         maps/Tiles107_1K_Roughness.jpg
         maps/Tiles108_1K_Color.jpg
         meshes/building.mesh
-        shaders/target_indicator.vert
         shaders/target_indicator.frag
+        shaders/target_indicator.vert
     NO_RESOURCE_TARGET_PATH
 )
 
 if(ANDROID)
     set_property(TARGET ${PROJECT_NAME} APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/android)
+endif()
+
+if (APPLE AND CMAKE_SYSTEM_NAME STREQUAL "visionOS")
+    set_target_properties(xr_freeformteleportation PROPERTIES
+        MACOSX_BUNDLE_GUI_IDENTIFIER io.qt.xr_freeformteleportation
+        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/visionos/MacOSXBundleInfo.plist.in
+    )
 endif()
 
 qt_finalize_executable(${PROJECT_NAME})

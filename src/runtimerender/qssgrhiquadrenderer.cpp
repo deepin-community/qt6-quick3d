@@ -1,6 +1,8 @@
 // Copyright (C) 2008-2012 NVIDIA Corporation.
 // Copyright (C) 2020 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include <QtQuick3DRuntimeRender/private/qssgrhiquadrenderer_p.h>
 #include <QtQuick3DUtils/private/qquick3dprofiler_p.h>
@@ -105,15 +107,15 @@ void QSSGRhiQuadRenderer::recordRenderQuad(QSSGRhiContext *rhiCtx,
     ps->cullMode = QRhiGraphicsPipeline::None;
     if (flags.testFlag(PremulBlend)) {
         ps->flags |= QSSGRhiGraphicsPipelineState::Flag::BlendEnabled;
-        ps->targetBlend.srcColor = QRhiGraphicsPipeline::One;
-        ps->targetBlend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
-        ps->targetBlend.srcAlpha = QRhiGraphicsPipeline::One;
-        ps->targetBlend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+        ps->targetBlend[0].srcColor = QRhiGraphicsPipeline::One;
+        ps->targetBlend[0].dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+        ps->targetBlend[0].srcAlpha = QRhiGraphicsPipeline::One;
+        ps->targetBlend[0].dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
     } else { // set to default, since we may not have had a renderable previously
-        ps->targetBlend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
-        ps->targetBlend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
-        ps->targetBlend.srcAlpha = QRhiGraphicsPipeline::One;
-        ps->targetBlend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+        ps->targetBlend[0].srcColor = QRhiGraphicsPipeline::SrcAlpha;
+        ps->targetBlend[0].dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+        ps->targetBlend[0].srcAlpha = QRhiGraphicsPipeline::One;
+        ps->targetBlend[0].dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
     }
 
     QSSGRhiContextPrivate *rhiCtxD = QSSGRhiContextPrivate::get(rhiCtx);
@@ -172,15 +174,15 @@ void QSSGRhiCubeRenderer::recordRenderCube(QSSGRhiContext *rhiCtx, QSSGRhiGraphi
     ps->cullMode = QRhiGraphicsPipeline::None;
     if (flags.testFlag(QSSGRhiQuadRenderer::PremulBlend)) {
         ps->flags |= QSSGRhiGraphicsPipelineState::Flag::BlendEnabled;
-        ps->targetBlend.srcColor = QRhiGraphicsPipeline::One;
-        ps->targetBlend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
-        ps->targetBlend.srcAlpha = QRhiGraphicsPipeline::One;
-        ps->targetBlend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+        ps->targetBlend[0].srcColor = QRhiGraphicsPipeline::One;
+        ps->targetBlend[0].dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+        ps->targetBlend[0].srcAlpha = QRhiGraphicsPipeline::One;
+        ps->targetBlend[0].dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
     } else { // set to default, since we may not have had a renderable previously
-        ps->targetBlend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
-        ps->targetBlend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
-        ps->targetBlend.srcAlpha = QRhiGraphicsPipeline::One;
-        ps->targetBlend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+        ps->targetBlend[0].srcColor = QRhiGraphicsPipeline::SrcAlpha;
+        ps->targetBlend[0].dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+        ps->targetBlend[0].srcAlpha = QRhiGraphicsPipeline::One;
+        ps->targetBlend[0].dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
     }
 
     QSSGRhiContextPrivate *rhiCtxD = QSSGRhiContextPrivate::get(rhiCtx);

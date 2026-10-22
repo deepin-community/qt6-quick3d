@@ -1,5 +1,7 @@
 // Copyright (C) 2022 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "graphobjects/qssgrendermodel_p.h"
 #include "qssgdebugdrawsystem_p.h"
@@ -7,6 +9,7 @@
 #include "qssgrendermesh_p.h"
 #include "resourcemanager/qssgrenderbuffermanager_p.h"
 #include "rendererimpl/qssgrenderableobjects_p.h"
+#include "rendererimpl/qssglayerrenderdata_p.h"
 
 QT_BEGIN_NAMESPACE
 
@@ -64,13 +67,13 @@ void QSSGDebugDrawSystem::prepareGeometry(QSSGRhiContext *rhiCtx, QRhiResourceUp
     QVector<VertexData> vertexData;
     QVector<quint32> indexData;
     QVector<VertexData> pointsData;
-    for (const auto &line : m_persistentLines)
+    for (const auto &line : std::as_const(m_persistentLines))
         generateLine(line, vertexData, indexData);
-    for (const auto &line : m_lines)
+    for (const auto &line : std::as_const(m_lines))
         generateLine(line, vertexData, indexData);
-    for (const auto &bounds : m_persistentBounds)
+    for (const auto &bounds : std::as_const(m_persistentBounds))
         generateBox(bounds, vertexData, indexData);
-    for (const auto &bounds : m_bounds)
+    for (const auto &bounds : std::as_const(m_bounds))
         generateBox(bounds, vertexData, indexData);
     pointsData = m_persistentPoints + m_points;
 
@@ -283,7 +286,8 @@ void QSSGDebugDrawSystem::debugNormals(QSSGBufferManager &bufferManager, const Q
     quint32 positionOffset = UINT_MAX;
     quint32 normalOffset = UINT_MAX;
 
-    for (const QSSGMesh::Mesh::VertexBufferEntry &vbe : mesh.vertexBuffer().entries) {
+    const auto vertexBuffer = mesh.vertexBuffer();
+    for (const QSSGMesh::Mesh::VertexBufferEntry &vbe : vertexBuffer.entries) {
         if (vbe.name == QSSGMesh::MeshInternal::getPositionAttrName()) {
             positionOffset = vbe.offset;
             if (vbe.componentType != QSSGMesh::Mesh::ComponentType::Float32 &&
@@ -297,7 +301,7 @@ void QSSGDebugDrawSystem::debugNormals(QSSGBufferManager &bufferManager, const Q
         }
     }
 
-    const auto globalTransform = model.globalTransform;
+    const auto &globalTransform = theModelContext.globalTransform;
     // Draw original vertex normals as blue lines
     {
         // Get Indexes

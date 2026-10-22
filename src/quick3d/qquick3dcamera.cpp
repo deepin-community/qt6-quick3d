@@ -1,5 +1,7 @@
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qquick3dcamera_p.h"
 
@@ -60,7 +62,9 @@ QT_BEGIN_NAMESPACE
     \li Orthographic camera
     \row
     \li \image perspectivecamera.png
+               {Perspective camera view of plate}
     \li \image orthographiccamera.png
+               {Orthographic camera view of plate}
     \endtable
 
     \sa {Qt Quick 3D - View3D Example}
@@ -263,7 +267,8 @@ QVector3D QQuick3DCamera::mapToViewport(const QVector3D &scenePos,
     // We can be called before a spatial node is created, if that is the case, create the node now.
     if (QSSGRenderCamera *cameraNode = static_cast<QSSGRenderCamera *>(updateSpatialNode(QQuick3DObjectPrivate::get(this)->spatialNode))) {
         QQuick3DObjectPrivate::get(this)->spatialNode = cameraNode;
-        cameraNode->calculateGlobalVariables(QRect(0, 0, width * cameraNode->dpr, height * cameraNode->dpr));
+        QSSGRenderCamera::Configuration camConfig { cameraNode->getDpr(), 1.0f /* ssaa multiplier */ };
+        QSSGRenderCamera::calculateProjectionInternal(*cameraNode, QRect(0, 0, width * camConfig.dpr, height * camConfig.dpr), camConfig);
     }
 
     return QQuick3DCamera::mapToViewport(scenePos);
@@ -279,7 +284,8 @@ QVector3D QQuick3DCamera::mapFromViewport(const QVector3D &viewportPos,
     // We can be called before a spatial node is created, if that is the case, create the node now.
     if (QSSGRenderCamera *cameraNode = static_cast<QSSGRenderCamera *>(updateSpatialNode(QQuick3DObjectPrivate::get(this)->spatialNode))) {
         QQuick3DObjectPrivate::get(this)->spatialNode = cameraNode;
-        cameraNode->calculateGlobalVariables(QRect(0, 0, width * cameraNode->dpr, height * cameraNode->dpr));
+        QSSGRenderCamera::Configuration camConfig { cameraNode->getDpr(), 1.0f /* ssaa multiplier */ };
+        QSSGRenderCamera::calculateProjectionInternal(*cameraNode, QRect(0, 0, width * camConfig.dpr, height * camConfig.dpr));
     }
 
     return QQuick3DCamera::mapFromViewport(viewportPos);
@@ -329,7 +335,7 @@ void QQuick3DCamera::updateGlobalVariables(const QRectF &inViewport)
 {
     QSSGRenderCamera *node = static_cast<QSSGRenderCamera *>(QQuick3DObjectPrivate::get(this)->spatialNode);
     if (node)
-        node->calculateGlobalVariables(inViewport);
+        QSSGRenderCamera::calculateProjectionInternal(*node, inViewport);
 }
 
 /*!
@@ -349,6 +355,8 @@ QSSGRenderGraphObject *QQuick3DCamera::updateSpatialNode(QSSGRenderGraphObject *
         camera->markDirty(QSSGRenderCamera::DirtyFlag::CameraDirty);
     if (qUpdateIfNeeded(camera->levelOfDetailPixelThreshold, m_levelOfDetailBias))
         camera->markDirty(QSSGRenderCamera::DirtyFlag::CameraDirty);
+    if (qUpdateIfNeeded(camera->layerMask, quint32(QQuick3DNodePrivate::get(this)->m_tag)))
+        camera->markDirty(QSSGRenderCamera::DirtyFlag::LayerMaskDirty);
 
     return node;
 }
@@ -360,7 +368,7 @@ void QQuick3DCamera::updateLookAt()
 }
 
 /*!
-    \qmlproperty float Camera::levelOfDetailBias
+    \qmlproperty real Camera::levelOfDetailBias
     \since 6.5
 
     This property changes the size a model needs to be when rendered before the

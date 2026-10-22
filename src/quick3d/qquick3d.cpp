@@ -1,5 +1,7 @@
 // Copyright (C) 2020 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #include "qquick3d.h"
 
@@ -10,7 +12,7 @@
 
 #include <QtCore/qloggingcategory.h>
 
-Q_LOGGING_CATEGORY(lcQuick3D, "qt.quick3d.general")
+Q_STATIC_LOGGING_CATEGORY(lcQuick3D, "qt.quick3d.general")
 
 /*!
     \class QQuick3D
@@ -62,6 +64,8 @@ Q_LOGGING_CATEGORY(lcQuick3D, "qt.quick3d.general")
         return app.exec();
     }
     \endcode
+
+    \sa {Qt Quick 3D Graphics Requirements} {OpenGL specifics}
 */
 
 QT_BEGIN_NAMESPACE

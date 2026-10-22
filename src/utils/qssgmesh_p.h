@@ -1,5 +1,7 @@
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:critical reason:data-parser
+
 
 #ifndef QSSGMESHUTILITIES_P_H
 #define QSSGMESHUTILITIES_P_H
@@ -165,7 +167,7 @@ public:
     quint32 save(QIODevice *device, quint32 id = 0) const;
 
     bool hasLightmapUVChannel() const;
-    bool createLightmapUVChannel(uint lightmapBaseResolution);
+    bool createLightmapUVChannel(float texelsPerUnit, const QMatrix4x4 &scale);
 
 private:
     DrawMode m_drawMode = DrawMode::Triangles;
@@ -369,8 +371,10 @@ struct Q_QUICK3DUTILS_EXPORT MeshInternal
 
         Mesh::Subset toMeshSubset() const {
             Mesh::Subset subset;
-            if (nameLength > 0)
-                subset.name = QString::fromUtf16(reinterpret_cast<const char16_t *>(rawNameUtf16.constData()), nameLength - 1);
+            // Only as many units as were actually read, less the terminator.
+            const qsizetype units = qMin(qsizetype(nameLength), rawNameUtf16.size() / 2);
+            if (units > 0)
+                subset.name = QString::fromUtf16(reinterpret_cast<const char16_t *>(rawNameUtf16.constData()), units - 1);
             subset.bounds.min = bounds.min;
             subset.bounds.max = bounds.max;
             subset.count = count;
@@ -428,6 +432,39 @@ void Q_QUICK3DUTILS_EXPORT optimizeVertexCache(unsigned int* destination,
                                                const unsigned int* indices,
                                                size_t indexCount,
                                                size_t vertexCount);
+
+// A vertex attribute stream for welding; mirrors meshopt_Stream
+struct MeshVertexStream
+{
+    const void *data;
+    size_t elementSize;
+    size_t stride;
+};
+
+// The largest number of attribute streams generateVertexRemap() accepts
+constexpr size_t maxVertexStreams = 16;
+
+// Builds a remap table that welds bitwise-identical vertices across all
+// given attribute streams, returning the unique vertex count. streamCount
+// must be between 1 and maxVertexStreams, and every stream's elementSize
+// must be no larger than its stride.
+size_t Q_QUICK3DUTILS_EXPORT generateVertexRemap(unsigned int *destination,
+                                                 const unsigned int *indices,
+                                                 size_t indexCount,
+                                                 size_t vertexCount,
+                                                 const MeshVertexStream *streams,
+                                                 size_t streamCount);
+
+void Q_QUICK3DUTILS_EXPORT remapVertexBuffer(void *destination,
+                                             const void *vertices,
+                                             size_t vertexCount,
+                                             size_t vertexSize,
+                                             const unsigned int *remap);
+
+void Q_QUICK3DUTILS_EXPORT remapIndexBuffer(unsigned int *destination,
+                                            const unsigned int *indices,
+                                            size_t indexCount,
+                                            const unsigned int *remap);
 
 } // namespace QSSGMesh
 

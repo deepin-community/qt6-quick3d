@@ -1,10 +1,14 @@
 // Copyright (C) 2024 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QQUICK3DXINPUTMANAGER_VISIONOS_P_H
 #define QQUICK3DXINPUTMANAGER_VISIONOS_P_H
 
 #include <QtQuick3DXr/private/qtquick3dxrglobal_p.h>
+
+#include <QtGui/qquaternion.h>
 
 #ifdef __OBJC__
 #import <ARKit/ARKit.h>
@@ -31,12 +35,13 @@ class QQuick3DXrHandInput;
 class QQuick3DXrInputManager;
 class QQuick3DXrHandModel;
 class QQuick3DXrController;
+class QQuick3DViewport;
 
 class QQuick3DXrInputManagerPrivate
 {
     Q_DECLARE_PUBLIC(QQuick3DXrInputManager)
 public:
-    using Hand = QtQuick3DXr::Hand;
+    using Handedness = QtQuick3DXr::Handedness;
     using HandPoseSpace = QtQuick3DXr::HandPoseSpace;
 
     explicit QQuick3DXrInputManagerPrivate(QQuick3DXrInputManager &manager);
@@ -54,12 +59,12 @@ public:
 
     static QQuick3DXrInputManagerPrivate *get(QQuick3DXrInputManager *inputManager);
 
-    void setPosePositionAndRotation(Hand hand, HandPoseSpace poseSpace, const QVector3D &position, const QQuaternion &rotation);
+    void setPosePositionAndRotation(Handedness handedness, HandPoseSpace poseSpace, const QVector3D &position, const QQuaternion &rotation);
 
     void registerController(QQuick3DXrController *controller);
     void unregisterController(QQuick3DXrController *controller);
 
-    bool isPoseInUse(Hand hand, HandPoseSpace poseSpace);
+    bool isPoseInUse(Handedness handedness, HandPoseSpace poseSpace);
 
     QQuick3DXrHandInput *leftHandInput() const;
     QQuick3DXrHandInput *rightHandInput() const;
@@ -69,6 +74,8 @@ public:
     qsizetype getPokeJointIndex() const;
 
     void updateHandtracking();
+
+    static void processSpatialEvents(const QQuick3DViewport &vrViewport, const QJsonObject &events);
 
 private:
     QQuick3DXrInputManager *q_ptr = nullptr;

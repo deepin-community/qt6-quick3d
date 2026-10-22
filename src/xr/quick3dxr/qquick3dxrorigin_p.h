@@ -1,5 +1,7 @@
 // Copyright (C) 2024 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QQUICK3DXRORIGIN_H
 #define QQUICK3DXRORIGIN_H
@@ -22,6 +24,8 @@
 #include <QtQuick3DXr/private/qquick3dxrcamera_p.h>
 #include <QtQml/QQmlEngine>
 #include <QtQml/qqml.h>
+
+#include <QtGui/qquaternion.h>
 
 QT_BEGIN_NAMESPACE
 

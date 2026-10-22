@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 
 import QtQuick
-import QtQuick.Layouts
-import QtQuick.Controls
 
 import QtQuick3D
 import QtQuick3D.Helpers
@@ -11,7 +9,7 @@ import QtQuick3D.Xr
 
 XrView {
     id: xrView
-    referenceSpace: XrView.ReferenceSpaceStage
+    referenceSpace: XrView.ReferenceSpaceLocalFloor
 
     depthSubmissionEnabled: true
 
@@ -33,48 +31,23 @@ XrView {
         eulerRotation.y: -70
     }
 
-    //! [hand component]
-    component Hand : Node {
-        id: handComponentRoot
-        property color color: "#ddaa88"
-        required property int touchId
-        property alias hand: handModel.hand
-
-        property vector3d touchPosition: handController.pokePosition
-        onTouchPositionChanged: {
-            const scenePos = theOrigin.mapPositionToScene(touchPosition)
-            const touchOffset = xrView.processTouch(scenePos, handComponentRoot.touchId)
-            handModel.position = touchOffset
-            buttons.handleTouch(scenePos)
-        }
-
-        XrController {
-            id: handController
-            controller: handComponentRoot.hand
-        }
-        XrHandModel {
-            id: handModel
-            materials: PrincipledMaterial {
-                baseColor: handComponentRoot.color
-                roughness: 0.5
-            }
-        }
-    }
-    //! [hand component]
-
     //! [origin]
     XrOrigin {
         id: theOrigin
         z: 50
-        Hand {
+        TouchHand {
             id: rightHandModel
             hand: XrHandModel.RightHand
+            view: xrView
             touchId: 0
+            onTouchPositionChanged: buttons.handleTouch(touchPosition)
         }
-        Hand {
+        TouchHand {
             id: leftHandModel
             hand: XrHandModel.LeftHand
+            view: xrView
             touchId: 1
+            onTouchPositionChanged: buttons.handleTouch(touchPosition)
         }
     }
     xrOrigin: theOrigin

@@ -1,6 +1,7 @@
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/MaterialEditor/AboutDialog.qml
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/MaterialEditor/EditorView.qml
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/MaterialEditor/FrostedGlass.qml
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/MaterialEditor/InstancingPropertiesPane.qml
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/MaterialEditor/MaterialPropertiesPane.qml
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/MaterialEditor/Preview.qml
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/qml/QtQuick3D/MaterialEditor/PreviewControls.qml

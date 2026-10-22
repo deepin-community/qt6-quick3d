@@ -1,5 +1,7 @@
 // Copyright (C) 2022 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QQUICK3DSPECULARGLOSSYMATERIAL_P_H
 #define QQUICK3DSPECULARGLOSSYMATERIAL_P_H
@@ -154,6 +156,7 @@ public:
     };
     Q_ENUM(VertexColorMask)
     Q_DECLARE_FLAGS(VertexColorMaskFlags, VertexColorMask)
+    Q_FLAG(VertexColorMaskFlags)
 
     explicit QQuick3DSpecularGlossyMaterial(QQuick3DObject *parent = nullptr);
     ~QQuick3DSpecularGlossyMaterial() override;

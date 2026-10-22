@@ -1,5 +1,7 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QSSG_RUNTIME_UTILITIES_H
 #define QSSG_RUNTIME_UTILITIES_H
@@ -17,6 +19,8 @@
 
 #include <QtQuick3DAssetUtils/private/qtquick3dassetutilsglobal_p.h>
 
+#include <QtCore/qstring.h>
+
 QT_BEGIN_NAMESPACE
 
 class QQuick3DNode;
@@ -32,8 +36,9 @@ struct Property;
 
 namespace QSSGRuntimeUtils
 {
-Q_QUICK3DASSETUTILS_EXPORT QQuick3DNode *createScene(QQuick3DNode &parent, const QSSGSceneDesc::Scene &scene);
-Q_QUICK3DASSETUTILS_EXPORT void createGraphObject(QSSGSceneDesc::Node &node, QQuick3DObject &parent, bool traverseChildrenAndSetProperties = true);
+
+Q_QUICK3DASSETUTILS_EXPORT QQuick3DNode *createScene(QQuick3DNode &parent, const QSSGSceneDesc::Scene &scene, QSSGRuntimeObjectNameMap *objectMap = nullptr, QSSGRuntimeObjectTypeMap *typeMap = nullptr);
+Q_QUICK3DASSETUTILS_EXPORT void createGraphObject(QSSGSceneDesc::Node &node, QQuick3DObject &parent, QString path, QSSGRuntimeObjectNameMap *objectMap = nullptr, QSSGRuntimeObjectTypeMap *typeMap = nullptr, bool traverseChildrenAndSetProperties = true);
 Q_QUICK3DASSETUTILS_EXPORT void applyPropertyValue(const QSSGSceneDesc::Node *node, QObject *obj, QSSGSceneDesc::Property *property);
 }
 

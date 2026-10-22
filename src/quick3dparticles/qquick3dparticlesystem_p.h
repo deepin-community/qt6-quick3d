@@ -1,5 +1,7 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QQUICK3DPPARTICLESYSTEM_H
 #define QQUICK3DPPARTICLESYSTEM_H
@@ -123,8 +125,6 @@ protected:
     void componentComplete() override;
 
 private:
-    void registerParticleModel(QQuick3DParticleModelParticle* m);
-    void registerParticleSprite(QQuick3DParticleSpriteParticle* m);
     void updateLoggingData();
     void resetLoggingVariables();
     void doSeedRandomization();

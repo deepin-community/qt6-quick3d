@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 import QtQuick
 import QtQuick3D
-import QtQuick3D.Helpers
 import QtQuick.Controls
 import QtQuick.Dialogs
-import Qt.labs.folderlistmodel
 import QtQuick.Controls.Universal
 
 import VolumetricExample
@@ -22,7 +20,7 @@ ApplicationWindow {
     FileDialog {
         id: fileDialog
         onAccepted: {
-            loadFile(selectedFile)
+            window.loadFile(selectedFile)
         }
     }
 
@@ -191,7 +189,7 @@ ApplicationWindow {
                     texture: Texture {
                         id: colormapTexture
                         tilingModeHorizontal: Texture.ClampToEdge
-                        source: getColormapSource(colormapCombo.currentIndex)
+                        source: window.getColormapSource(colormapCombo.currentIndex)
                     }
                 }
                 property real stepLength: Math.max(0.0001, parseFloat(
@@ -203,14 +201,14 @@ ApplicationWindow {
 
                 property real tMin: tSlider.first.value
                 property real tMax: tSlider.second.value
-                property vector3d sliceMin: sliceSliderMin(
+                property vector3d sliceMin: window.sliceSliderMin(
                                                 xSliceSlider.value,
                                                 xSliceWidthSlider.value,
                                                 ySliceSlider.value,
                                                 ySliceWidthSlider.value,
                                                 zSliceSlider.value,
                                                 zSliceWidthSlider.value)
-                property vector3d sliceMax: sliceSliderMax(
+                property vector3d sliceMax: window.sliceSliderMax(
                                                 xSliceSlider.value,
                                                 xSliceWidthSlider.value,
                                                 ySliceSlider.value,
@@ -235,9 +233,9 @@ ApplicationWindow {
             Model {
                 visible: drawBoundingBox.checked
                 geometry: LineBoxGeometry {}
-                materials: DefaultMaterial {
-                    diffuseColor: "#323232"
-                    lighting: DefaultMaterial.NoLighting
+                materials: PrincipledMaterial {
+                    baseColor: "#323232"
+                    lighting: PrincipledMaterial.NoLighting
                 }
                 receivesShadows: false
                 castsShadows: false
@@ -246,13 +244,13 @@ ApplicationWindow {
             Model {
                 visible: drawBoundingBox.checked
                 geometry: LineBoxGeometry {}
-                materials: DefaultMaterial {
-                    diffuseColor: "#323232"
-                    lighting: DefaultMaterial.NoLighting
+                materials: PrincipledMaterial {
+                    baseColor: "#323232"
+                    lighting: PrincipledMaterial.NoLighting
                 }
                 receivesShadows: false
                 castsShadows: false
-                position: sliceBoxPosition(xSliceSlider.value,
+                position: window.sliceBoxPosition(xSliceSlider.value,
                                            ySliceSlider.value,
                                            zSliceSlider.value,
                                            xSliceWidthSlider.value,
@@ -269,6 +267,7 @@ ApplicationWindow {
         //! [arcball]
         ArcballController {
             id: arcballController
+            camera: cameraNode
             controlledObject: cubeModel
 
             function jumpToAxis(axis) {
@@ -282,7 +281,7 @@ ApplicationWindow {
             function jumpToRotation(qRotation) {
                 cameraRotation.from = arcballController.controlledObject.rotation
                 cameraRotation.to = qRotation
-                cameraRotation.duration = 100
+                cameraRotation.duration = 200
                 cameraRotation.start()
             }
 
@@ -296,41 +295,6 @@ ApplicationWindow {
             }
         }
 
-        DragHandler {
-            id: dragHandler
-            target: null
-            acceptedModifiers: Qt.NoModifier
-            onCentroidChanged: {
-                arcballController.mouseMoved(toNDC(centroid.position.x,
-                                                   centroid.position.y))
-            }
-
-            onActiveChanged: {
-                if (active) {
-                    view.forceActiveFocus()
-                    arcballController.mousePressed(toNDC(centroid.position.x,
-                                                         centroid.position.y))
-                } else
-                    arcballController.mouseReleased(toNDC(centroid.position.x,
-                                                          centroid.position.y))
-            }
-
-            function toNDC(x, y) {
-                return Qt.vector2d((2.0 * x / width) - 1.0,
-                                   1.0 - (2.0 * y / height))
-            }
-        }
-
-        WheelHandler {
-            id: wheelHandler
-            orientation: Qt.Vertical
-            target: null
-            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-            onWheel: event => {
-                         let delta = -event.angleDelta.y * 0.01
-                         cameraNode.z += cameraNode.z * 0.1 * delta
-                     }
-        }
         //! [arcball]
 
         FrameAnimation {
@@ -347,16 +311,34 @@ ApplicationWindow {
                                 let rotation = originGizmo.quaternionAlign(
                                     arcballController.controlledObject.rotation)
                                 arcballController.jumpToRotation(rotation)
-                            } else if (event.key === Qt.Key_S) {
+                            } else if (event.key === Qt.Key_O) {
                                 settingsPane.toggleHide()
                             } else if (event.key === Qt.Key_Left
                                        || event.key === Qt.Key_A) {
-                                let rotation = originGizmo.quaternionRotateLeft(
+                                let rotation = originGizmo.rotateYawLeft(
                                     arcballController.controlledObject.rotation)
                                 arcballController.jumpToRotation(rotation)
                             } else if (event.key === Qt.Key_Right
                                        || event.key === Qt.Key_D) {
-                                let rotation = originGizmo.quaternionRotateRight(
+                                let rotation = originGizmo.rotateYawRight(
+                                    arcballController.controlledObject.rotation)
+                                arcballController.jumpToRotation(rotation)
+                            } else if (event.key === Qt.Key_Up
+                                       || event.key === Qt.Key_W) {
+                                let rotation = originGizmo.rotatePitchUp(
+                                    arcballController.controlledObject.rotation)
+                                arcballController.jumpToRotation(rotation)
+                            } else if (event.key === Qt.Key_Down
+                                       || event.key === Qt.Key_S) {
+                                let rotation = originGizmo.rotatePitchDown(
+                                    arcballController.controlledObject.rotation)
+                                arcballController.jumpToRotation(rotation)
+                            } else if (event.key === Qt.Key_Q) {
+                                let rotation = originGizmo.rotateRollLeft(
+                                    arcballController.controlledObject.rotation)
+                                arcballController.jumpToRotation(rotation)
+                            } else if (event.key === Qt.Key_E) {
+                                let rotation = originGizmo.rotateRollRight(
                                     arcballController.controlledObject.rotation)
                                 arcballController.jumpToRotation(rotation)
                             }
@@ -381,7 +363,7 @@ ApplicationWindow {
 
     RoundButton {
         id: iconOpen
-        text: "\u2630" // Unicode Character 'TRIGRAM FOR HEAVEN', no qsTr()
+        icon.source: "images/Menu_Icon.svg"
         x: settingsPane.x + settingsPane.width + 10
         y: 10
         onClicked: settingsPane.toggleHide()
@@ -416,8 +398,8 @@ ApplicationWindow {
         NumberAnimation on x {
             id: settingsPaneAnimation
             running: false
-            from: width
-            to: width
+            from: view.width
+            to: view.width
             duration: 100
         }
 
@@ -444,7 +426,7 @@ ApplicationWindow {
             Image {
                 width: tSlider.width
                 height: 20
-                source: getColormapSource(colormapCombo.currentIndex)
+                source: window.getColormapSource(colormapCombo.currentIndex)
             }
 
             Label {

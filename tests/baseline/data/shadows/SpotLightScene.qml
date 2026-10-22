@@ -2,9 +2,9 @@ import QtQuick
 import QtQuick3D
 
 Item {
-    width: 640
-    height: 480
-    anchors.fill: parent
+    width: 400
+    height: 400
+    visible: true
 
     View3D {
         id: v3d
@@ -15,7 +15,7 @@ Item {
             backgroundMode: SceneEnvironment.Color
         }
 
-        PerspectiveCamera {
+        camera: PerspectiveCamera {
             id: camera
             position: Qt.vector3d(-600, 500, 1500)
             eulerRotation: Qt.vector3d(-20, 0, 0)

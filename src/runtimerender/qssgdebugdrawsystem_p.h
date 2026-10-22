@@ -1,5 +1,7 @@
 // Copyright (C) 2022 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QSSGDEBUGDRAWSYSTEM_H
 #define QSSGDEBUGDRAWSYSTEM_H
@@ -25,7 +27,7 @@ QT_BEGIN_NAMESPACE
 
 struct QSSGRenderSubset;
 class QSSGBufferManager;
-struct QSSGModelContext;
+class QSSGModelContext;
 
 class Q_QUICK3DRUNTIMERENDER_EXPORT QSSGDebugDrawSystem
 {

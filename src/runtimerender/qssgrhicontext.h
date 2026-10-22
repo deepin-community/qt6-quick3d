@@ -1,5 +1,7 @@
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QSSGRHICONTEXT_H
 #define QSSGRHICONTEXT_H
@@ -38,7 +40,7 @@ public:
 
     QRhiGraphicsPipeline::CompareOp depthFunc = QRhiGraphicsPipeline::LessOrEqual;
     QRhiGraphicsPipeline::CullMode cullMode = QRhiGraphicsPipeline::None;
-    QRhiGraphicsPipeline::TargetBlend targetBlend;
+    std::array<QRhiGraphicsPipeline::TargetBlend, 8> targetBlend;
     QRhiGraphicsPipeline::PolygonMode polygonMode = QRhiGraphicsPipeline::Fill;
     QRhiGraphicsPipeline::StencilOpState stencilOpFrontState {};
     quint32 stencilWriteMask = 0xFF;
@@ -52,6 +54,7 @@ public:
     Flags flags;
     QRhiViewport viewport;
     QRhiScissor scissor;
+    bool userSetCullMode = false; // set by PipelineStateOverride; not part of the pipeline cache key
 
 private:
     friend struct QSSGRhiGraphicsPipelineStatePrivate;

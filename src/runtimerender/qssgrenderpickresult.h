@@ -1,5 +1,7 @@
 // Copyright (C) 2023 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QSSGRENDERPICKRESULT_H
 #define QSSGRENDERPICKRESULT_H
@@ -34,6 +36,8 @@ public:
     QVector3D m_localPosition;
     // The normal of the hit face
     QVector3D m_faceNormal;
+    // The normal of the hit face in world coordinates
+    QVector3D m_sceneNormal;
     // The subset index
     int m_subset = 0;
     int m_instanceIndex = -1;

@@ -1,6 +1,8 @@
 // Copyright (C) 2008-2012 NVIDIA Corporation.
 // Copyright (C) 2019 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
+
 
 #ifndef QSSG_RENDERER_P_H
 #define QSSG_RENDERER_P_H
@@ -20,6 +22,10 @@
 #include <private/qssgrhicontext_p.h>
 #include <private/qssgrhiquadrenderer_p.h>
 
+#include <QtCore/qpointer.h>
+
+#include <vector>
+
 QT_BEGIN_NAMESPACE
 
 class QSSGShaderCache;
@@ -31,9 +37,13 @@ class QSSGRenderContextInterface;
 struct QSSGRenderNode;
 struct QSSGRenderItem2D;
 struct QSSGRenderRay;
-struct QSSGSubsetRenderable;
+class QSSGSubsetRenderable;
 struct QSSGShaderDefaultMaterialKeyProperties;
 struct QSSGShaderFeatures;
+class QSSGRenderItem2DData;
+class QSGRenderContext;
+class QSSGFrustum;
+class QSSGUserShaderAugmentation;
 
 class Q_QUICK3DRUNTIMERENDER_EXPORT QSSGRenderer
 {
@@ -69,10 +79,21 @@ public:
     void setScissorRect(QRect inScissorRect) { m_scissorRect = inScissorRect; }
     QRect scissorRect() const { return m_scissorRect; }
 
+    quint32 frameDepth() const { return m_activeFrameRef; }
+
     const std::unique_ptr<QSSGRhiQuadRenderer> &rhiQuadRenderer() const;
     const std::unique_ptr<QSSGRhiCubeRenderer> &rhiCubeRenderer() const;
 
     QSSGRenderContextInterface *contextInterface() const { return m_contextInterface; }
+
+    // Before we start rendering a sublayer(s), e.g., Item2D with View3Ds,
+    // we need to inform the renderer about it, so we can restore the state as we
+    // return from the sublayer(s) rendering. The state will be saved in the data set
+    // for the layer.
+    void beginSubLayerRender(QSSGLayerRenderData &inLayer);
+    void endSubLayerRender(QSSGLayerRenderData &inLayer);
+
+    void releaseItem2DData(const QSSGRenderItem2D &item2D);
 
 protected:
     void cleanupResources(QList<QSSGRenderGraphObject*> &resources);
@@ -85,6 +106,7 @@ private:
     friend class QQuick3DSceneRenderer;
     friend class QQuick3DWindowAttachment;
     friend class QSSGCleanupObject;
+    friend class QSSGParticleRenderer;
 
     QSSGLayerRenderData *getOrCreateLayerRenderData(QSSGRenderLayer &layer);
     void beginLayerRender(QSSGLayerRenderData &inLayer);
@@ -94,15 +116,23 @@ private:
     void resetResourceCounters(QSSGRenderLayer *inLayer);
     void releaseCachedResources();
 
+    void registerItem2DData(QSSGRenderItem2DData &data);
+    void unregisterItem2DData(QSSGRenderItem2DData &data);
+
     QSSGRenderContextInterface *m_contextInterface = nullptr; //  We're own by the context interface
 
     bool m_globalPickingEnabled = false;
 
     // Temporary information stored only when rendering a particular layer.
     QSSGLayerRenderData *m_currentLayer = nullptr;
-    QByteArray m_generatedShaderString;
 
     QSet<QSSGRenderGraphObject *> m_materialClearDirty;
+
+    QPointer<QSGRenderContext> m_qsgRenderContext;
+
+    // Item2D data (per layer).
+    // Note that the data is own by the layer.
+    std::vector<QSSGRenderItem2DData *> m_item2DDatas;
 
     mutable std::unique_ptr<QSSGRhiQuadRenderer> m_rhiQuadRenderer;
     mutable std::unique_ptr<QSSGRhiCubeRenderer> m_rhiCubeRenderer;
@@ -128,27 +158,36 @@ public:
                                                                   QSSGProgramGenerator &shaderProgramGenerator,
                                                                   const QSSGShaderDefaultMaterialKeyProperties &shaderKeyProperties,
                                                                   const QSSGShaderFeatures &featureSet,
+                                                                  const QSSGUserShaderAugmentation &shaderAugmentation,
                                                                   QByteArray &shaderString);
     static QSSGRhiShaderPipelinePtr generateRhiShaderPipeline(QSSGRenderer &renderer,
                                                               QSSGSubsetRenderable &inRenderable,
-                                                              const QSSGShaderFeatures &inFeatureSet);
+                                                              const QSSGShaderFeatures &inFeatureSet,
+                                                              const QSSGUserShaderAugmentation &shaderAugmentation);
 
     static QSSGRhiShaderPipelinePtr getShaderPipelineForDefaultMaterial(QSSGRenderer &renderer,
                                                                         QSSGSubsetRenderable &inRenderable,
-                                                                        const QSSGShaderFeatures &inFeatureSet);
+                                                                        const QSSGShaderFeatures &inFeatureSet,
+                                                                        const QSSGUserShaderAugmentation &shaderAugmentation);
 
     static void getLayerHitObjectList(const QSSGRenderLayer &layer,
                                       QSSGBufferManager &bufferManager,
                                       const QSSGRenderRay &ray,
                                       bool inPickEverything,
                                       PickResultList &outIntersectionResult);
-    static void intersectRayWithSubsetRenderable(QSSGBufferManager &bufferManager,
+    static void intersectRayWithSubsetRenderable(const QSSGRenderLayer &layer, QSSGBufferManager &bufferManager,
                                                  const QSSGRenderRay &inRay,
                                                  const QSSGRenderNode &node,
                                                  PickResultList &outIntersectionResultList);
-    static void intersectRayWithItem2D(const QSSGRenderRay &inRay,
+    static void intersectRayWithItem2D(const QSSGRenderLayer &layer, const QSSGRenderRay &inRay,
                                        const QSSGRenderItem2D &item2D,
                                        PickResultList &outIntersectionResultList);
+
+    static std::optional<QSSGRenderPickResult> closestPointOnSubsetRenderable(const QSSGRenderLayer &layer,
+                                                                              QSSGBufferManager &bufferManager,
+                                                                              const QVector3D &center,
+                                                                              float radiusSquared,
+                                                                              const QSSGRenderNode &node);
 
     static PickResultList syncPickAll(const QSSGRenderContextInterface &ctx,
                                       const QSSGRenderLayer &layer,
@@ -164,12 +203,29 @@ public:
                                          const QSSGRenderRay &ray,
                                          QVarLengthArray<QSSGRenderNode *> subset);
 
+    static std::optional<QSSGRenderPickResult> syncPickClosestPoint(const QSSGRenderContextInterface &ctx,
+                                                                    const QSSGRenderLayer &layer,
+                                                                    const QVector3D &center,
+                                                                    const float radiusSquared,
+                                                                    QSSGRenderNode *target = nullptr);
+
+    static QList<const QSSGRenderNode *> syncPickInFrustum(const QSSGRenderContextInterface &ctx,
+                                                           const QSSGRenderLayer &layer,
+                                                           const QSSGFrustum &frustum);
+
     // Setting this true enables picking for all the models, regardless of
     // the models pickable property.
     static bool isGlobalPickingEnabled(const QSSGRenderer &renderer) { return renderer.m_globalPickingEnabled; }
     static void setGlobalPickingEnabled(QSSGRenderer &renderer, bool isEnabled);
 
     static void setRenderContextInterface(QSSGRenderer &renderer, QSSGRenderContextInterface *ctx);
+    static void setSgRenderContext(QSSGRenderer &renderer, QSGRenderContext *sgRenderCtx);
+
+    static QSSGLayerRenderData *getCurrentRenderData(const QSSGRenderer &renderer) { return renderer.m_currentLayer; }
+
+    static QSGRenderContext *getSgRenderContext(const QSSGRenderer &renderer);
+
+    static constexpr float minimumRenderOpacity = .01f;
 };
 
 QT_END_NAMESPACE
