@@ -874,7 +874,6 @@ libQt6Quick3DRuntimeRender.so.6 libqt6quick3druntimerender6 #MINVER#
  _ZN34QSSGRenderTextureProviderExtensionD0Ev@Qt_6_PRIVATE_API 6.12.0
  _ZN34QSSGRenderTextureProviderExtensionD1Ev@Qt_6_PRIVATE_API 6.12.0
  _ZN34QSSGRenderTextureProviderExtensionD2Ev@Qt_6_PRIVATE_API 6.12.0
- _ZN9__gnu_cxx6__stoaIffcJEEET0_PFT_PKT1_PPS3_DpT2_EPKcS5_PmS9_@Qt_6 6.12.0
  _ZNK11QSSGCommand11debugStringEv@Qt_6_PRIVATE_API 6.12.0
  _ZNK11QSSGCommand12typeAsStringEv@Qt_6_PRIVATE_API 6.12.0
  _ZNK11QSSGCommand8addDebugER6QDebug@Qt_6_PRIVATE_API 6.12.0
@@ -1126,5 +1125,4 @@ libQt6Quick3DRuntimeRender.so.6 libqt6quick3druntimerender6 #MINVER#
  _ZTVSt23_Sp_counted_ptr_inplaceI25QSSGUserRenderPassManagerSaIvELN9__gnu_cxx12_Lock_policyE2EE@Qt_6_PRIVATE_API 6.12.0
  _ZZNSt19_Sp_make_shared_tag5_S_tiEvE5__tag@Qt_6 6.12.0
  _ZZNSt8__detail18__to_chars_10_implImEEvPcjT_E8__digits@Qt_6 6.12.0
- _ZZNSt8__detail18__to_chars_10_implIyEEvPcjT_E8__digits@Qt_6 6.12.0
  _Zls6QDebugN21QSSGRenderGraphObject4TypeE@Qt_6_PRIVATE_API 6.12.0
